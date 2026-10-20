@@ -4,7 +4,7 @@ import { gridSlotX, gridSlotY } from '../src/core/swarm';
 import type { StationaryLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
 import { analyzeStationary, runBot } from '../src/modes/stationary/bot';
-import { MAX_BULLETS, MAX_SHOOTERS, StationarySim } from '../src/modes/stationary/sim';
+import { MAX_BULLETS, MAX_SHOOTERS, MONSTERS, StationarySim } from '../src/modes/stationary/sim';
 import {
   applyUpgrade,
   effectiveWeapon,
@@ -18,8 +18,8 @@ const base: StationaryLevel = {
   mode: 'stationary',
   startCount: 10,
   weapon: 'rifle',
-  lanes: [],
-  monsters: [{ kind: 'grunt', count: 3, hp: 4, interval: 1, x: 0 }],
+  lane: { elements: [{ type: 'block', hp: 1000000 }] },
+  monsters: [{ kind: 'grunt', count: 3, hp: 4, interval: 1 }],
 };
 
 function run(sim: StationarySim, seconds: number, steer?: (s: StationarySim) => void): void {
@@ -29,7 +29,7 @@ function run(sim: StationarySim, seconds: number, steer?: (s: StationarySim) => 
   }
 }
 
-/** Steers the squad under the lowest monster, or under the front of the lane. */
+/** Steers the squad under the lowest monster, or into the upgrade lane for its front element. */
 function chase(s: StationarySim): void {
   let best = -1;
   let y = Infinity;
@@ -39,21 +39,18 @@ function chase(s: StationarySim): void {
       best = i;
     }
   }
-  const lane = s.lanes.find((l) => l.elements.length > 0);
-  const front = lane?.elements[0];
-  s.targetX =
-    best >= 0 && y < 3
-      ? s.mx[best]
-      : lane && front?.type === 'item'
-        ? lane.x
-        : best >= 0 && y < 8
-          ? s.mx[best]
-          : lane
-            ? lane.x
-            : best >= 0
-              ? s.mx[best]
-              : 0;
+  const front = s.lane.elements[0];
+  if (best >= 0 && y < 3) s.targetX = s.mx[best];
+  else if (front?.type === 'item') s.targetX = s.lane.x;
+  else if (best >= 0 && y < 8) s.targetX = s.mx[best];
+  else if (front) s.targetX = s.lane.x;
+  else s.targetX = best >= 0 ? s.mx[best] : 0;
 }
+
+const withLane = (
+  elements: StationaryLevel['lane']['elements'],
+  extra: Partial<StationaryLevel> = {},
+): StationaryLevel => ({ ...base, lane: { elements }, ...extra });
 
 describe('grid formation', () => {
   it('centres each row and puts later rows behind', () => {
@@ -80,7 +77,7 @@ describe('weapons', () => {
   });
 
   it('labels power-ups', () => {
-    expect(itemLabel({ kind: 'crowd', op: 'x', value: 2 }).title).toBe('×2');
+    expect(itemLabel({ kind: 'crowd', op: 'x', value: 2 }).title).toBe('\u00d72');
     expect(itemLabel({ kind: 'upgrade', stat: 'rate', value: 0.3 })).toEqual({
       title: '+30%',
       sub: 'FIRE RATE',
@@ -89,11 +86,9 @@ describe('weapons', () => {
   });
 });
 
-const item = (def: StationaryLevel['lanes'][number]['elements'][number]) => def;
-
 describe('StationarySim', () => {
   it('wins a simple level when the squad chases the monsters', () => {
-    const sim = new StationarySim(base, mulberry32(1));
+    const sim = new StationarySim(withLane([{ type: 'block', hp: 5 }]), mulberry32(1));
     run(sim, 60, chase);
     expect(sim.phase).toBe('won');
     expect(sim.kills).toBe(3);
@@ -116,25 +111,83 @@ describe('StationarySim', () => {
     expect(checked).toBeGreaterThan(0);
   });
 
+  it('monsters never enter the upgrade lane, on either side', () => {
+    for (const side of ['left', 'right'] as const) {
+      const level: StationaryLevel = {
+        ...base,
+        lane: { side, elements: [{ type: 'block', hp: 1000000 }] },
+        monsters: [
+          { kind: 'grunt', count: 150, hp: 1000, interval: 0.05 },
+          { kind: 'runner', count: 50, hp: 1000, interval: 0.1 },
+          { kind: 'boss', count: 2, hp: 1000000, interval: 3 },
+        ],
+      };
+      const sim = new StationarySim(level, mulberry32(9));
+      const laneMin = sim.lane.x - sim.lane.width / 2;
+      const laneMax = sim.lane.x + sim.lane.width / 2;
+      for (let i = 0; i < 30 * 12; i++) {
+        sim.targetX = 0;
+        sim.update(1 / 30);
+        for (let m = 0; m < sim.malive.length; m++) {
+          if (!sim.malive[m]) continue;
+          expect(sim.mx[m] < laneMin || sim.mx[m] > laneMax).toBe(true);
+        }
+        if (sim.phase === 'lost') break;
+      }
+    }
+  });
+
+  it('monsters march straight down their lane', () => {
+    const sim = new StationarySim(base, mulberry32(2));
+    const startX = new Map<number, number>();
+    const lastY = new Map<number, number>();
+    for (let i = 0; i < 60; i++) {
+      sim.update(1 / 30);
+      for (let m = 0; m < sim.malive.length; m++) {
+        if (!sim.malive[m]) continue;
+        // a slot that jumps back up has been reused by a new monster
+        if ((lastY.get(m) ?? Infinity) < sim.my[m]) startX.delete(m);
+        lastY.set(m, sim.my[m]);
+        const first = startX.get(m) ?? sim.mx[m];
+        startX.set(m, first);
+        expect(sim.mx[m]).toBeCloseTo(first, 5);
+      }
+    }
+  });
+
   it('loses when monsters wipe the squad out', () => {
-    const level: StationaryLevel = {
-      ...base,
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 2,
-      monsters: [{ kind: 'boss', count: 1, hp: 100000, interval: 1, x: 0 }],
-    };
+      monsters: [{ kind: 'boss', count: 1, hp: 100000, interval: 1 }],
+    });
     const sim = new StationarySim(level, mulberry32(1));
     run(sim, 120);
     expect(sim.phase).toBe('lost');
     expect(sim.count).toBe(0);
   });
 
+  it('minibosses bite harder than grunts and pay more', () => {
+    const lostTo = (kind: 'grunt' | 'miniboss') => {
+      const level = withLane([{ type: 'block', hp: 1000000 }], {
+        startCount: 30,
+        monsters: [{ kind, count: 1, hp: 1000000, interval: 1 }],
+      });
+      const sim = new StationarySim(level, mulberry32(1));
+      sim.targetX = -5; // never shoots
+      run(sim, 20);
+      return 30 - sim.count;
+    };
+    expect(lostTo('miniboss')).toBeGreaterThan(lostTo('grunt'));
+    expect(MONSTERS.miniboss.coins).toBeGreaterThan(MONSTERS.tank.coins);
+    expect(MONSTERS.miniboss.radius).toBeGreaterThan(MONSTERS.tank.radius);
+  });
+
   it('hits harder with a bigger squad, even beyond what can be drawn', () => {
     const killTime = (count: number) => {
-      const level: StationaryLevel = {
-        ...base,
+      const level = withLane([{ type: 'block', hp: 3 }], {
         startCount: count,
-        monsters: [{ kind: 'tank', count: 1, hp: 300, interval: 1, x: 0, spread: 0 }],
-      };
+        monsters: [{ kind: 'tank', count: 1, hp: 300, interval: 1, spread: 0 }],
+      });
       const sim = new StationarySim(level, mulberry32(3));
       run(sim, 90, chase);
       return sim.phase === 'won' ? sim.time : Infinity;
@@ -146,60 +199,48 @@ describe('StationarySim', () => {
     );
   });
 
-  it('handles masses of monsters', () => {
-    const level: StationaryLevel = {
-      ...base,
-      startCount: 20,
-      monsters: [{ kind: 'grunt', count: 200, hp: 1, interval: 0.1, x: 0.3, spread: 0.6 }],
-    };
+  it('copes with masses of monsters without dropping any spawn', () => {
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 700,
+      monsters: [{ kind: 'grunt', count: 600, hp: 2, interval: 0.04 }],
+    });
     const sim = new StationarySim(level, mulberry32(5));
-    run(sim, 120, chase);
-    expect(sim.kills + (20 - sim.count)).toBeGreaterThan(150);
+    let peak = 0;
+    for (let i = 0; i < 30 * 120 && sim.phase !== 'won' && sim.phase !== 'lost'; i++) {
+      sim.targetX = sim.lane.x; // parked under the block: the horde reaches the bottom
+      sim.update(1 / 30);
+      peak = Math.max(peak, sim.monstersAlive);
+    }
+    expect(peak).toBeGreaterThan(60);
+    // every monster either died or bit one soldier: none was lost to a full pool
+    expect(sim.kills + (700 - sim.count)).toBe(600);
   });
 
-  it('a lane shows its whole queue, holds the front block close to the squad', () => {
-    const level: StationaryLevel = {
-      ...base,
-      monsters: [{ kind: 'grunt', count: 1, hp: 1, interval: 1, x: 0.9 }],
-      lanes: [
-        {
-          x: 0,
-          width: 3.6,
-          elements: [
-            item({ type: 'block', hp: 40 }),
-            item({ type: 'item', item: { kind: 'crowd', op: '+', value: 1 } }),
-            item({ type: 'item', item: { kind: 'crowd', op: '+', value: 1 } }),
-            item({ type: 'block', hp: 80 }),
-            item({ type: 'item', item: { kind: 'weapon', weapon: 'shotgun' } }),
-          ],
-        },
-      ],
-    };
+  it('the lane shows its whole queue and holds the front block close to the squad', () => {
+    const level = withLane([
+      { type: 'block', hp: 40 },
+      { type: 'item', item: { kind: 'crowd', op: '+', value: 1 } },
+      { type: 'item', item: { kind: 'crowd', op: '+', value: 1 } },
+      { type: 'block', hp: 80 },
+      { type: 'item', item: { kind: 'weapon', weapon: 'shotgun' } },
+    ]);
     const sim = new StationarySim(level, mulberry32(1));
-    const ys = sim.lanes[0].elements.map((e) => e.y);
+    const ys = sim.lane.elements.map((e) => e.y);
     for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThan(ys[i - 1]); // ordered, visible
-    run(sim, 0.8, (s) => (s.targetX = -5)); // squad away: the block just holds
-    expect(sim.lanes[0].elements[0].type).toBe('block');
-    expect(sim.lanes[0].elements[0].y).toBeCloseTo(4.4, 1);
+    run(sim, 0.8, (s) => (s.targetX = 5)); // squad on the monster side: the block just holds
+    expect(sim.lane.elements[0].type).toBe('block');
+    expect(sim.lane.elements[0].y).toBeCloseTo(4.4, 1);
   });
 
   it('breaking a block lets the power-ups behind it fall one after another, all catchable', () => {
-    const level: StationaryLevel = {
-      ...base,
-      startCount: 1,
-      monsters: [{ kind: 'grunt', count: 1, hp: 1, interval: 1, x: 0.9 }],
-      lanes: [
-        {
-          x: 0,
-          width: 3.6,
-          elements: [
-            item({ type: 'block', hp: 6 }),
-            item({ type: 'item', item: { kind: 'crowd', op: '+', value: 2 } }),
-            item({ type: 'item', item: { kind: 'crowd', op: '+', value: 3 } }),
-          ],
-        },
+    const level = withLane(
+      [
+        { type: 'block', hp: 6 },
+        { type: 'item', item: { kind: 'crowd', op: '+', value: 2 } },
+        { type: 'item', item: { kind: 'crowd', op: '+', value: 3 } },
       ],
-    };
+      { startCount: 1, monsters: [] },
+    );
     const sim = new StationarySim(level, mulberry32(1));
     run(sim, 60, chase);
     expect(sim.phase).toBe('won');
@@ -207,46 +248,28 @@ describe('StationarySim', () => {
   });
 
   it('loses power-ups the squad does not catch', () => {
-    const level: StationaryLevel = {
-      ...base,
-      monsters: [{ kind: 'grunt', count: 1, hp: 1, interval: 1, x: 0.9 }],
-      lanes: [
-        {
-          x: 0.7,
-          width: 3,
-          elements: [
-            item({ type: 'block', hp: 6 }),
-            item({ type: 'item', item: { kind: 'crowd', op: '+', value: 25 } }),
-          ],
-        },
-      ],
-    };
+    const level = withLane([
+      { type: 'block', hp: 6 },
+      { type: 'item', item: { kind: 'crowd', op: '+', value: 25 } },
+    ]);
     const sim = new StationarySim(level, mulberry32(1));
     let lost = 0;
     let broken = false;
     sim.hooks.itemLost = () => lost++;
     sim.hooks.blockBreak = () => (broken = true);
     run(sim, 60, (s) => {
-      s.targetX = broken ? -5 : 4.2; // shoot the block, then hide on the far left
+      s.targetX = broken ? 5 : s.lane.x; // shoot the block, then leave for the monster side
     });
     expect(lost).toBe(1);
     expect(sim.count).toBeLessThanOrEqual(10);
   });
 
   it('applies upgrades and weapon switches from power-ups', () => {
-    const level: StationaryLevel = {
-      ...base,
-      lanes: [
-        {
-          x: 0,
-          elements: [
-            item({ type: 'block', hp: 5 }),
-            item({ type: 'item', item: { kind: 'weapon', weapon: 'shotgun' } }),
-            item({ type: 'item', item: { kind: 'upgrade', stat: 'rate', value: 0.5 } }),
-          ],
-        },
-      ],
-    };
+    const level = withLane([
+      { type: 'block', hp: 5 },
+      { type: 'item', item: { kind: 'weapon', weapon: 'shotgun' } },
+      { type: 'item', item: { kind: 'upgrade', stat: 'rate', value: 0.5 } },
+    ]);
     const sim = new StationarySim(level, mulberry32(1));
     run(sim, 60, chase);
     expect(sim.weapon.id).toBe('shotgun');
@@ -254,13 +277,10 @@ describe('StationarySim', () => {
   });
 
   it('blocks can grow hit points while they are in front', () => {
-    const level: StationaryLevel = {
-      ...base,
-      lanes: [{ x: 0.9, elements: [item({ type: 'block', hp: 100, grow: 10 })] }],
-    };
+    const level = withLane([{ type: 'block', hp: 100, grow: 10 }]);
     const sim = new StationarySim(level, mulberry32(1));
-    run(sim, 5, (s) => (s.targetX = -5)); // never shoots it
-    expect(sim.lanes[0].elements[0].hp).toBeGreaterThan(130);
+    run(sim, 5, (s) => (s.targetX = 5)); // never shoots it
+    expect(sim.lane.elements[0].hp).toBeGreaterThan(130);
   });
 
   it('is deterministic for a given seed', () => {
@@ -270,11 +290,9 @@ describe('StationarySim', () => {
 
 describe('coins', () => {
   it('drops coins for kills and for smashed blocks', () => {
-    const level: StationaryLevel = {
-      ...base,
-      monsters: [{ kind: 'grunt', count: 2, hp: 1, interval: 1, x: 0 }],
-      lanes: [{ x: 0.9, width: 3, elements: [item({ type: 'block', hp: 5 })] }],
-    };
+    const level = withLane([{ type: 'block', hp: 5 }], {
+      monsters: [{ kind: 'grunt', count: 2, hp: 1, interval: 1 }],
+    });
     const sim = new StationarySim(level, mulberry32(1));
     const drops: number[] = [];
     sim.hooks.coin = (_x, _y, amount) => drops.push(amount);
@@ -286,14 +304,13 @@ describe('coins', () => {
   });
 
   it('keeps coins from a lost run', () => {
-    const level: StationaryLevel = {
-      ...base,
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 3,
       monsters: [
-        { kind: 'grunt', count: 3, hp: 1, interval: 0.5, x: 0 },
-        { kind: 'boss', count: 1, hp: 1e6, interval: 1, delay: 4, x: 0 },
+        { kind: 'grunt', count: 3, hp: 1, interval: 0.5 },
+        { kind: 'boss', count: 1, hp: 1e6, interval: 1, delay: 4 },
       ],
-    };
+    });
     const sim = new StationarySim(level, mulberry32(1));
     run(sim, 120, chase);
     expect(sim.phase).toBe('lost');
@@ -302,10 +319,9 @@ describe('coins', () => {
 
   it('upgrades make the same squad stronger', () => {
     const killTime = (damageMul: number) => {
-      const level: StationaryLevel = {
-        ...base,
-        monsters: [{ kind: 'tank', count: 1, hp: 200, interval: 1, x: 0, spread: 0 }],
-      };
+      const level = withLane([{ type: 'block', hp: 3 }], {
+        monsters: [{ kind: 'tank', count: 1, hp: 200, interval: 1, spread: 0 }],
+      });
       const sim = new StationarySim(level, mulberry32(3), {}, { damageMul, rateMul: 1 });
       run(sim, 90, chase);
       return sim.phase === 'won' ? sim.time : Infinity;
@@ -321,59 +337,63 @@ describe('stationary level validation', () => {
     mode: 'stationary',
     startCount: 1,
     weapon: 'pistol',
-    lanes: [
-      {
-        x: -0.5,
-        elements: [
-          { type: 'block', hp: 8 },
-          { type: 'item', item: { kind: 'crowd', op: '+', value: 1 } },
-        ],
-      },
-    ],
+    lane: {
+      elements: [
+        { type: 'block', hp: 8 },
+        { type: 'item', item: { kind: 'crowd', op: '+', value: 1 } },
+      ],
+    },
     monsters: [{ kind: 'grunt', count: 2, hp: 3, interval: 1 }],
   };
 
-  it('accepts a lane with blocks and power-ups', () => {
+  it('accepts a lane with blocks and power-ups, and minibosses', () => {
     expect(validateLevel(ok).ok).toBe(true);
+    expect(
+      validateLevel({
+        ...ok,
+        lane: { side: 'right', elements: ok.lane.elements },
+        monsters: [{ kind: 'miniboss', count: 1, hp: 50, interval: 1, x: 0.5, spread: 0.2 }],
+      }).ok,
+    ).toBe(true);
   });
 
   it('reports bad weapon, kind, element type and item with paths', () => {
     const r = validateLevel({
       ...ok,
       weapon: 'bazooka',
-      lanes: [
-        {
-          x: 0,
-          elements: [
-            { type: 'crate', hp: 3 },
-            { type: 'item', item: { kind: 'magic' } },
-          ],
-        },
-      ],
+      lane: {
+        elements: [
+          { type: 'crate', hp: 3 },
+          { type: 'item', item: { kind: 'magic' } },
+        ],
+      },
       monsters: [{ kind: 'dragon', count: 2, hp: 3, interval: 1 }],
     });
     expect(r.ok).toBe(false);
     const text = r.ok ? '' : r.errors.join('\n');
     expect(text).toContain('weapon');
     expect(text).toContain('monsters[0].kind');
-    expect(text).toContain('lanes[0].elements[0].type');
-    expect(text).toContain('lanes[0].elements[1].item.kind');
+    expect(text).toContain('lane.elements[0].type');
+    expect(text).toContain('lane.elements[1].item.kind');
   });
 
-  it('rejects the old wave format and unknown keys', () => {
-    expect(validateLevel({ ...ok, waves: [] }).ok).toBe(false);
-  });
-
-  it('requires a lane with elements and at least one monster stream', () => {
+  it('rejects the old lanes/waves formats and a bad side', () => {
     expect(validateLevel({ ...ok, lanes: [] }).ok).toBe(false);
-    expect(validateLevel({ ...ok, lanes: [{ x: 0, elements: [] }] }).ok).toBe(false);
+    expect(validateLevel({ ...ok, waves: [] }).ok).toBe(false);
+    expect(validateLevel({ ...ok, lane: { side: 'middle', elements: ok.lane.elements } }).ok).toBe(
+      false,
+    );
+  });
+
+  it('requires lane elements and at least one monster stream', () => {
+    expect(validateLevel({ ...ok, lane: { elements: [] } }).ok).toBe(false);
     expect(validateLevel({ ...ok, monsters: [] }).ok).toBe(false);
   });
 });
 
 describe('bot analysis', () => {
   it('wins an easy level in every run', () => {
-    const a = analyzeStationary(base);
+    const a = analyzeStationary(withLane([{ type: 'block', hp: 5 }]));
     expect(a.winRate).toBe(1);
     expect(a.bestSurvivors).toBeGreaterThan(0);
   });

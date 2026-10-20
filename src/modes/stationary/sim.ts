@@ -10,11 +10,14 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
  *
  * World: the squad is a phalanx at the bottom that slides left and right; y grows "up"
  * the screen. Every soldier fires its own bullet dead straight ahead from its own position,
- * so sliding the squad sweeps the fire across the field. Monsters pour down from the top
- * in masses. A lane is a column of blocks (HP counter, stop bullets) and power-ups that
- * slides towards the squad: the front block holds at a line close to the squad until it is
- * shot to pieces, the power-ups behind it are visible from the start and fall to the squad
- * one after another, so you have to be underneath them to catch them.
+ * so sliding the squad sweeps the fire across the field.
+ *
+ * The field has two separate lanes. The **upgrade lane** (left by default) is a column of
+ * blocks (HP counter, stop bullets) and power-ups sliding towards the squad: the front block
+ * holds close to the squad until it is shot to pieces, the power-ups behind it are visible
+ * from the start and fall one after another, so you have to be underneath them to catch
+ * them. The **monster lane** is the rest of the field: monsters pour down it in masses on
+ * straight lines and never enter the upgrade lane.
  */
 
 export const ARENA = { halfWidth: 6, spawnTop: 16 };
@@ -28,14 +31,19 @@ export const GAME_SPEED = 1.3;
 const SQUAD_MAX_SPEED = 16;
 /** How fast lane elements slide towards the squad. */
 const LANE_SPEED = 3.4;
-/** Where the front block of a lane holds: close to the squad. */
+/** Where the front block of the upgrade lane holds: close to the squad. */
 export const LANE_HOLD_Y = 4.4;
 /** Distance between two neighbouring lane elements. */
 export const LANE_SPACING = 1.7;
 export const BLOCK_HEIGHT = 1.3;
+/** The upgrade lane is this wide and its centre is this far from the middle of the field. */
+export const UPGRADE_LANE_WIDTH = 3.6;
+export const UPGRADE_LANE_CENTER = 3.8;
+/** Empty strip between the two lanes. */
+const LANE_GAP = 0.9;
 const BULLET_LIFE = 1.3;
 /** Coins for smashing a block. */
-const BLOCK_COINS = 12;
+const BLOCK_COINS = 20;
 /** Bullets are forgiving: the hit circle of a monster is this much bigger than the monster. */
 const HIT_FORGIVENESS = 0.25;
 
@@ -49,20 +57,30 @@ export interface MonsterStats {
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 3.8, radius: 0.42, bite: 1, coins: 1 },
-  runner: { speed: 6.2, radius: 0.34, bite: 1, coins: 2 },
-  tank: { speed: 2.1, radius: 0.8, bite: 4, coins: 8 },
-  boss: { speed: 1.2, radius: 1.7, bite: 20, coins: 150 },
+  grunt: { speed: 3.8, radius: 0.42, bite: 1, coins: 2 },
+  runner: { speed: 6.2, radius: 0.34, bite: 1, coins: 3 },
+  tank: { speed: 2.1, radius: 0.8, bite: 4, coins: 12 },
+  miniboss: { speed: 1.7, radius: 1.15, bite: 10, coins: 60 },
+  boss: { speed: 1.2, radius: 1.7, bite: 25, coins: 300 },
 };
-export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'boss'];
-const MONSTER_KIND_INDEX: Record<MonsterKind, number> = { grunt: 0, runner: 1, tank: 2, boss: 3 };
+export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'miniboss', 'boss'];
+const MONSTER_KIND_INDEX: Record<MonsterKind, number> = {
+  grunt: 0,
+  runner: 1,
+  tank: 2,
+  miniboss: 3,
+  boss: 4,
+};
 
-export const MAX_MONSTERS = 260;
-export const MAX_BULLETS = 800;
+export const MAX_MONSTERS = 450;
+export const MAX_BULLETS = 900;
+/** Monsters are sorted into horizontal slabs of this height so bullets only test nearby ones. */
+const BUCKET_H = 1;
+const BUCKETS = 22;
 
 export type SimPhase = 'gap' | 'fighting' | 'won' | 'lost';
 
-/** One thing on a lane. `y` is its distance in front of the squad. */
+/** One thing on the upgrade lane. `y` is its distance in front of the squad. */
 export interface LaneElement {
   type: 'block' | 'item';
   y: number;
@@ -75,6 +93,7 @@ export interface LaneElement {
 }
 
 export interface LaneState {
+  /** Centre x of the upgrade lane. */
   x: number;
   width: number;
   /** Front element first. */
@@ -143,7 +162,10 @@ export class StationarySim {
   squadX = 0;
   squadVx = 0;
 
-  lanes: LaneState[];
+  readonly lane: LaneState;
+  /** x range of the monster lane (monsters spawn and walk inside it only). */
+  readonly monsterMinX: number;
+  readonly monsterMaxX: number;
 
   // monsters (structure of arrays, fixed capacity)
   readonly mx = new Float32Array(MAX_MONSTERS);
@@ -161,8 +183,10 @@ export class StationarySim {
   readonly blife = new Float32Array(MAX_BULLETS);
 
   private readonly fireAcc = new Float32Array(MAX_SHOOTERS);
-  private readonly liveMonsters = new Int16Array(MAX_MONSTERS);
-  private liveCount = 0;
+  /** Monster indices sorted by slab (counting sort), rebuilt every step. */
+  private readonly bucketItems = new Int16Array(MAX_MONSTERS);
+  private readonly bucketStart = new Int16Array(BUCKETS + 1);
+  private readonly bucketFill = new Int16Array(BUCKETS);
   private bulletHead = 0;
   private gapTimer = 0.4;
   private levelTime = 0;
@@ -189,31 +213,33 @@ export class StationarySim {
           t: (s.delay ?? 0) + i * s.interval,
           kind: s.kind,
           hp: s.hp,
-          x: s.x ?? 0.6,
-          spread: s.spread ?? 0.25,
+          x: s.x ?? 0,
+          spread: s.spread ?? 1,
         });
       }
     }
     this.queue.sort((a, b) => a.t - b.t);
 
-    let elements = 0;
-    this.lanes = level.lanes.map((l) => ({
-      x: l.x * ARENA.halfWidth * 0.8,
-      width: l.width ?? 3.6,
-      elements: l.elements.map((e, i) => {
-        elements++;
-        return {
-          type: e.type,
-          y: LANE_HOLD_Y + i * LANE_SPACING,
-          hp: e.type === 'block' ? e.hp : 0,
-          maxHp: e.type === 'block' ? e.hp : 0,
-          grow: e.type === 'block' ? (e.grow ?? 0) : 0,
-          ...(e.type === 'item' ? { item: e.item } : {}),
-          flash: 0,
-        };
-      }),
-    }));
-    this.total = Math.max(1, this.queue.length + elements);
+    const left = (level.lane.side ?? 'left') === 'left';
+    const laneX = left ? -UPGRADE_LANE_CENTER : UPGRADE_LANE_CENTER;
+    const edge = UPGRADE_LANE_WIDTH / 2 + LANE_GAP;
+    // the monster lane is everything on the other side of the gap
+    this.monsterMinX = left ? laneX + edge : -ARENA.halfWidth + 0.4;
+    this.monsterMaxX = left ? ARENA.halfWidth - 0.4 : laneX - edge;
+    this.lane = {
+      x: laneX,
+      width: UPGRADE_LANE_WIDTH,
+      elements: level.lane.elements.map((e, i) => ({
+        type: e.type,
+        y: LANE_HOLD_Y + i * LANE_SPACING,
+        hp: e.type === 'block' ? e.hp : 0,
+        maxHp: e.type === 'block' ? e.hp : 0,
+        grow: e.type === 'block' ? (e.grow ?? 0) : 0,
+        ...(e.type === 'item' ? { item: e.item } : {}),
+        flash: 0,
+      })),
+    };
+    this.total = Math.max(1, this.queue.length + this.lane.elements.length);
   }
 
   get progress(): number {
@@ -255,9 +281,7 @@ export class StationarySim {
     this.time += dt;
     this.moveSquad(dt);
     this.updateBullets(dt);
-    for (const lane of this.lanes) {
-      for (const e of lane.elements) e.flash = Math.max(0, e.flash - dt * 6);
-    }
+    for (const e of this.lane.elements) e.flash = Math.max(0, e.flash - dt * 6);
     if (this.phase === 'gap') {
       this.gapTimer -= dt;
       if (this.gapTimer <= 0) this.phase = 'fighting';
@@ -285,7 +309,8 @@ export class StationarySim {
 
   // ---- fighting -----------------------------------------------------------
 
-  private spawn(s: Spawn): void {
+  /** Returns false when the monster pool is full (the spawn then waits for a free slot). */
+  private spawn(s: Spawn): boolean {
     let slot = -1;
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!this.malive[i]) {
@@ -293,92 +318,92 @@ export class StationarySim {
         break;
       }
     }
-    if (slot < 0) return; // pool full: drop the spawn rather than allocate
-    const lane = s.x * ARENA.halfWidth + (this.rng() * 2 - 1) * s.spread * ARENA.halfWidth;
-    this.mx[slot] = Math.max(-ARENA.halfWidth + 0.5, Math.min(ARENA.halfWidth - 0.5, lane));
+    if (slot < 0) return false;
+    const stats = MONSTERS[s.kind];
+    const half = (this.monsterMaxX - this.monsterMinX) / 2;
+    const mid = (this.monsterMinX + this.monsterMaxX) / 2;
+    const x = mid + (s.x + (this.rng() * 2 - 1) * s.spread) * half;
+    // keep even the biggest monsters fully inside their own lane
+    const lo = this.monsterMinX + stats.radius;
+    const hi = this.monsterMaxX - stats.radius;
+    this.mx[slot] = Math.max(lo, Math.min(hi, x));
     this.my[slot] = ARENA.spawnTop + this.rng() * 1.5;
     this.mhp[slot] = s.hp;
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
     this.malive[slot] = 1;
+    return true;
   }
 
   private updateFight(dt: number): void {
     this.levelTime += dt;
     while (this.queueIndex < this.queue.length && this.queue[this.queueIndex].t <= this.levelTime) {
-      this.spawn(this.queue[this.queueIndex++]);
+      if (!this.spawn(this.queue[this.queueIndex])) break;
+      this.queueIndex++;
     }
 
-    // monsters walk straight at the squad
+    // monsters march straight down their own lane; whatever reaches the bottom bites
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!this.malive[i]) continue;
       const stats = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]];
-      const x = this.mx[i];
       const y = this.my[i];
       if (y <= 0.5 + stats.radius * 0.6) {
         this.malive[i] = 0;
         this.done++;
         this.count = clampCount(this.count - stats.bite);
-        this.hooks.bite?.(x, Math.max(0, y), stats.bite);
+        this.hooks.bite?.(this.mx[i], Math.max(0, y), stats.bite);
         if (this.count <= 0) {
           this.end(false);
           return;
         }
         continue;
       }
-      const tx = this.squadX - x;
-      const ty = -y;
-      const d = Math.hypot(tx, ty);
-      const step = Math.min(d, stats.speed * dt);
-      this.mx[i] = x + (tx / d) * step;
-      this.my[i] = y + (ty / d) * step;
+      this.my[i] = y - stats.speed * dt;
     }
 
-    this.updateLanes(dt);
+    this.updateLane(dt);
     this.fire(dt);
 
     if (
       this.queueIndex >= this.queue.length &&
       this.monstersAlive === 0 &&
-      this.lanes.every((l) => l.elements.length === 0)
+      this.lane.elements.length === 0
     ) {
       this.end(true);
     }
   }
 
   /**
-   * Slides every lane towards the squad. A front block holds at the hold line, a front
+   * Slides the upgrade lane towards the squad. A front block holds at the hold line, a front
    * power-up keeps falling; every element behind keeps its spacing to the one in front.
    */
-  private updateLanes(dt: number): void {
-    const hw = this.halfWidth();
-    for (const lane of this.lanes) {
-      const els = lane.elements;
-      for (let k = 0; k < els.length; k++) {
-        const e = els[k];
-        if (e.type === 'block' && k === 0 && e.grow > 0) {
-          e.hp += e.grow * dt;
-          e.maxHp = Math.max(e.maxHp, e.hp);
-        }
-        let floor = -Infinity;
-        if (k > 0) floor = els[k - 1].y + LANE_SPACING;
-        else if (e.type === 'block') floor = LANE_HOLD_Y;
-        e.y = Math.max(floor, e.y - LANE_SPEED * dt);
+  private updateLane(dt: number): void {
+    const lane = this.lane;
+    const els = lane.elements;
+    for (let k = 0; k < els.length; k++) {
+      const e = els[k];
+      if (e.type === 'block' && k === 0 && e.grow > 0) {
+        e.hp += e.grow * dt;
+        e.maxHp = Math.max(e.maxHp, e.hp);
       }
-      // collect or lose the front power-up
-      const front = els[0];
-      if (front && front.type === 'item' && front.item) {
-        if (front.y <= 1 && Math.abs(lane.x - this.squadX) <= hw + lane.width / 2) {
-          els.shift();
-          this.done++;
-          const before = this.count;
-          this.applyItem(front.item);
-          this.hooks.itemCollected?.(lane.x, front.y, front.item, this.count - before);
-        } else if (front.y < -1.5) {
-          els.shift();
-          this.done++;
-          this.hooks.itemLost?.(lane.x, front.item);
-        }
+      let floor = -Infinity;
+      if (k > 0) floor = els[k - 1].y + LANE_SPACING;
+      else if (e.type === 'block') floor = LANE_HOLD_Y;
+      e.y = Math.max(floor, e.y - LANE_SPEED * dt);
+    }
+    // collect or lose the front power-up
+    const front = els[0];
+    if (front && front.type === 'item' && front.item) {
+      if (front.y <= 1 && Math.abs(lane.x - this.squadX) <= this.halfWidth() + lane.width / 2) {
+        els.shift();
+        this.done++;
+        const before = this.count;
+        this.applyItem(front.item);
+        this.hooks.itemCollected?.(lane.x, front.y, front.item, this.count - before);
+      } else if (front.y < -1.5) {
+        els.shift();
+        this.done++;
+        this.hooks.itemLost?.(lane.x, front.item);
       }
     }
   }
@@ -418,12 +443,29 @@ export class StationarySim {
     }
   }
 
-  private updateBullets(dt: number): void {
-    // compact list of living monsters so each bullet only tests those
-    let live = 0;
-    for (let m = 0; m < MAX_MONSTERS; m++) if (this.malive[m]) this.liveMonsters[live++] = m;
-    this.liveCount = live;
+  /** Counting-sorts the living monsters into horizontal slabs. */
+  private buildBuckets(): void {
+    const start = this.bucketStart;
+    start.fill(0);
+    for (let m = 0; m < MAX_MONSTERS; m++) {
+      if (this.malive[m]) start[this.bucketOf(this.my[m]) + 1]++;
+    }
+    for (let b = 0; b < BUCKETS; b++) start[b + 1] += start[b];
+    const fill = this.bucketFill;
+    fill.fill(0);
+    for (let m = 0; m < MAX_MONSTERS; m++) {
+      if (!this.malive[m]) continue;
+      const b = this.bucketOf(this.my[m]);
+      this.bucketItems[start[b] + fill[b]++] = m;
+    }
+  }
 
+  private bucketOf(y: number): number {
+    return Math.max(0, Math.min(BUCKETS - 1, Math.floor(y / BUCKET_H)));
+  }
+
+  private updateBullets(dt: number): void {
+    this.buildBuckets();
     for (let i = 0; i < MAX_BULLETS; i++) {
       if (this.blife[i] <= 0) continue;
       this.blife[i] -= dt;
@@ -445,11 +487,13 @@ export class StationarySim {
   private collide(i: number, x0: number, y0: number, x1: number, y1: number): boolean {
     let bestT = 2;
     let monster = -1;
-    for (let k = 0; k < this.liveCount; k++) {
-      const m = this.liveMonsters[k];
+    // only slabs within reach (the biggest monster is ~2 units tall)
+    const b0 = Math.max(0, this.bucketOf(Math.min(y0, y1)) - 2);
+    const b1 = Math.min(BUCKETS - 1, this.bucketOf(Math.max(y0, y1)) + 2);
+    for (let k = this.bucketStart[b0]; k < this.bucketStart[b1 + 1]; k++) {
+      const m = this.bucketItems[k];
       if (!this.malive[m]) continue; // killed earlier this step
       const r = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[m]]].radius + HIT_FORGIVENESS;
-      if (Math.abs(this.my[m] - y1) > r + 1.2) continue; // cheap vertical reject
       const t = segmentCircle(x0, y0, x1, y1, this.mx[m], this.my[m], r);
       if (t >= 0 && t < bestT) {
         bestT = t;
@@ -457,37 +501,34 @@ export class StationarySim {
       }
     }
     let block: LaneElement | null = null;
-    let blockLane: LaneState | null = null;
-    for (const lane of this.lanes) {
-      for (const e of lane.elements) {
-        if (e.type !== 'block') continue;
-        for (let k = 1; k <= 4; k++) {
-          const t = k / 4;
-          const px = x0 + (x1 - x0) * t;
-          const py = y0 + (y1 - y0) * t;
-          if (Math.abs(px - lane.x) <= lane.width / 2 && Math.abs(py - e.y) <= BLOCK_HEIGHT / 2) {
-            if (t < bestT) {
-              bestT = t;
-              block = e;
-              blockLane = lane;
-              monster = -1;
-            }
-            break;
+    const lane = this.lane;
+    for (const e of lane.elements) {
+      if (e.type !== 'block') continue;
+      for (let k = 1; k <= 4; k++) {
+        const t = k / 4;
+        const px = x0 + (x1 - x0) * t;
+        const py = y0 + (y1 - y0) * t;
+        if (Math.abs(px - lane.x) <= lane.width / 2 && Math.abs(py - e.y) <= BLOCK_HEIGHT / 2) {
+          if (t < bestT) {
+            bestT = t;
+            block = e;
+            monster = -1;
           }
+          break;
         }
       }
     }
     const dmg = this.bdmg[i];
-    if (block && blockLane) {
+    if (block) {
       block.hp -= dmg;
       block.flash = 1;
       this.hooks.blockHit?.(this.bx[i], block.y - BLOCK_HEIGHT / 2);
       if (block.hp <= 0) {
-        blockLane.elements.splice(blockLane.elements.indexOf(block), 1);
+        lane.elements.splice(lane.elements.indexOf(block), 1);
         this.done++;
         this.coinsRaw += BLOCK_COINS;
-        this.hooks.coin?.(blockLane.x, block.y, BLOCK_COINS);
-        this.hooks.blockBreak?.(blockLane.x, block.y);
+        this.hooks.coin?.(lane.x, block.y, BLOCK_COINS);
+        this.hooks.blockBreak?.(lane.x, block.y);
       }
       return true;
     }

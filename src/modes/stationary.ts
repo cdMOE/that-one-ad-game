@@ -47,6 +47,7 @@ export class StationaryMode implements GameMode {
   private endTimer = -1;
   private shotCounter = 0;
   private deathBudget = 0;
+  private killBudget = 0;
   private introShown = false;
   private readonly coinMul: number;
   private coinPulse = 0;
@@ -56,6 +57,7 @@ export class StationaryMode implements GameMode {
     grunt: unitSprite(COLORS.enemy, COLORS.enemyDark),
     runner: unitSprite(COLORS.runner, COLORS.runnerDark),
     tank: unitSprite(COLORS.tank, COLORS.tankDark),
+    miniboss: unitSprite(COLORS.gold, '#b8861f'),
     boss: unitSprite(COLORS.boss, COLORS.bossDark),
   };
 
@@ -92,21 +94,25 @@ export class StationaryMode implements GameMode {
           sfx.pop();
         },
         kill: (x, y, kind) => {
-          const big = kind === 'boss' || kind === 'tank';
-          particles.burst(
-            x,
-            y,
-            big ? 22 : 8,
-            big ? 7 : 4.5,
-            kind === 'boss' ? Pc.Boss : Pc.Enemy,
-            0.6,
-            0.18,
-          );
-          sfx.pop();
+          const big = kind === 'boss' || kind === 'miniboss' || kind === 'tank';
           if (big) {
-            camera.shake(kind === 'boss' ? 0.5 : 0.18);
+            particles.burst(
+              x,
+              y,
+              kind === 'boss' ? 30 : 16,
+              7,
+              kind === 'boss' ? Pc.Boss : kind === 'tank' ? Pc.Enemy : Pc.Gold,
+              0.6,
+              0.2,
+            );
+            camera.shake(kind === 'boss' ? 0.5 : kind === 'miniboss' ? 0.3 : 0.12);
             sfx.boom();
+          } else if (this.killBudget > 0) {
+            // masses die every frame, so cap the sparks per frame
+            this.killBudget--;
+            particles.burst(x, y, 2, 4, Pc.Enemy, 0.35, 0.14);
           }
+          sfx.pop();
         },
         bite: (x, y, lost) => {
           particles.burst(x, y, 10, 5, Pc.Bad, 0.5, 0.16);
@@ -186,6 +192,7 @@ export class StationaryMode implements GameMode {
     const { input, camera } = this.ctx;
     this.time += dt;
     this.deathBudget = 40;
+    this.killBudget = 10;
     camera.dist = 0;
     if (!this.introShown) {
       this.introShown = true;
@@ -239,12 +246,11 @@ export class StationaryMode implements GameMode {
     const sim = this.sim;
     drawTrack(g, cam, 0, false);
 
-    for (const lane of sim.lanes) {
-      lane.elements.forEach((e, k) => {
-        if (e.type === 'item' && e.item) this.drawItem(g, lane.x, e.y, e.item, k === 0);
-        else this.drawBlock(g, lane, e);
-      });
-    }
+    this.drawLanePanels(g);
+    sim.lane.elements.forEach((e, k) => {
+      if (e.type === 'item' && e.item) this.drawItem(g, sim.lane.x, e.y, e.item, k === 0);
+      else this.drawBlock(g, sim.lane, e);
+    });
     this.drawMonsters(g);
     this.drawBullets(g);
 
@@ -311,42 +317,87 @@ export class StationaryMode implements GameMode {
     g.lineCap = 'butt';
   }
 
+  /** Tinted panels and a divider so it is obvious that monsters and upgrades have separate lanes. */
+  private drawLanePanels(g: CanvasRenderingContext2D): void {
+    const cam = this.ctx.camera;
+    const sim = this.sim;
+    const s = cam.scale;
+    const up0 = cam.sx(sim.lane.x - sim.lane.width / 2 - 0.25);
+    const up1 = cam.sx(sim.lane.x + sim.lane.width / 2 + 0.25);
+    const mo0 = cam.sx(sim.monsterMinX - 0.2);
+    const mo1 = cam.sx(sim.monsterMaxX + 0.2);
+    g.fillStyle = 'rgba(59,130,255,0.11)';
+    g.fillRect(up0, 0, up1 - up0, cam.height);
+    g.fillStyle = 'rgba(255,93,115,0.07)';
+    g.fillRect(mo0, 0, mo1 - mo0, cam.height);
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    for (const x of [up0, up1, mo0, mo1]) g.fillRect(x - 1, 0, 2, cam.height);
+    void s;
+  }
+
   private drawMonsters(g: CanvasRenderingContext2D): void {
     const cam = this.ctx.camera;
     const sim = this.sim;
     const s = cam.scale;
+    // pass 1: bodies (one drawImage each)
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!sim.malive[i]) continue;
       const kind = MONSTER_KIND_BY_INDEX[sim.mkind[i]];
-      const r = MONSTERS[kind].radius;
+      const d = MONSTERS[kind].radius * 2 * s;
+      g.drawImage(this.sprites[kind], cam.sx(sim.mx[i]) - d / 2, cam.sy(sim.my[i]) - d / 2, d, d);
+    }
+    // pass 2: angry eyes, batched into two paths for all monsters
+    g.fillStyle = '#fff';
+    g.beginPath();
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      if (!sim.malive[i]) continue;
+      const r = MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].radius;
       const sx = cam.sx(sim.mx[i]);
       const sy = cam.sy(sim.my[i]);
-      const d = r * 2 * s;
-      g.drawImage(this.sprites[kind], sx - d / 2, sy - d / 2, d, d);
-      // angry eyes
-      g.fillStyle = '#fff';
-      g.beginPath();
-      g.arc(sx - r * 0.3 * s, sy - r * 0.1 * s, r * 0.2 * s, 0, Math.PI * 2);
-      g.arc(sx + r * 0.3 * s, sy - r * 0.1 * s, r * 0.2 * s, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = '#10142b';
-      g.beginPath();
-      g.arc(sx - r * 0.3 * s, sy - r * 0.02 * s, r * 0.09 * s, 0, Math.PI * 2);
-      g.arc(sx + r * 0.3 * s, sy - r * 0.02 * s, r * 0.09 * s, 0, Math.PI * 2);
-      g.fill();
-
+      const er = r * 0.2 * s;
+      g.moveTo(sx - r * 0.3 * s + er, sy - r * 0.1 * s);
+      g.arc(sx - r * 0.3 * s, sy - r * 0.1 * s, er, 0, Math.PI * 2);
+      g.moveTo(sx + r * 0.3 * s + er, sy - r * 0.1 * s);
+      g.arc(sx + r * 0.3 * s, sy - r * 0.1 * s, er, 0, Math.PI * 2);
+    }
+    g.fill();
+    g.fillStyle = '#10142b';
+    g.beginPath();
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      if (!sim.malive[i]) continue;
+      const r = MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].radius;
+      const sx = cam.sx(sim.mx[i]);
+      const sy = cam.sy(sim.my[i]);
+      const pr = r * 0.09 * s;
+      g.moveTo(sx - r * 0.3 * s + pr, sy - r * 0.02 * s);
+      g.arc(sx - r * 0.3 * s, sy - r * 0.02 * s, pr, 0, Math.PI * 2);
+      g.moveTo(sx + r * 0.3 * s + pr, sy - r * 0.02 * s);
+      g.arc(sx + r * 0.3 * s, sy - r * 0.02 * s, pr, 0, Math.PI * 2);
+    }
+    g.fill();
+    // pass 3: HP labels, only for monsters worth reading (the horde stays clean)
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      if (!sim.malive[i]) continue;
+      const kind = MONSTER_KIND_BY_INDEX[sim.mkind[i]];
+      const big = kind === 'boss' || kind === 'miniboss' || kind === 'tank';
+      if (!big && sim.mhp[i] < 8) continue;
+      const d = MONSTERS[kind].radius * 2 * s;
+      const sx = cam.sx(sim.mx[i]);
+      const sy = cam.sy(sim.my[i]);
+      const fontPx = Math.max(11, s * (kind === 'boss' ? 0.8 : kind === 'miniboss' ? 0.6 : 0.45));
       const label = formatCount(Math.ceil(sim.mhp[i]));
-      const fontPx = Math.max(11, s * (kind === 'boss' ? 0.8 : 0.45));
       g.font = `900 ${fontPx}px ${FONT}`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.lineJoin = 'round';
       g.lineWidth = fontPx * 0.25;
       g.strokeStyle = 'rgba(8,10,28,0.9)';
       g.strokeText(label, sx, sy - d / 2 - fontPx * 0.7);
       g.fillStyle = '#fff';
       g.fillText(label, sx, sy - d / 2 - fontPx * 0.7);
-      if (kind === 'boss') drawCrown(g, sx, sy - d / 2 - fontPx * 2.2, fontPx * 1.6);
+      if (kind === 'boss' || kind === 'miniboss') {
+        drawCrown(g, sx, sy - d / 2 - fontPx * 2.1, fontPx * (kind === 'boss' ? 1.6 : 1.2));
+      }
     }
   }
 

@@ -14,27 +14,38 @@ export interface BotResult {
 }
 
 /**
- * Where the bot wants the squad: under a monster that is about to reach it; otherwise under
- * a falling power-up; otherwise under a monster that is getting close; otherwise under the
- * front block of a lane; otherwise under the nearest monster.
+ * Where the bot wants the squad. Monsters come down in masses, so it stands under the
+ * densest column of monsters whenever they are close; otherwise it goes to the upgrade
+ * lane to shoot the front block or catch the falling power-up.
  */
 function botTarget(sim: StationarySim): number {
-  let nearest = -1;
+  const reach = sim.halfWidth() + 0.5;
   let nearestY = Infinity;
+  let danger = 0;
   for (let i = 0; i < MAX_MONSTERS; i++) {
-    if (sim.malive[i] && sim.my[i] < nearestY) {
-      nearestY = sim.my[i];
-      nearest = i;
+    if (!sim.malive[i]) continue;
+    if (sim.my[i] < nearestY) nearestY = sim.my[i];
+    if (sim.my[i] < 7) danger++;
+  }
+  // densest column: try a few positions across the monster lane, closer monsters count more
+  let bestX = (sim.monsterMinX + sim.monsterMaxX) / 2;
+  let bestScore = 0;
+  for (let cx = sim.monsterMinX; cx <= sim.monsterMaxX + 0.01; cx += 0.7) {
+    let score = 0;
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      if (sim.malive[i] && Math.abs(sim.mx[i] - cx) <= reach && sim.my[i] < 13) {
+        score += 1 / (sim.my[i] + 1);
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestX = cx;
     }
   }
-  const front = sim.lanes.find((l) => l.elements.length > 0);
-  const el = front?.elements[0];
-  if (nearest >= 0 && nearestY < 3) return sim.mx[nearest];
-  if (front && el?.type === 'item') return front.x;
-  if (nearest >= 0 && nearestY < 7) return sim.mx[nearest];
-  if (front) return front.x;
-  if (nearest >= 0) return sim.mx[nearest];
-  return 0;
+  const front = sim.lane.elements[0];
+  if (front?.type === 'item' && nearestY > 2.5) return sim.lane.x;
+  if (!front || danger >= 3 || nearestY < 3) return bestX;
+  return sim.lane.x;
 }
 
 /**

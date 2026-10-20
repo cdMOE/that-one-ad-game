@@ -64,7 +64,7 @@ export interface RunnerLevel extends LevelBase {
 export const WEAPON_IDS = ['pistol', 'rifle', 'shotgun', 'minigun'] as const;
 export type WeaponId = (typeof WEAPON_IDS)[number];
 
-export const MONSTER_KINDS = ['grunt', 'runner', 'tank', 'boss'] as const;
+export const MONSTER_KINDS = ['grunt', 'runner', 'tank', 'miniboss', 'boss'] as const;
 export type MonsterKind = (typeof MONSTER_KINDS)[number];
 
 /** A stream of monsters of one kind, entering at the top of the arena. */
@@ -77,9 +77,11 @@ export interface SpawnDef {
   interval: number;
   /** Seconds after the level starts before the first one appears. */
   delay?: number;
-  /** Lane centre, -1 (left) .. 1 (right). Default 0.6: the right side. */
+  /**
+   * Where in the monster lane they enter, -1 (left edge) .. 1 (right edge). Default 0: the middle.
+   */
   x?: number;
-  /** Random lateral scatter around the lane, 0 .. 1 (default 0.25). */
+  /** Random scatter around `x`, 0 (one column) .. 1 (the whole lane). Default 1. */
   spread?: number;
 }
 
@@ -103,15 +105,14 @@ export type LaneElementDef =
   | { type: 'item'; item: ItemDef };
 
 /**
- * A column of blocks and power-ups that slides towards the squad. The front element stops
- * at the hold line if it is a block (bullets must break it) and falls to the squad if it is
- * a power-up; everything behind it is visible and waits its turn.
+ * The upgrade lane: a column of blocks and power-ups that slides towards the squad. The front
+ * element stops at the hold line if it is a block (bullets must break it) and falls to the
+ * squad if it is a power-up; everything behind it is visible and waits its turn. Monsters
+ * never enter it: they have their own lane on the other side of the field.
  */
 export interface LaneDef {
-  /** Lateral position of the lane, -1 (left) .. 1 (right). */
-  x: number;
-  /** Lane width in world units (default 3.6). */
-  width?: number;
+  /** Which side of the field the upgrade lane is on (default `left`). */
+  side?: 'left' | 'right';
   /** Front element first. */
   elements: LaneElementDef[];
 }
@@ -119,7 +120,7 @@ export interface LaneDef {
 export interface StationaryLevel extends LevelBase {
   mode: 'stationary';
   weapon: WeaponId;
-  lanes: LaneDef[];
+  lane: LaneDef;
   monsters: SpawnDef[];
 }
 

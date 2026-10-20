@@ -231,30 +231,21 @@ function readRunner(r: Reader, o: Rec): RunnerLevel | undefined {
   };
 }
 
-const STATIONARY_KEYS = [
-  'id',
-  'name',
-  'mode',
-  'startCount',
-  'weapon',
-  'lanes',
-  'monsters',
-] as const;
+const STATIONARY_KEYS = ['id', 'name', 'mode', 'startCount', 'weapon', 'lane', 'monsters'] as const;
 
 function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
   const out: SpawnDef[] = [];
-  (r.arr(v, path, { min: 1, max: 60 }) ?? []).forEach((item, i) => {
+  (r.arr(v, path, { min: 1, max: 80 }) ?? []).forEach((item, i) => {
     const p = `${path}[${i}]`;
     const o = r.obj(item, p, ['kind', 'count', 'hp', 'interval', 'delay', 'x', 'spread']);
     if (!o) return;
     const kind = r.oneOf<MonsterKind>(o.kind, `${p}.kind`, MONSTER_KINDS);
-    const count = r.num(o.count, `${p}.count`, { min: 1, max: 300, int: true });
+    const count = r.num(o.count, `${p}.count`, { min: 1, max: 2000, int: true });
     const hp = r.num(o.hp, `${p}.hp`, { above: 0, max: 1_000_000 });
-    const interval = r.num(o.interval, `${p}.interval`, { min: 0.1, max: 30 });
+    const interval = r.num(o.interval, `${p}.interval`, { min: 0.03, max: 30 });
     const delay = o.delay === undefined ? 0 : r.num(o.delay, `${p}.delay`, { min: 0, max: 120 });
-    const x = o.x === undefined ? 0.6 : r.num(o.x, `${p}.x`, { min: -1, max: 1 });
-    const spread =
-      o.spread === undefined ? 0.25 : r.num(o.spread, `${p}.spread`, { min: 0, max: 1 });
+    const x = o.x === undefined ? 0 : r.num(o.x, `${p}.x`, { min: -1, max: 1 });
+    const spread = o.spread === undefined ? 1 : r.num(o.spread, `${p}.spread`, { min: 0, max: 1 });
     if (
       kind !== undefined &&
       count !== undefined &&
@@ -306,41 +297,36 @@ function readItem(r: Reader, v: unknown, path: string): ItemDef | undefined {
   return undefined;
 }
 
-function readLanes(r: Reader, v: unknown, path: string): LaneDef[] {
-  const out: LaneDef[] = [];
-  (r.arr(v, path, { min: 1, max: 2 }) ?? []).forEach((item, i) => {
-    const p = `${path}[${i}]`;
-    const o = r.obj(item, p, ['x', 'width', 'elements']);
-    if (!o) return;
-    const x = r.num(o.x, `${p}.x`, { min: -1, max: 1 });
-    const width = o.width === undefined ? 3.6 : r.num(o.width, `${p}.width`, { min: 1, max: 8 });
-    const elements: LaneElementDef[] = [];
-    (r.arr(o.elements, `${p}.elements`, { min: 1, max: 60 }) ?? []).forEach((el, j) => {
-      const ep = `${p}.elements[${j}]`;
-      if (typeof el !== 'object' || el === null) {
-        r.fail(ep, 'expected an object');
-        return;
-      }
-      const type = r.oneOf('type' in el ? (el as Rec).type : undefined, `${ep}.type`, [
-        'block',
-        'item',
-      ] as const);
-      if (type === 'block') {
-        const b = r.obj(el, ep, ['type', 'hp', 'grow']);
-        if (!b) return;
-        const hp = r.num(b.hp, `${ep}.hp`, { min: 1, max: 1_000_000, int: true });
-        const grow = b.grow === undefined ? 0 : r.num(b.grow, `${ep}.grow`, { min: 0, max: 1000 });
-        if (hp !== undefined && grow !== undefined) elements.push({ type: 'block', hp, grow });
-      } else if (type === 'item') {
-        const it = r.obj(el, ep, ['type', 'item']);
-        if (!it) return;
-        const def = readItem(r, it.item, `${ep}.item`);
-        if (def) elements.push({ type: 'item', item: def });
-      }
-    });
-    if (x !== undefined && width !== undefined) out.push({ x, width, elements });
+function readLane(r: Reader, v: unknown, path: string): LaneDef | undefined {
+  const o = r.obj(v, path, ['side', 'elements']);
+  if (!o) return undefined;
+  const side =
+    o.side === undefined ? 'left' : r.oneOf(o.side, `${path}.side`, ['left', 'right'] as const);
+  const elements: LaneElementDef[] = [];
+  (r.arr(o.elements, `${path}.elements`, { min: 1, max: 80 }) ?? []).forEach((el, j) => {
+    const ep = `${path}.elements[${j}]`;
+    if (typeof el !== 'object' || el === null) {
+      r.fail(ep, 'expected an object');
+      return;
+    }
+    const type = r.oneOf('type' in el ? (el as Rec).type : undefined, `${ep}.type`, [
+      'block',
+      'item',
+    ] as const);
+    if (type === 'block') {
+      const b = r.obj(el, ep, ['type', 'hp', 'grow']);
+      if (!b) return;
+      const hp = r.num(b.hp, `${ep}.hp`, { min: 1, max: 1_000_000, int: true });
+      const grow = b.grow === undefined ? 0 : r.num(b.grow, `${ep}.grow`, { min: 0, max: 1000 });
+      if (hp !== undefined && grow !== undefined) elements.push({ type: 'block', hp, grow });
+    } else if (type === 'item') {
+      const it = r.obj(el, ep, ['type', 'item']);
+      if (!it) return;
+      const def = readItem(r, it.item, `${ep}.item`);
+      if (def) elements.push({ type: 'item', item: def });
+    }
   });
-  return out;
+  return side ? { side, elements } : undefined;
 }
 
 function readStationary(r: Reader, o: Rec): StationaryLevel | undefined {
@@ -349,12 +335,18 @@ function readStationary(r: Reader, o: Rec): StationaryLevel | undefined {
   const name = r.str(o.name, 'name');
   const startCount = r.num(o.startCount, 'startCount', { min: 1, int: true });
   const weapon = r.oneOf<WeaponId>(o.weapon, 'weapon', WEAPON_IDS);
-  const lanes = readLanes(r, o.lanes, 'lanes');
+  const lane = readLane(r, o.lane, 'lane');
   const monsters = readSpawns(r, o.monsters, 'monsters');
-  if (id === undefined || name === undefined || startCount === undefined || weapon === undefined) {
+  if (
+    id === undefined ||
+    name === undefined ||
+    startCount === undefined ||
+    weapon === undefined ||
+    lane === undefined
+  ) {
     return undefined;
   }
-  return { id, name, mode: 'stationary', startCount, weapon, lanes, monsters };
+  return { id, name, mode: 'stationary', startCount, weapon, lane, monsters };
 }
 
 /** Per-mode readers. Register new modes here (and in schema.ts / modes/index.ts). */
