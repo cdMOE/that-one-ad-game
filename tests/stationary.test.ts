@@ -90,7 +90,7 @@ describe('StationarySim', () => {
   it('only hits what is above the squad: a bullet flies straight', () => {
     const sim = new StationarySim(base, mulberry32(1));
     sim.targetX = -4;
-    run(sim, 3); // squad parks on the left, the lane is on the right x=0 -> nothing is hit
+    run(sim, 1.4); // squad parks far left while the monster is still high up in its lane
     expect(sim.kills).toBe(0);
   });
 
