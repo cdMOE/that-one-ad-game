@@ -1,0 +1,45 @@
+{
+  "id": "runner-02",
+  "name": "Spiky Business",
+  "mode": "runner",
+  "length": 120,
+  "speed": 6,
+  "startCount": 8,
+  "gates": [
+    {
+      "at": 15,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "+", "value": 3 }
+      ]
+    },
+    {
+      "at": 42,
+      "options": [
+        { "op": "+", "value": 10 },
+        { "op": "-", "value": 5 },
+        { "op": "x", "value": 2 }
+      ]
+    },
+    {
+      "at": 76,
+      "options": [
+        { "op": "+", "value": 20 },
+        { "op": "/", "value": 2 }
+      ]
+    }
+  ],
+  "enemies": [{ "at": 60, "count": 20, "x": -0.4 }],
+  "obstacles": [
+    { "at": 30, "kind": "spikes", "x": 0, "width": 0.3, "damage": 5 },
+    {
+      "at": 92,
+      "kind": "saw",
+      "x": 0,
+      "width": 0.3,
+      "damage": 8,
+      "sway": { "amplitude": 0.7, "speed": 2.2 }
+    }
+  ],
+  "boss": { "name": "Spikeface", "count": 20 }
+}

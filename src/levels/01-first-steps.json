@@ -1,0 +1,34 @@
+{
+  "id": "runner-01",
+  "name": "First Steps",
+  "mode": "runner",
+  "length": 100,
+  "speed": 5.5,
+  "startCount": 5,
+  "gates": [
+    {
+      "at": 18,
+      "options": [
+        { "op": "+", "value": 10 },
+        { "op": "x", "value": 2 }
+      ]
+    },
+    {
+      "at": 40,
+      "options": [
+        { "op": "-", "value": 5 },
+        { "op": "+", "value": 15 }
+      ]
+    },
+    {
+      "at": 78,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "+", "value": 5 }
+      ]
+    }
+  ],
+  "enemies": [{ "at": 60, "count": 12 }],
+  "obstacles": [],
+  "boss": { "name": "Blobbo", "count": 25 }
+}

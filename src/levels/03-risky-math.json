@@ -1,0 +1,39 @@
+{
+  "id": "runner-03",
+  "name": "Risky Math",
+  "mode": "runner",
+  "length": 130,
+  "speed": 6.5,
+  "startCount": 12,
+  "gates": [
+    {
+      "at": 15,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "-", "value": 10 }
+      ]
+    },
+    {
+      "at": 55,
+      "options": [
+        { "op": "x", "value": 4 },
+        { "op": "/", "value": 2 },
+        { "op": "+", "value": 8 }
+      ]
+    },
+    {
+      "at": 85,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "-", "value": 5 }
+      ]
+    }
+  ],
+  "enemies": [
+    { "at": 38, "count": 30 },
+    { "at": 105, "count": 20, "x": -0.6 },
+    { "at": 105, "count": 20, "x": 0.6 }
+  ],
+  "obstacles": [{ "at": 70, "kind": "spikes", "x": 0.3, "width": 0.6, "damage": 6 }],
+  "boss": { "name": "Mega Blobbo", "count": 28 }
+}
