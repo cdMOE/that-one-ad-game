@@ -1,5 +1,6 @@
 import { applyGate } from '../core/rules';
-import type { RunnerLevel } from './schema';
+import { analyzeStationary } from '../modes/stationary/bot';
+import type { Level, RunnerLevel } from './schema';
 
 export interface RunnerAnalysis {
   /** True if a perfect player (best gate every time) can beat every fight. */
@@ -68,4 +69,14 @@ export function starsFor(survivors: number, bestPossible: number): 1 | 2 | 3 {
   if (ratio >= 0.8) return 3;
   if (ratio >= 0.45) return 2;
   return 1;
+}
+
+/**
+ * Survivors a good player can reach: the best-case walk for runner levels and the best
+ * bot run for stationary levels. Stars are measured against this number.
+ */
+export function referenceSurvivors(level: Level): number {
+  return level.mode === 'runner'
+    ? analyzeRunner(level).bestFinalCount
+    : analyzeStationary(level).bestSurvivors;
 }

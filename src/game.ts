@@ -5,7 +5,7 @@ import { Loop } from './core/loop';
 import { ParticleSystem, PopupSystem } from './core/particles';
 import { drawBackdrop } from './core/render';
 import { loadSave, writeSave, type SaveData } from './core/storage';
-import { analyzeRunner, starsFor } from './levels/analyze';
+import { referenceSurvivors, starsFor } from './levels/analyze';
 import { levels, type Level } from './levels';
 import { createMode, type GameContext, type GameMode } from './modes';
 import { RunnerMode } from './modes/runner';
@@ -118,7 +118,16 @@ export class Game {
     this.backdrop = null;
     this.state = 'playing';
     this.ui.showHud(levels[index], index);
-    if (index === 0) this.ui.showHint('Drag left / right to pick the best gate');
+    const level = levels[index];
+    const firstOfMode = levels.findIndex((l) => l.mode === level.mode) === index;
+    if (firstOfMode && !this.save.completed[level.id]) {
+      this.ui.showHint(
+        level.mode === 'runner'
+          ? 'Drag left / right to pick the best gate'
+          : 'Auto-aim shoots monsters. Hold anywhere to aim yourself, e.g. at a block.',
+        5000,
+      );
+    }
   }
 
   private toMenu(): void {
@@ -156,8 +165,7 @@ export class Game {
     let stars = 0;
     if (won) {
       const level = levels[this.levelIndex];
-      const best = level.mode === 'runner' ? analyzeRunner(level).bestFinalCount : mode.survivors;
-      stars = starsFor(mode.survivors, best);
+      stars = starsFor(mode.survivors, referenceSurvivors(level));
       const prev = this.save.completed[level.id];
       this.save.completed[level.id] = {
         stars: Math.max(prev?.stars ?? 0, stars),

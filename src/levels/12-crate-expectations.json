@@ -1,0 +1,124 @@
+{
+  "id": "stationary-02",
+  "name": "Crate Expectations",
+  "mode": "stationary",
+  "startCount": 12,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 10,
+          "hp": 21,
+          "from": "right",
+          "interval": 0.84
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.65,
+          "y": 7,
+          "hp": 72,
+          "reward": {
+            "op": "+",
+            "value": 10
+          }
+        }
+      ],
+      "choices": [
+        {
+          "kind": "crowd",
+          "op": "+",
+          "value": 8
+        },
+        {
+          "kind": "upgrade",
+          "stat": "rate",
+          "value": 0.3
+        },
+        {
+          "kind": "upgrade",
+          "stat": "damage",
+          "value": 0.3
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 14,
+          "hp": 24,
+          "from": "right",
+          "interval": 0.7
+        },
+        {
+          "kind": "runner",
+          "count": 5,
+          "hp": 14,
+          "from": "top",
+          "interval": 1.4,
+          "delay": 1.4
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 8,
+          "hp": 144,
+          "reward": {
+            "op": "x",
+            "value": 2
+          }
+        }
+      ],
+      "choices": [
+        {
+          "kind": "weapon",
+          "weapon": "shotgun"
+        },
+        {
+          "kind": "crowd",
+          "op": "+",
+          "value": 15
+        },
+        {
+          "kind": "upgrade",
+          "stat": "rate",
+          "value": 0.4
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 16,
+          "hp": 28,
+          "from": "right",
+          "interval": 0.56
+        },
+        {
+          "kind": "grunt",
+          "count": 8,
+          "hp": 28,
+          "from": "left",
+          "interval": 1.12,
+          "delay": 1.4
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0.6,
+          "y": 8,
+          "hp": 192,
+          "reward": {
+            "op": "+",
+            "value": 20
+          }
+        }
+      ]
+    }
+  ]
+}

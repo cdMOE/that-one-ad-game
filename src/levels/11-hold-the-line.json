@@ -1,0 +1,86 @@
+{
+  "id": "stationary-01",
+  "name": "Hold the Line",
+  "mode": "stationary",
+  "startCount": 10,
+  "weapon": "pistol",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 8,
+          "hp": 16,
+          "from": "right",
+          "interval": 0.91
+        }
+      ],
+      "choices": [
+        {
+          "kind": "crowd",
+          "op": "+",
+          "value": 10
+        },
+        {
+          "kind": "upgrade",
+          "stat": "rate",
+          "value": 0.4
+        },
+        {
+          "kind": "weapon",
+          "weapon": "rifle"
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 10,
+          "hp": 20,
+          "from": "right",
+          "interval": 0.77
+        },
+        {
+          "kind": "grunt",
+          "count": 6,
+          "hp": 20,
+          "from": "left",
+          "interval": 1.26,
+          "delay": 1.4
+        }
+      ],
+      "choices": [
+        {
+          "kind": "crowd",
+          "op": "x",
+          "value": 2
+        },
+        {
+          "kind": "upgrade",
+          "stat": "damage",
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 12,
+          "hp": 24,
+          "from": "right",
+          "interval": 0.63
+        },
+        {
+          "kind": "runner",
+          "count": 6,
+          "hp": 16,
+          "from": "top",
+          "interval": 1.05,
+          "delay": 2.1
+        }
+      ]
+    }
+  ]
+}

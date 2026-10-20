@@ -12,11 +12,11 @@ _Screenshots: coming soon (put captures in `docs/screenshots/` and link them her
 
 The core is mode-agnostic. A level's `"mode"` field picks the variant:
 
-| Mode           | Idea                                                                          | Status            |
-| -------------- | ----------------------------------------------------------------------------- | ----------------- |
-| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds. | ready (10 levels) |
-| `stationary`   | You stand still, enemy waves come, pick upgrades between waves.               | planned           |
-| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.             | planned           |
+| Mode           | Idea                                                                                                    | Status            |
+| -------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
+| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds.                           | ready (10 levels) |
+| `stationary`   | You stand still and shoot: auto-aim at monsters, hold to aim at HP blocks, pick upgrades between waves. | ready (5 levels)  |
+| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                                       | planned           |
 
 New modes are one file plus a registry entry, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -90,21 +90,60 @@ Enemy crowds always engage when the crowd reaches them, wherever they stand (`x`
 where they come from), so they cannot be skipped. Stars (1 to 3) depend on how much of the best
 possible crowd survives.
 
+### Stationary (shooter) levels
+
+`"mode": "stationary"` levels are a list of waves. The squad auto-fires at the nearest monster;
+holding a finger (or the mouse button, or `A`/`D`) aims by hand, which is how you destroy blocks
+that have an HP counter while monsters keep coming. A wave is cleared when all monsters are dead
+and all `required` blocks are destroyed; then the player picks one card.
+
+```json
+{
+  "id": "stationary-02",
+  "name": "Crate Expectations",
+  "mode": "stationary",
+  "startCount": 12,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [{ "kind": "grunt", "count": 10, "hp": 20, "from": "right", "interval": 0.8 }],
+      "obstacles": [{ "x": -0.65, "y": 7, "hp": 70, "reward": { "op": "+", "value": 10 } }],
+      "choices": [
+        { "kind": "crowd", "op": "+", "value": 8 },
+        { "kind": "upgrade", "stat": "rate", "value": 0.3 },
+        { "kind": "weapon", "weapon": "shotgun" }
+      ]
+    }
+  ]
+}
+```
+
+| Field             | Meaning                                                                                                                                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `weapon`          | `pistol`, `rifle`, `shotgun`, `minigun`. Damage scales with the squad size.                                                                                                                         |
+| `monsters[].kind` | `grunt`, `runner` (fast), `tank` (slow, bites hard), `boss`                                                                                                                                         |
+| `monsters[].from` | `left`, `right` or `top`; `interval` seconds between spawns, optional `delay`                                                                                                                       |
+| `obstacles[]`     | HP block at `x` (-1..1) and `y` (3..16 in front of the squad). Optional `reward` (a gate effect), `drift` (creeps towards you, costs `damage` units on arrival), `required` (default true), `width` |
+| `choices[]`       | 2-3 cards shown after the wave: `crowd` (gate effect), `upgrade` (`rate`, `damage`, `pellets`) or `weapon`                                                                                          |
+
+`npm run validate:levels` plays every stationary level with a bot (5 runs) and reports its win
+rate and how close it came to losing. Levels the bot never wins are rejected.
+
 Check your level before opening a pull request:
 
 ```bash
 npm run validate:levels
 ```
 
-It prints readable errors (`gates[2].options[0].op: expected one of ...`) and simulates a perfect
-player to make sure the level is winnable.
+It prints readable errors (`gates[2].options[0].op: expected one of ...`) and checks that the level
+can be won (a perfect-player walk for runner levels, a bot for stationary levels).
 
 ## Project structure
 
 ```
 src/
   core/      game loop, input, camera, swarm simulation, particles, pure rules
-  modes/     GameMode interface, registry, one file per mode
+  modes/     GameMode interface, registry, one file per mode (stationary/ holds its headless sim, weapons, bot)
   entities/  gates, obstacles, enemy crowds
   levels/    level JSON files, types, validation, solvability check
   ui/        DOM overlay: menu, level select, HUD, result screen

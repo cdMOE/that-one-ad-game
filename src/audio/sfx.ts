@@ -11,6 +11,7 @@ export class Sfx {
   private master: GainNode | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private lastHit = 0;
+  private lastShot = 0;
 
   /** Call from a user gesture (pointerdown/keydown). Safe to call repeatedly. */
   unlock(): void {
@@ -96,6 +97,22 @@ export class Sfx {
     this.lastHit = now;
     this.noise(0.09, 0.35, 1800);
     this.tone(140 + Math.random() * 40, 0.08, 'square', 0.12, 70);
+  }
+
+  /** Quiet and throttled: weapons fire several times per second. */
+  shoot(): void {
+    const now = performance.now();
+    if (now - this.lastShot < 70) return;
+    this.lastShot = now;
+    this.noise(0.04, 0.12, 3200);
+    this.tone(620 + Math.random() * 80, 0.05, 'square', 0.05, 240);
+  }
+
+  pop(): void {
+    const now = performance.now();
+    if (now - this.lastHit < 40) return;
+    this.lastHit = now;
+    this.tone(260 + Math.random() * 120, 0.09, 'triangle', 0.14, 90);
   }
 
   boom(): void {

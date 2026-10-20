@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
+import { analyzeStationary } from '../src/modes/stationary/bot';
 
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
 const files = readdirSync(dir)
@@ -39,6 +40,9 @@ describe('shipped levels', () => {
       const analysis = analyzeRunner(result.level);
       expect(analysis.failure).toBeUndefined();
       expect(analysis.winnable).toBe(true);
+    }
+    if (result.ok && result.level.mode === 'stationary') {
+      expect(analyzeStationary(result.level).winRate).toBeGreaterThan(0);
     }
   });
 

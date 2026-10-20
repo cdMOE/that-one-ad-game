@@ -1,0 +1,144 @@
+{
+  "id": "stationary-04",
+  "name": "Slow Burn",
+  "mode": "stationary",
+  "startCount": 20,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "tank",
+          "count": 3,
+          "hp": 149,
+          "from": "right",
+          "interval": 2.8
+        },
+        {
+          "kind": "grunt",
+          "count": 10,
+          "hp": 24,
+          "from": "left",
+          "interval": 0.84
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 10,
+          "hp": 101,
+          "drift": 0.45,
+          "damage": 10
+        }
+      ],
+      "choices": [
+        {
+          "kind": "crowd",
+          "op": "+",
+          "value": 15
+        },
+        {
+          "kind": "upgrade",
+          "stat": "damage",
+          "value": 0.5
+        },
+        {
+          "kind": "upgrade",
+          "stat": "rate",
+          "value": 0.4
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "runner",
+          "count": 14,
+          "hp": 20,
+          "from": "right",
+          "interval": 0.49
+        },
+        {
+          "kind": "tank",
+          "count": 3,
+          "hp": 208,
+          "from": "top",
+          "interval": 3.5,
+          "delay": 1.4
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 9,
+          "hp": 130,
+          "drift": 0.4,
+          "damage": 10,
+          "reward": {
+            "op": "+",
+            "value": 15
+          }
+        },
+        {
+          "x": 0.6,
+          "y": 10,
+          "hp": 130,
+          "drift": 0.4,
+          "damage": 10
+        }
+      ],
+      "choices": [
+        {
+          "kind": "weapon",
+          "weapon": "minigun"
+        },
+        {
+          "kind": "crowd",
+          "op": "x",
+          "value": 2
+        },
+        {
+          "kind": "upgrade",
+          "stat": "damage",
+          "value": 0.6
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 20,
+          "hp": 30,
+          "from": "right",
+          "interval": 0.49
+        },
+        {
+          "kind": "grunt",
+          "count": 20,
+          "hp": 30,
+          "from": "left",
+          "interval": 0.49,
+          "delay": 0.21
+        },
+        {
+          "kind": "tank",
+          "count": 4,
+          "hp": 268,
+          "from": "top",
+          "interval": 2.8,
+          "delay": 2.1
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0,
+          "y": 10,
+          "hp": 202,
+          "drift": 0.35,
+          "damage": 15
+        }
+      ]
+    }
+  ]
+}

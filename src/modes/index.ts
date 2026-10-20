@@ -1,6 +1,7 @@
 import type { Level, LevelMode } from '../levels/schema';
 import type { GameContext, GameMode } from './mode';
 import { RunnerMode } from './runner';
+import { StationaryMode } from './stationary';
 
 type Factories = {
   [M in LevelMode]: (level: Extract<Level, { mode: M }>, ctx: GameContext) => GameMode;
@@ -10,6 +11,7 @@ type Factories = {
 // level schema without registering it here is a compile error.
 const factories: Factories = {
   runner: (level, ctx) => new RunnerMode(level, ctx),
+  stationary: (level, ctx) => new StationaryMode(level, ctx),
 };
 
 export function createMode(level: Level, ctx: GameContext): GameMode {

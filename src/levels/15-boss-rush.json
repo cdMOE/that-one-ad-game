@@ -1,0 +1,142 @@
+{
+  "id": "stationary-05",
+  "name": "Boss Rush",
+  "mode": "stationary",
+  "startCount": 25,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 16,
+          "hp": 18,
+          "from": "right",
+          "interval": 0.56
+        },
+        {
+          "kind": "grunt",
+          "count": 16,
+          "hp": 18,
+          "from": "left",
+          "interval": 0.56,
+          "delay": 0.28
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.7,
+          "y": 8,
+          "hp": 128,
+          "reward": {
+            "op": "+",
+            "value": 20
+          }
+        }
+      ],
+      "choices": [
+        {
+          "kind": "weapon",
+          "weapon": "minigun"
+        },
+        {
+          "kind": "crowd",
+          "op": "x",
+          "value": 2
+        },
+        {
+          "kind": "upgrade",
+          "stat": "damage",
+          "value": 0.5
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "runner",
+          "count": 16,
+          "hp": 14,
+          "from": "top",
+          "interval": 0.42
+        },
+        {
+          "kind": "tank",
+          "count": 4,
+          "hp": 158,
+          "from": "right",
+          "interval": 2.45,
+          "delay": 0.7
+        }
+      ],
+      "obstacles": [
+        {
+          "x": 0.65,
+          "y": 9,
+          "hp": 154,
+          "drift": 0.35,
+          "damage": 12,
+          "reward": {
+            "op": "x",
+            "value": 2
+          }
+        }
+      ],
+      "choices": [
+        {
+          "kind": "crowd",
+          "op": "+",
+          "value": 30
+        },
+        {
+          "kind": "upgrade",
+          "stat": "rate",
+          "value": 0.5
+        },
+        {
+          "kind": "upgrade",
+          "stat": "damage",
+          "value": 0.6
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 18,
+          "hp": 21,
+          "from": "left",
+          "interval": 0.49
+        },
+        {
+          "kind": "grunt",
+          "count": 18,
+          "hp": 21,
+          "from": "right",
+          "interval": 0.49,
+          "delay": 0.21
+        },
+        {
+          "kind": "boss",
+          "count": 1,
+          "hp": 2100,
+          "from": "top",
+          "interval": 0.7,
+          "delay": 4.2
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 8,
+          "hp": 192,
+          "reward": {
+            "op": "+",
+            "value": 40
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -41,7 +41,8 @@ A mode is a class that implements `GameMode` (`src/modes/mode.ts`):
    forget.
 5. Add a level or two with `"mode": "<name>"` and tests for any new pure logic.
 
-Keep game rules in pure functions (no DOM, no time) so they can be unit tested.
+Keep game rules in pure functions or a headless simulation (no DOM, no canvas) so they can be unit
+tested and played by a bot. `src/modes/stationary/sim.ts` is the reference for that pattern.
 
 ## Style
 
