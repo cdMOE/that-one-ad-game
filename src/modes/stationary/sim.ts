@@ -21,11 +21,13 @@ export const SOLDIER_SPACING = 0.46;
 export const GRID_COLS = 8;
 /** At most this many soldiers are simulated and drawn; bigger squads hit harder per bullet. */
 export const MAX_SHOOTERS = 40;
+/** Global pace of the shooter: everything (monsters, bullets, items) runs this much faster. */
+export const GAME_SPEED = 1.3;
 const SQUAD_MAX_SPEED = 16;
 const ITEM_FALL_SPEED = 3.4;
 const OBSTACLE_HEIGHT = 1.3;
 /** Coins for smashing a block. */
-const BLOCK_COINS = 15;
+const BLOCK_COINS = 25;
 const BULLET_LIFE = 1.3;
 
 export interface MonsterStats {
@@ -38,10 +40,10 @@ export interface MonsterStats {
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 3.8, radius: 0.45, bite: 1, coins: 3 },
-  runner: { speed: 6.2, radius: 0.34, bite: 1, coins: 4 },
-  tank: { speed: 2.1, radius: 0.8, bite: 4, coins: 15 },
-  boss: { speed: 1.2, radius: 1.7, bite: 20, coins: 150 },
+  grunt: { speed: 3.8, radius: 0.45, bite: 1, coins: 5 },
+  runner: { speed: 6.2, radius: 0.34, bite: 1, coins: 7 },
+  tank: { speed: 2.1, radius: 0.8, bite: 4, coins: 25 },
+  boss: { speed: 1.2, radius: 1.7, bite: 20, coins: 250 },
 };
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'boss'];
 const MONSTER_KIND_INDEX: Record<MonsterKind, number> = { grunt: 0, runner: 1, tank: 2, boss: 3 };
@@ -215,8 +217,9 @@ export class StationarySim {
     return n;
   }
 
-  update(dt: number): void {
+  update(frameDt: number): void {
     if (this.phase === 'won' || this.phase === 'lost') return;
+    const dt = frameDt * GAME_SPEED;
     this.time += dt;
     this.moveSquad(dt);
     this.updateBullets(dt);

@@ -2,28 +2,28 @@
   "id": "stationary-03",
   "name": "Growing Pains",
   "mode": "stationary",
-  "startCount": 12,
+  "startCount": 1,
   "weapon": "rifle",
   "waves": [
     {
       "monsters": [
         {
           "kind": "grunt",
-          "count": 18,
-          "hp": 15,
-          "interval": 0.26
+          "count": 10,
+          "hp": 10,
+          "interval": 1.18
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 86,
-          "grow": 3,
+          "hp": 43,
+          "grow": 4.5,
           "item": {
             "kind": "crowd",
             "op": "+",
-            "value": 8
+            "value": 6
           }
         }
       ]
@@ -32,24 +32,26 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 22,
-          "hp": 19,
-          "interval": 0.23
+          "count": 13,
+          "hp": 15,
+          "interval": 1.01
         },
         {
-          "kind": "tank",
-          "count": 4,
-          "hp": 95,
-          "interval": 1.17,
-          "delay": 0.52
+          "kind": "runner",
+          "count": 5,
+          "hp": 8,
+          "interval": 1.4,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 151,
-          "grow": 5,
+          "hp": 76,
+          "grow": 9.0,
           "item": {
             "kind": "upgrade",
             "stat": "rate",
@@ -61,24 +63,35 @@
     {
       "monsters": [
         {
-          "kind": "runner",
-          "count": 22,
-          "hp": 11,
-          "interval": 0.19
+          "kind": "grunt",
+          "count": 16,
+          "hp": 21,
+          "interval": 0.84
         },
         {
-          "kind": "grunt",
-          "count": 18,
-          "hp": 23,
-          "interval": 0.28
+          "kind": "runner",
+          "count": 7,
+          "hp": 12,
+          "interval": 1.2,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 190,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 215,
-          "grow": 7,
+          "hp": 132,
+          "grow": 13.5,
           "item": {
             "kind": "weapon",
             "weapon": "minigun"
@@ -90,24 +103,74 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 33,
+          "count": 19,
           "hp": 27,
-          "interval": 0.17
+          "interval": 0.67
+        },
+        {
+          "kind": "runner",
+          "count": 9,
+          "hp": 15,
+          "interval": 1.0,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
         },
         {
           "kind": "tank",
-          "count": 6,
-          "hp": 133,
-          "interval": 0.94,
-          "delay": 0.78
+          "count": 2,
+          "hp": 242,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 302,
-          "grow": 9,
+          "hp": 232,
+          "grow": 18.0,
+          "item": {
+            "kind": "upgrade",
+            "stat": "damage",
+            "value": 0.6
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 22,
+          "hp": 33,
+          "interval": 0.5
+        },
+        {
+          "kind": "runner",
+          "count": 11,
+          "hp": 18,
+          "interval": 0.8,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 3,
+          "hp": 294,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 405,
+          "grow": 22.5,
           "item": {
             "kind": "crowd",
             "op": "x",

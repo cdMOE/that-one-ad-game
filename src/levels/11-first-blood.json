@@ -2,23 +2,23 @@
   "id": "stationary-01",
   "name": "First Blood",
   "mode": "stationary",
-  "startCount": 6,
+  "startCount": 1,
   "weapon": "pistol",
   "waves": [
     {
       "monsters": [
         {
           "kind": "grunt",
-          "count": 11,
-          "hp": 4,
-          "interval": 0.49
+          "count": 6,
+          "hp": 3,
+          "interval": 1.3
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 16,
+          "hp": 14,
           "item": {
             "kind": "crowd",
             "op": "+",
@@ -31,16 +31,25 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 15,
+          "count": 9,
           "hp": 5,
-          "interval": 0.43
+          "interval": 1.13
+        },
+        {
+          "kind": "runner",
+          "count": 5,
+          "hp": 3,
+          "interval": 1.4,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 29,
+          "hp": 25,
           "item": {
             "kind": "upgrade",
             "stat": "rate",
@@ -53,26 +62,75 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 18,
-          "hp": 5,
-          "interval": 0.37
+          "count": 12,
+          "hp": 7,
+          "interval": 0.96
         },
         {
           "kind": "runner",
-          "count": 8,
+          "count": 7,
           "hp": 4,
-          "interval": 0.76,
-          "delay": 1.01
+          "interval": 1.2,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 63,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 45,
+          "hp": 44,
           "item": {
             "kind": "weapon",
             "weapon": "rifle"
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 15,
+          "hp": 9,
+          "interval": 0.79
+        },
+        {
+          "kind": "runner",
+          "count": 9,
+          "hp": 5,
+          "interval": 1.0,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 81,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 77,
+          "item": {
+            "kind": "crowd",
+            "op": "x",
+            "value": 2
           }
         }
       ]

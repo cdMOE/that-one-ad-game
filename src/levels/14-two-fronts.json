@@ -2,35 +2,76 @@
   "id": "stationary-04",
   "name": "Two Fronts",
   "mode": "stationary",
-  "startCount": 14,
+  "startCount": 1,
   "weapon": "rifle",
   "waves": [
     {
       "monsters": [
         {
           "kind": "grunt",
-          "count": 22,
-          "hp": 27,
-          "interval": 0.23,
-          "x": 0.7
+          "count": 12,
+          "hp": 13,
+          "interval": 1.12
         }
       ],
       "obstacles": [
         {
           "x": -0.6,
           "y": 8,
-          "hp": 102,
-          "width": 3.6,
+          "hp": 60,
           "item": {
             "kind": "crowd",
             "op": "+",
-            "value": 8
-          }
+            "value": 6
+          },
+          "width": 3.6
         },
         {
-          "x": 0.15,
+          "x": 0.1,
           "y": 11,
-          "hp": 80,
+          "hp": 48,
+          "width": 3,
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 5
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 15,
+          "hp": 21,
+          "interval": 0.95
+        },
+        {
+          "kind": "runner",
+          "count": 5,
+          "hp": 12,
+          "interval": 1.4,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 8,
+          "hp": 105,
+          "item": {
+            "kind": "weapon",
+            "weapon": "shotgun"
+          },
+          "width": 3.6
+        },
+        {
+          "x": 0.1,
+          "y": 11,
+          "hp": 84,
           "width": 3,
           "item": {
             "kind": "upgrade",
@@ -44,40 +85,49 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 26,
-          "hp": 35,
-          "interval": 0.21,
-          "x": 0.7
+          "count": 18,
+          "hp": 29,
+          "interval": 0.78
         },
         {
           "kind": "runner",
-          "count": 11,
+          "count": 7,
           "hp": 16,
-          "interval": 0.47,
-          "delay": 0.78,
-          "x": -0.2
+          "interval": 1.2,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 263,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.6,
           "y": 8,
-          "hp": 170,
-          "width": 3.6,
+          "hp": 183,
           "item": {
-            "kind": "weapon",
-            "weapon": "shotgun"
-          }
+            "kind": "upgrade",
+            "stat": "rate",
+            "value": 0.6
+          },
+          "width": 3.6
         },
         {
           "x": 0.1,
           "y": 11,
-          "hp": 136,
+          "hp": 147,
           "width": 3,
           "item": {
             "kind": "crowd",
             "op": "+",
-            "value": 10
+            "value": 8
           }
         }
       ]
@@ -85,42 +135,50 @@
     {
       "monsters": [
         {
-          "kind": "tank",
-          "count": 6,
-          "hp": 188,
-          "interval": 0.94,
-          "x": 0.7
+          "kind": "grunt",
+          "count": 21,
+          "hp": 37,
+          "interval": 0.61
         },
         {
-          "kind": "grunt",
-          "count": 29,
-          "hp": 38,
-          "interval": 0.19,
-          "delay": 0.26,
-          "x": 0.5
+          "kind": "runner",
+          "count": 9,
+          "hp": 20,
+          "interval": 1.0,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 335,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.6,
           "y": 8,
-          "hp": 251,
-          "width": 3.6,
-          "item": {
-            "kind": "upgrade",
-            "stat": "rate",
-            "value": 0.6
-          }
-        },
-        {
-          "x": 0.1,
-          "y": 11,
-          "hp": 206,
-          "width": 3,
+          "hp": 321,
           "item": {
             "kind": "crowd",
             "op": "x",
             "value": 2
+          },
+          "width": 3.6
+        },
+        {
+          "x": 0.1,
+          "y": 11,
+          "hp": 257,
+          "width": 3,
+          "item": {
+            "kind": "upgrade",
+            "stat": "rate",
+            "value": 0.4
           }
         }
       ]

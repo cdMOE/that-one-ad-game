@@ -2,23 +2,23 @@
   "id": "stationary-02",
   "name": "Heavy Crates",
   "mode": "stationary",
-  "startCount": 10,
+  "startCount": 1,
   "weapon": "rifle",
   "waves": [
     {
       "monsters": [
         {
           "kind": "grunt",
-          "count": 18,
-          "hp": 10,
-          "interval": 0.32
+          "count": 8,
+          "hp": 9,
+          "interval": 1.24
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 66,
+          "hp": 42,
           "item": {
             "kind": "crowd",
             "op": "+",
@@ -31,23 +31,25 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 22,
-          "hp": 12,
-          "interval": 0.27
+          "count": 11,
+          "hp": 15,
+          "interval": 1.07
         },
         {
           "kind": "runner",
-          "count": 9,
-          "hp": 6,
-          "interval": 0.53,
-          "delay": 0.89
+          "count": 5,
+          "hp": 8,
+          "interval": 1.4,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 120,
+          "hp": 74,
           "item": {
             "kind": "upgrade",
             "stat": "damage",
@@ -60,23 +62,33 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 26,
-          "hp": 15,
-          "interval": 0.24
+          "count": 14,
+          "hp": 21,
+          "interval": 0.9
+        },
+        {
+          "kind": "runner",
+          "count": 7,
+          "hp": 11,
+          "interval": 1.2,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
         },
         {
           "kind": "tank",
-          "count": 4,
-          "hp": 60,
-          "interval": 1.6,
-          "delay": 0.59
+          "count": 2,
+          "hp": 185,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 185,
+          "hp": 129,
           "item": {
             "kind": "crowd",
             "op": "x",
@@ -89,23 +101,33 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 29,
-          "hp": 18,
-          "interval": 0.21
+          "count": 17,
+          "hp": 26,
+          "interval": 0.73
         },
         {
           "kind": "runner",
-          "count": 15,
-          "hp": 7,
-          "interval": 0.4,
-          "delay": 0.59
+          "count": 9,
+          "hp": 14,
+          "interval": 1.0,
+          "delay": 2.5,
+          "x": 0.2,
+          "spread": 0.5
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 236,
+          "interval": 3.0,
+          "delay": 3.5,
+          "x": 0.7
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 261,
+          "hp": 226,
           "item": {
             "kind": "weapon",
             "weapon": "shotgun"
