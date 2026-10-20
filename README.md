@@ -140,8 +140,14 @@ let them `grow`) to raise the pressure.
 | `obstacles[]`       | Block at `x` (-1..1) and `y` (4..15 in front of the squad) with `hp`, optional `width`, `grow` (HP gained per second)     |
 | `obstacles[].item`  | Power-up behind the block: `crowd` (a gate effect like `+5` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon` |
 
-`npm run validate:levels` plays every stationary level with a bot (5 runs) and reports its win
-rate and how close it came to losing. Levels the bot never wins are rejected.
+**Coins and upgrades.** Every kill (and every smashed block) drops coins, and coins are kept even
+when a run is lost. In the shop (menu or result screen) they buy permanent upgrades for damage,
+fire rate and coin bonus; each level costs more than the one before (`src/core/shop.ts`).
+Stationary levels are meant to be lost at first and need several runs plus upgrades.
+
+`npm run validate:levels` plays every stationary level with a bot (5 runs per upgrade tier) and
+reports the **upgrade tier the level needs** and the coins a run earns. It rejects levels the bot
+cannot win even with maximum upgrades and warns about levels it wins without any upgrades.
 
 Check your level before opening a pull request:
 

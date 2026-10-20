@@ -10,22 +10,22 @@
         {
           "kind": "grunt",
           "count": 16,
-          "hp": 41,
-          "interval": 0.62
+          "hp": 164,
+          "interval": 0.56
         },
         {
           "kind": "runner",
           "count": 6,
-          "hp": 20,
-          "interval": 1.54,
-          "delay": 2.31
+          "hp": 80,
+          "interval": 1.39,
+          "delay": 2.08
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 245,
+          "hp": 612,
           "grow": 3,
           "item": {
             "kind": "crowd",
@@ -40,22 +40,22 @@
         {
           "kind": "grunt",
           "count": 18,
-          "hp": 50,
-          "interval": 0.54
+          "hp": 200,
+          "interval": 0.49
         },
         {
           "kind": "tank",
           "count": 3,
-          "hp": 248,
-          "interval": 3.08,
-          "delay": 1.54
+          "hp": 992,
+          "interval": 2.77,
+          "delay": 1.39
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 408,
+          "hp": 1020,
           "grow": 5,
           "item": {
             "kind": "weapon",
@@ -69,22 +69,22 @@
         {
           "kind": "runner",
           "count": 14,
-          "hp": 30,
-          "interval": 0.54
+          "hp": 120,
+          "interval": 0.49
         },
         {
           "kind": "grunt",
           "count": 14,
-          "hp": 58,
-          "interval": 0.69,
-          "delay": 0.77
+          "hp": 232,
+          "interval": 0.62,
+          "delay": 0.69
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 612,
+          "hp": 1530,
           "grow": 7,
           "item": {
             "kind": "upgrade",
@@ -99,22 +99,22 @@
         {
           "kind": "grunt",
           "count": 12,
-          "hp": 58,
-          "interval": 0.77
+          "hp": 232,
+          "interval": 0.69
         },
         {
           "kind": "boss",
           "count": 1,
-          "hp": 3712,
-          "interval": 0.77,
-          "delay": 4.62
+          "hp": 14848,
+          "interval": 0.69,
+          "delay": 4.16
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 775,
+          "hp": 1938,
           "grow": 8,
           "item": {
             "kind": "crowd",

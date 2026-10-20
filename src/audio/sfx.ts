@@ -12,6 +12,7 @@ export class Sfx {
   private noiseBuf: AudioBuffer | null = null;
   private lastHit = 0;
   private lastShot = 0;
+  private lastCoin = 0;
 
   /** Call from a user gesture (pointerdown/keydown). Safe to call repeatedly. */
   unlock(): void {
@@ -106,6 +107,13 @@ export class Sfx {
     this.lastShot = now;
     this.noise(0.04, 0.12, 3200);
     this.tone(620 + Math.random() * 80, 0.05, 'square', 0.05, 240);
+  }
+
+  coin(): void {
+    const now = performance.now();
+    if (now - this.lastCoin < 45) return;
+    this.lastCoin = now;
+    this.tone(1320, 0.07, 'square', 0.06, 1760);
   }
 
   pop(): void {

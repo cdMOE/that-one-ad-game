@@ -1,4 +1,5 @@
 import { mulberry32 } from '../../core/rng';
+import { tierUpgrades, upgradeMultiplier } from '../../core/shop';
 import type { StationaryLevel } from '../../levels/schema';
 import { MAX_MONSTERS, StationarySim } from './sim';
 
@@ -8,6 +9,8 @@ export interface BotResult {
   seconds: number;
   /** Lowest squad size seen during the run (how close it came to losing). */
   lowest: number;
+  /** Coins earned (before the coin-bonus upgrade). */
+  coins: number;
 }
 
 /**
@@ -37,8 +40,22 @@ function botTarget(sim: StationarySim): number {
  * monsters, falling power-ups, the block). Used by `npm run validate:levels` to check
  * that a level can be won.
  */
-export function runBot(level: StationaryLevel, seed: number, maxSeconds = 300): BotResult {
-  const sim = new StationarySim(level, mulberry32(seed));
+export function runBot(
+  level: StationaryLevel,
+  seed: number,
+  tier = 0,
+  maxSeconds = 300,
+): BotResult {
+  const up = tierUpgrades(tier);
+  const sim = new StationarySim(
+    level,
+    mulberry32(seed),
+    {},
+    {
+      damageMul: upgradeMultiplier('damage', up.damage),
+      rateMul: upgradeMultiplier('rate', up.rate),
+    },
+  );
   const dt = 1 / 30;
   const steps = Math.ceil(maxSeconds / dt);
   let lowest = sim.count;
@@ -53,6 +70,7 @@ export function runBot(level: StationaryLevel, seed: number, maxSeconds = 300): 
     survivors: sim.phase === 'won' ? sim.count : 0,
     seconds: sim.time,
     lowest,
+    coins: sim.coinsRaw,
   };
 }
 
@@ -63,14 +81,18 @@ export interface StationaryAnalysis {
   bestSurvivors: number;
   /** Lowest squad size reached in any won run, as a fraction of the starting squad. */
   tightness: number;
+  /** Average coins per run (won or lost), before the coin-bonus upgrade. */
+  coinsPerRun: number;
 }
 
-export function analyzeStationary(level: StationaryLevel, runs = 5): StationaryAnalysis {
+export function analyzeStationary(level: StationaryLevel, runs = 5, tier = 0): StationaryAnalysis {
   let wins = 0;
+  let coins = 0;
   let best = 0;
   let tight = Infinity;
   for (let seed = 1; seed <= runs; seed++) {
-    const r = runBot(level, seed * 7919);
+    const r = runBot(level, seed * 7919, tier);
+    coins += r.coins;
     if (r.won) {
       wins++;
       best = Math.max(best, r.survivors);
@@ -81,5 +103,25 @@ export function analyzeStationary(level: StationaryLevel, runs = 5): StationaryA
     winRate: wins / runs,
     bestSurvivors: best,
     tightness: wins > 0 ? tight / level.startCount : 0,
+    coinsPerRun: coins / runs,
   };
+}
+
+export const MAX_TIER = 16;
+
+/**
+ * Lowest uniform damage+fire-rate upgrade tier at which the bot wins at least 60% of its
+ * runs, or -1 if even the maximum tier is not enough. Levels are meant to need upgrades,
+ * so this is the "how far into the shop do I have to be" number.
+ */
+export function minimumTier(
+  level: StationaryLevel,
+  runs = 5,
+): { tier: number; analysis: StationaryAnalysis } {
+  let last = analyzeStationary(level, runs, 0);
+  for (let tier = 0; tier <= MAX_TIER; tier++) {
+    last = analyzeStationary(level, runs, tier);
+    if (last.winRate >= 0.6) return { tier, analysis: last };
+  }
+  return { tier: -1, analysis: last };
 }

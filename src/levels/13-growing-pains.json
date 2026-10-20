@@ -10,15 +10,15 @@
         {
           "kind": "grunt",
           "count": 10,
-          "hp": 35,
-          "interval": 0.85
+          "hp": 105,
+          "interval": 0.77
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 163,
+          "hp": 326,
           "grow": 3,
           "item": {
             "kind": "crowd",
@@ -33,22 +33,22 @@
         {
           "kind": "grunt",
           "count": 12,
-          "hp": 44,
-          "interval": 0.77
+          "hp": 132,
+          "interval": 0.69
         },
         {
           "kind": "tank",
           "count": 2,
-          "hp": 220,
-          "interval": 3.85,
-          "delay": 1.54
+          "hp": 660,
+          "interval": 3.47,
+          "delay": 1.39
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 286,
+          "hp": 572,
           "grow": 5,
           "item": {
             "kind": "upgrade",
@@ -63,21 +63,21 @@
         {
           "kind": "runner",
           "count": 12,
-          "hp": 26,
-          "interval": 0.62
+          "hp": 78,
+          "interval": 0.56
         },
         {
           "kind": "grunt",
           "count": 10,
-          "hp": 53,
-          "interval": 0.92
+          "hp": 159,
+          "interval": 0.83
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 408,
+          "hp": 816,
           "grow": 7,
           "item": {
             "kind": "weapon",
@@ -91,22 +91,22 @@
         {
           "kind": "grunt",
           "count": 18,
-          "hp": 62,
-          "interval": 0.54
+          "hp": 186,
+          "interval": 0.49
         },
         {
           "kind": "tank",
           "count": 3,
-          "hp": 308,
-          "interval": 3.08,
-          "delay": 2.31
+          "hp": 924,
+          "interval": 2.77,
+          "delay": 2.08
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 571,
+          "hp": 1142,
           "grow": 9,
           "item": {
             "kind": "crowd",

@@ -100,6 +100,9 @@ export class RunnerMode implements GameMode {
     return this.count;
   }
 
+  /** The runner has no coin economy. */
+  readonly coinsEarned = 0;
+
   update(dt: number): void {
     const { camera } = this.ctx;
     const drag = this.ctx.input.consumeDrag();

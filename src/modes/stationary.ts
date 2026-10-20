@@ -2,6 +2,7 @@ import { COLORS, FONT } from '../config';
 import { Pc } from '../core/particles';
 import { drawCrown, drawPill, drawSwarm, drawTrack, unitSprite } from '../core/render';
 import { formatCount } from '../core/rules';
+import { upgradeMultiplier } from '../core/shop';
 import { Swarm } from '../core/swarm';
 import type { ItemDef, MonsterKind, StationaryLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
@@ -45,6 +46,8 @@ export class StationaryMode implements GameMode {
   private endTimer = -1;
   private shotCounter = 0;
   private deathBudget = 0;
+  private readonly coinMul: number;
+  private coinPulse = 0;
 
   private readonly playerSprite = unitSprite(COLORS.player, COLORS.playerDark);
   private readonly sprites: Record<MonsterKind, HTMLCanvasElement> = {
@@ -65,94 +68,108 @@ export class StationaryMode implements GameMode {
     private readonly ctx: GameContext,
   ) {
     const { particles, popups, sfx, camera } = ctx;
-    this.sim = new StationarySim(level, Math.random, {
-      shot: (x, y) => {
-        sfx.shoot();
-        this.recoil = 1;
-        if (++this.shotCounter % 6 === 0) {
-          particles.emit(x, y + 0.2, (Math.random() - 0.5) * 2, 4, 0.1, 0.22, Pc.Gold);
-        }
-      },
-      hit: (x, y) => {
-        if (Math.random() < 0.5) particles.burst(x, y, 1, 3, Pc.Enemy, 0.25, 0.12);
-        sfx.pop();
-      },
-      kill: (x, y, kind) => {
-        const big = kind === 'boss' || kind === 'tank';
-        particles.burst(
-          x,
-          y,
-          big ? 22 : 8,
-          big ? 7 : 4.5,
-          kind === 'boss' ? Pc.Boss : Pc.Enemy,
-          0.6,
-          0.18,
-        );
-        sfx.pop();
-        if (big) {
-          camera.shake(kind === 'boss' ? 0.5 : 0.18);
-          sfx.boom();
-        }
-      },
-      bite: (x, y, lost) => {
-        particles.burst(x, y, 10, 5, Pc.Bad, 0.5, 0.16);
-        popups.add(this.sim.squadX, 2.4, `−${lost}`, COLORS.bad, 1.1);
-        camera.shake(0.12 + Math.min(0.3, lost / 60));
-        this.pillPop = 1;
-        sfx.hit();
-      },
-      obstacleHit: (x, y) => {
-        if (Math.random() < 0.25) particles.burst(x, y, 1, 3, Pc.Gold, 0.25, 0.14);
-      },
-      obstacleBreak: (o) => {
-        particles.burst(o.x, o.y, 40, 8, Pc.Gold, 0.8, 0.2);
-        camera.shake(0.25);
-        sfx.boom();
-        popups.add(o.x, o.y + 1.8, 'SMASHED!', COLORS.gold, 1.1);
-      },
-      itemCollected: (item, delta) => {
-        const label = itemLabel(item.def);
-        particles.burst(this.sim.squadX, 1, 24, 6, Pc.Good, 0.6, 0.18);
-        popups.add(this.sim.squadX, 3, label.title, COLORS.player, 1.3);
-        sfx.gate(true);
-        this.pillPop = 1;
-        void delta;
-      },
-      itemLost: (item) => {
-        popups.add(item.x, 1.5, 'MISSED', COLORS.bad, 1);
-        sfx.gate(false);
-      },
-      waveStart: (i, total) => {
-        popups.add(0, 9, total > 1 ? `WAVE ${i + 1}/${total}` : 'FIGHT!', COLORS.gold, 1.4);
-      },
-      waveClear: () => {
-        popups.add(0, 7, 'CLEARED!', COLORS.player, 1.2);
-        sfx.gate(true);
-      },
-      ended: (won) => {
-        this.endTimer = won ? 1.7 : 1;
-        if (won) {
-          sfx.win();
-          for (let i = 0; i < 90; i++) {
-            const a = Math.random() * Math.PI * 2;
-            const s = 4 + Math.random() * 7;
-            const color = [Pc.Gold, Pc.White, Pc.Player, Pc.Good][i % 4];
-            particles.emit(
-              this.sim.squadX,
-              2,
-              Math.cos(a) * s,
-              Math.sin(a) * s + 3,
-              1.1,
-              0.2,
-              color,
-            );
+    this.coinMul = upgradeMultiplier('coins', ctx.upgrades.coins);
+    this.sim = new StationarySim(
+      level,
+      Math.random,
+      {
+        coin: (x, y, amount) => {
+          particles.burst(x, y, Math.min(6, 1 + amount), 4, Pc.Gold, 0.45, 0.2);
+          sfx.coin();
+          this.coinPulse = 1;
+        },
+        shot: (x, y) => {
+          sfx.shoot();
+          this.recoil = 1;
+          if (++this.shotCounter % 6 === 0) {
+            particles.emit(x, y + 0.2, (Math.random() - 0.5) * 2, 4, 0.1, 0.22, Pc.Gold);
           }
-        } else {
-          sfx.lose();
-          camera.shake(0.3);
-        }
+        },
+        hit: (x, y) => {
+          if (Math.random() < 0.5) particles.burst(x, y, 1, 3, Pc.Enemy, 0.25, 0.12);
+          sfx.pop();
+        },
+        kill: (x, y, kind) => {
+          const big = kind === 'boss' || kind === 'tank';
+          particles.burst(
+            x,
+            y,
+            big ? 22 : 8,
+            big ? 7 : 4.5,
+            kind === 'boss' ? Pc.Boss : Pc.Enemy,
+            0.6,
+            0.18,
+          );
+          sfx.pop();
+          if (big) {
+            camera.shake(kind === 'boss' ? 0.5 : 0.18);
+            sfx.boom();
+          }
+        },
+        bite: (x, y, lost) => {
+          particles.burst(x, y, 10, 5, Pc.Bad, 0.5, 0.16);
+          popups.add(this.sim.squadX, 2.4, `−${lost}`, COLORS.bad, 1.1);
+          camera.shake(0.12 + Math.min(0.3, lost / 60));
+          this.pillPop = 1;
+          sfx.hit();
+        },
+        obstacleHit: (x, y) => {
+          if (Math.random() < 0.25) particles.burst(x, y, 1, 3, Pc.Gold, 0.25, 0.14);
+        },
+        obstacleBreak: (o) => {
+          particles.burst(o.x, o.y, 40, 8, Pc.Gold, 0.8, 0.2);
+          camera.shake(0.25);
+          sfx.boom();
+          popups.add(o.x, o.y + 1.8, 'SMASHED!', COLORS.gold, 1.1);
+        },
+        itemCollected: (item, delta) => {
+          const label = itemLabel(item.def);
+          particles.burst(this.sim.squadX, 1, 24, 6, Pc.Good, 0.6, 0.18);
+          popups.add(this.sim.squadX, 3, label.title, COLORS.player, 1.3);
+          sfx.gate(true);
+          this.pillPop = 1;
+          void delta;
+        },
+        itemLost: (item) => {
+          popups.add(item.x, 1.5, 'MISSED', COLORS.bad, 1);
+          sfx.gate(false);
+        },
+        waveStart: (i, total) => {
+          popups.add(0, 9, total > 1 ? `WAVE ${i + 1}/${total}` : 'FIGHT!', COLORS.gold, 1.4);
+        },
+        waveClear: () => {
+          popups.add(0, 7, 'CLEARED!', COLORS.player, 1.2);
+          sfx.gate(true);
+        },
+        ended: (won) => {
+          this.endTimer = won ? 1.7 : 1;
+          if (won) {
+            sfx.win();
+            for (let i = 0; i < 90; i++) {
+              const a = Math.random() * Math.PI * 2;
+              const s = 4 + Math.random() * 7;
+              const color = [Pc.Gold, Pc.White, Pc.Player, Pc.Good][i % 4];
+              particles.emit(
+                this.sim.squadX,
+                2,
+                Math.cos(a) * s,
+                Math.sin(a) * s + 3,
+                1.1,
+                0.2,
+                color,
+              );
+            }
+          } else {
+            sfx.lose();
+            camera.shake(0.3);
+          }
+        },
       },
-    });
+      {
+        damageMul: upgradeMultiplier('damage', ctx.upgrades.damage),
+        rateMul: upgradeMultiplier('rate', ctx.upgrades.rate),
+      },
+    );
 
     this.shownCount = this.sim.count;
     this.player.setSize(this.sim.shooters);
@@ -168,6 +185,10 @@ export class StationaryMode implements GameMode {
     return this.sim.count;
   }
 
+  get coinsEarned(): number {
+    return Math.floor(this.sim.coinsRaw * this.coinMul);
+  }
+
   update(dt: number): void {
     const { input, camera } = this.ctx;
     this.time += dt;
@@ -175,6 +196,7 @@ export class StationaryMode implements GameMode {
     camera.dist = 0;
     this.recoil *= Math.exp(-12 * dt);
     this.pillPop *= Math.exp(-7 * dt);
+    this.coinPulse *= Math.exp(-8 * dt);
 
     // steering: keys > mouse position > finger drag
     const drag = input.consumeDrag();
@@ -245,6 +267,31 @@ export class StationaryMode implements GameMode {
     }
     popups.draw(g, cam);
     this.drawWeaponLabel(g);
+    this.drawCoins(g);
+  }
+
+  private drawCoins(g: CanvasRenderingContext2D): void {
+    const cam = this.ctx.camera;
+    const px = Math.max(14, cam.scale * 0.6) * (1 + 0.25 * this.coinPulse);
+    const text = formatCount(this.coinsEarned);
+    g.font = `900 ${px}px ${FONT}`;
+    g.textAlign = 'right';
+    g.textBaseline = 'middle';
+    const x = cam.width - 14;
+    const y = Math.max(64, cam.height * 0.1);
+    g.lineJoin = 'round';
+    g.lineWidth = px * 0.25;
+    g.strokeStyle = 'rgba(8,10,28,0.85)';
+    g.strokeText(text, x, y);
+    g.fillStyle = COLORS.gold;
+    g.fillText(text, x, y);
+    const w = g.measureText(text).width;
+    g.beginPath();
+    g.arc(x - w - px * 0.6, y, px * 0.42, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 2;
+    g.strokeStyle = '#b8861f';
+    g.stroke();
   }
 
   private drawBullets(g: CanvasRenderingContext2D): void {

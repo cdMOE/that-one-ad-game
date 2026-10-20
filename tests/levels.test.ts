@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
-import { analyzeStationary } from '../src/modes/stationary/bot';
+import { MAX_TIER, analyzeStationary } from '../src/modes/stationary/bot';
 
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
 const files = readdirSync(dir)
@@ -42,7 +42,9 @@ describe('shipped levels', () => {
       expect(analysis.winnable).toBe(true);
     }
     if (result.ok && result.level.mode === 'stationary') {
-      expect(analyzeStationary(result.level).winRate).toBeGreaterThan(0);
+      // stationary levels are meant to need shop upgrades: lost at the start, winnable at the top
+      expect(analyzeStationary(result.level, 5, 0).winRate).toBeLessThan(0.6);
+      expect(analyzeStationary(result.level, 5, MAX_TIER).winRate).toBeGreaterThanOrEqual(0.6);
     }
   });
 

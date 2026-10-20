@@ -26,6 +26,8 @@ export const BULLET_INHERIT = 0.8;
 const SQUAD_MAX_SPEED = 13;
 const ITEM_FALL_SPEED = 1.5;
 const OBSTACLE_HEIGHT = 1.3;
+/** Coins for smashing a block. */
+const BLOCK_COINS = 15;
 const BULLET_LIFE = 1.3;
 
 export interface MonsterStats {
@@ -33,13 +35,15 @@ export interface MonsterStats {
   radius: number;
   /** Squad soldiers lost when it reaches the squad. */
   bite: number;
+  /** Coins dropped when it dies (before the coin-bonus upgrade). */
+  coins: number;
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 1.5, radius: 0.45, bite: 1 },
-  runner: { speed: 3, radius: 0.34, bite: 1 },
-  tank: { speed: 0.8, radius: 0.8, bite: 4 },
-  boss: { speed: 0.5, radius: 1.7, bite: 20 },
+  grunt: { speed: 1.5, radius: 0.45, bite: 1, coins: 3 },
+  runner: { speed: 3, radius: 0.34, bite: 1, coins: 4 },
+  tank: { speed: 0.8, radius: 0.8, bite: 4, coins: 15 },
+  boss: { speed: 0.5, radius: 1.7, bite: 20, coins: 150 },
 };
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'boss'];
 const MONSTER_KIND_INDEX: Record<MonsterKind, number> = { grunt: 0, runner: 1, tank: 2, boss: 3 };
@@ -75,6 +79,8 @@ export interface SimHooks {
   shot?(x: number, y: number): void;
   hit?(x: number, y: number): void;
   kill?(x: number, y: number, kind: MonsterKind, radius: number): void;
+  /** Coins dropped at a position (raw amount, before the coin-bonus upgrade). */
+  coin?(x: number, y: number, amount: number): void;
   bite?(x: number, y: number, lost: number): void;
   obstacleHit?(x: number, y: number): void;
   obstacleBreak?(o: ObstacleState): void;
@@ -112,6 +118,12 @@ function segmentCircle(
   return px * px + py * py <= r * r ? u : -1;
 }
 
+/** Permanent-upgrade multipliers applied to the starting weapon. */
+export interface SimOptions {
+  damageMul: number;
+  rateMul: number;
+}
+
 export class StationarySim {
   count: number;
   readonly weapon: WeaponState;
@@ -119,6 +131,8 @@ export class StationarySim {
   waveIndex = -1;
   time = 0;
   kills = 0;
+  /** Coins earned so far, before the coin-bonus upgrade. */
+  coinsRaw = 0;
 
   /** Where the player wants the squad (world x). The squad slides there. */
   targetX = 0;
@@ -158,9 +172,12 @@ export class StationarySim {
     readonly level: StationaryLevel,
     private readonly rng: () => number,
     readonly hooks: SimHooks = {},
+    options: SimOptions = { damageMul: 1, rateMul: 1 },
   ) {
     this.count = level.startCount;
     this.weapon = newWeaponState(level.weapon);
+    this.weapon.damageMul = options.damageMul;
+    this.weapon.rateMul = options.rateMul;
     for (let i = 0; i < MAX_SHOOTERS; i++) this.fireAcc[i] = (i * 0.618) % 1; // stagger the guns
   }
 
@@ -480,6 +497,8 @@ export class StationarySim {
             def: obstacle.item,
           });
         }
+        this.coinsRaw += BLOCK_COINS;
+        this.hooks.coin?.(obstacle.x, obstacle.y, BLOCK_COINS);
         this.hooks.obstacleBreak?.(obstacle);
       }
       return true;
@@ -491,6 +510,8 @@ export class StationarySim {
         this.malive[monster] = 0;
         this.waveDone++;
         this.kills++;
+        this.coinsRaw += MONSTERS[kind].coins;
+        this.hooks.coin?.(this.mx[monster], this.my[monster], MONSTERS[kind].coins);
         this.hooks.kill?.(this.mx[monster], this.my[monster], kind, MONSTERS[kind].radius);
       } else {
         this.hooks.hit?.(this.mx[monster], this.my[monster]);

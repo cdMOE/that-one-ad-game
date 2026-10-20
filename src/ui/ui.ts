@@ -1,4 +1,11 @@
 import { GAME_TAGLINE, GAME_TITLE } from '../config';
+import {
+  UPGRADE_KINDS,
+  UPGRADES,
+  upgradeCost,
+  upgradeMultiplier,
+  type UpgradeKind,
+} from '../core/shop';
 import type { SaveData } from '../core/storage';
 import type { Level } from '../levels';
 
@@ -10,6 +17,8 @@ export interface UiHandlers {
   /** Returns the new muted state. */
   onToggleMute(): boolean;
   onClick(): void;
+  /** Buys the next level of an upgrade (the game checks the price and saves). */
+  onBuy(kind: UpgradeKind): void;
 }
 
 type ElChild = Node | string;
@@ -56,6 +65,13 @@ export class Ui {
   private readonly nextBtn: HTMLButtonElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly fpsEl: HTMLElement | null;
+  private readonly shop: HTMLElement;
+  private readonly shopCoins: HTMLElement;
+  private readonly shopList: HTMLElement;
+  private readonly resultCoins: HTMLElement;
+  private readonly shopBtn: HTMLButtonElement;
+  private readonly resultShopBtn: HTMLButtonElement;
+  private shopBack: () => void = () => {};
 
   constructor(
     root: HTMLElement,
@@ -66,6 +82,26 @@ export class Ui {
       handlers.onClick();
       fn();
     };
+
+    // shop (permanent upgrades bought with coins)
+    this.shopCoins = h('div', { class: 'shop-coins' });
+    this.shopList = h('div', { class: 'shop-list' });
+    this.shop = h(
+      'section',
+      { class: 'screen shop' },
+      h('h2', { text: 'Upgrades' }),
+      this.shopCoins,
+      this.shopList,
+      h('button', {
+        class: 'btn btn-secondary',
+        text: 'BACK',
+        onclick: click(() => this.shopBack()),
+      }),
+    );
+    this.shopBtn = h('button', {
+      class: 'btn btn-secondary btn-shop',
+      onclick: click(() => this.openShop(() => this.showMenu())),
+    });
 
     // main menu
     this.playBtn = h('button', { class: 'btn btn-primary', text: 'PLAY' });
@@ -80,6 +116,7 @@ export class Ui {
         text: 'LEVELS',
         onclick: click(() => this.openLevels()),
       }),
+      this.shopBtn,
       h('p', { class: 'fine', text: 'Open source. MIT licensed. No ads. Promise.' }),
     );
 
@@ -128,6 +165,12 @@ export class Ui {
     this.resultStars = h('div', { class: 'stars' });
     this.hint = h('div', { class: 'hint' });
     this.hint.hidden = true;
+    this.resultCoins = h('p', { class: 'result-coins' });
+    this.resultShopBtn = h('button', {
+      class: 'btn btn-primary',
+      text: 'UPGRADES',
+      onclick: click(() => this.openShop(() => (this.result.hidden = false))),
+    });
     this.nextBtn = h('button', {
       class: 'btn btn-primary',
       text: 'NEXT LEVEL',
@@ -139,6 +182,8 @@ export class Ui {
       this.resultTitle,
       this.resultStars,
       this.resultSub,
+      this.resultCoins,
+      this.resultShopBtn,
       this.nextBtn,
       h('button', {
         class: 'btn btn-secondary',
@@ -153,14 +198,19 @@ export class Ui {
     );
 
     this.fpsEl = debug ? h('div', { class: 'fps' }) : null;
-    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.result);
+    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.shop, this.result);
     if (this.fpsEl) root.append(this.fpsEl);
     document.title = GAME_TITLE;
     this.hideAll();
   }
 
   private levels: Level[] = [];
-  private save: SaveData = { completed: {}, muted: false };
+  private save: SaveData = {
+    completed: {},
+    muted: false,
+    coins: 0,
+    upgrades: { damage: 0, rate: 0, coins: 0 },
+  };
   private unlockAll = false;
 
   setData(levels: Level[], save: SaveData, unlockAll: boolean): void {
@@ -187,7 +237,8 @@ export class Ui {
   }
 
   private hideAll(): void {
-    for (const el of [this.menu, this.levelScreen, this.result, this.hud]) el.hidden = true;
+    for (const el of [this.menu, this.levelScreen, this.shop, this.result, this.hud])
+      el.hidden = true;
   }
 
   showMenu(): void {
@@ -199,7 +250,50 @@ export class Ui {
       this.handlers.onClick();
       this.handlers.onStartLevel(next);
     };
+    this.shopBtn.textContent = `UPGRADES \u00b7 ${this.save.coins} coins`;
     this.menu.hidden = false;
+  }
+
+  /** Shop screen; `back` runs when the player leaves it. */
+  openShop(back: () => void): void {
+    this.shopBack = back;
+    this.result.hidden = true;
+    this.menu.hidden = true;
+    this.renderShop();
+    this.shop.hidden = false;
+  }
+
+  /** Redraws the shop (called after a purchase). */
+  renderShop(): void {
+    this.shopCoins.textContent = `${this.save.coins} coins`;
+    this.shopList.replaceChildren();
+    for (const kind of UPGRADE_KINDS) {
+      const info = UPGRADES[kind];
+      const level = this.save.upgrades[kind];
+      const cost = upgradeCost(kind, level);
+      const now = Math.round((upgradeMultiplier(kind, level) - 1) * 100);
+      const next = Math.round((upgradeMultiplier(kind, level + 1) - 1) * 100);
+      const buy = h('button', { class: 'btn btn-primary buy', text: `${cost}` });
+      buy.disabled = this.save.coins < cost;
+      buy.addEventListener('click', () => {
+        this.handlers.onClick();
+        this.handlers.onBuy(kind);
+        this.renderShop();
+      });
+      this.shopList.append(
+        h(
+          'div',
+          { class: 'shop-row' },
+          h(
+            'div',
+            { class: 'shop-info' },
+            h('div', { class: 'shop-title', text: `${info.title}  Lv ${level}` }),
+            h('div', { class: 'shop-blurb', text: `${info.blurb}: +${now}% \u2192 +${next}%` }),
+          ),
+          buy,
+        ),
+      );
+    }
   }
 
   openLevels(): void {
@@ -249,7 +343,17 @@ export class Ui {
     this.hudBar.style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`;
   }
 
-  showResult(won: boolean, survivors: number, hasNext: boolean, stars: number): void {
+  showResult(
+    won: boolean,
+    survivors: number,
+    hasNext: boolean,
+    stars: number,
+    coins = 0,
+    shopAvailable = false,
+  ): void {
+    this.resultCoins.textContent = coins > 0 ? `+${coins} coins` : '';
+    this.resultCoins.hidden = coins <= 0;
+    this.resultShopBtn.hidden = !shopAvailable;
     this.hud.hidden = true;
     this.hint.hidden = true;
     this.resultStars.hidden = !won;
@@ -263,7 +367,9 @@ export class Ui {
     this.resultTitle.textContent = won ? 'VICTORY!' : 'DEFEATED';
     this.resultSub.textContent = won
       ? `${survivors} survivor${survivors === 1 ? '' : 's'} made it`
-      : 'Your crowd was wiped out. Try another path through the gates.';
+      : shopAvailable
+        ? 'Spend your coins on upgrades and try again.'
+        : 'Your crowd was wiped out. Try another path through the gates.';
     this.nextBtn.hidden = !(won && hasNext);
     this.result.hidden = false;
   }

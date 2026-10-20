@@ -1,4 +1,5 @@
 import type { Sfx } from '../audio/sfx';
+import type { UpgradeLevels } from '../core/shop';
 import type { Camera } from '../core/camera';
 import type { Input } from '../core/input';
 import type { ParticleSystem, PopupSystem } from '../core/particles';
@@ -12,6 +13,8 @@ export interface GameContext {
   readonly popups: PopupSystem;
   readonly sfx: Sfx;
   readonly input: Input;
+  /** The player's permanent upgrades (bought in the shop). */
+  readonly upgrades: UpgradeLevels;
 }
 
 /**
@@ -27,6 +30,8 @@ export interface GameMode {
   readonly progress: number;
   /** Crowd size at the end (meaningful once `outcome` is not `playing`). */
   readonly survivors: number;
+  /** Coins earned in this run (kept even when the run is lost). */
+  readonly coinsEarned: number;
   update(dt: number): void;
   render(ctx: CanvasRenderingContext2D): void;
 }

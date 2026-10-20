@@ -420,3 +420,76 @@ body {
     animation: none;
   }
 }
+
+/* ---- shop & coins ------------------------------------------------------- */
+
+.shop {
+  justify-content: flex-start;
+  padding-top: max(40px, env(safe-area-inset-top));
+  background: rgba(13, 16, 36, 0.94);
+}
+
+.shop h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.shop-coins {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+
+.shop-list {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.shop-info {
+  flex: 1;
+}
+
+.shop-title {
+  font-weight: 900;
+  font-size: 17px;
+}
+
+.shop-blurb {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.buy {
+  min-width: 84px;
+  padding: 12px 14px;
+  font-size: 18px;
+}
+
+.buy:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.result-coins {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--gold);
+}

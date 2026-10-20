@@ -1,4 +1,5 @@
 import { Sfx } from './audio/sfx';
+import { upgradeCost, type UpgradeKind } from './core/shop';
 import { Camera } from './core/camera';
 import { Input } from './core/input';
 import { Loop } from './core/loop';
@@ -49,6 +50,7 @@ export class Game {
       popups: this.popups,
       sfx: this.sfx,
       input: this.input,
+      upgrades: this.save.upgrades,
     };
     this.sfx.setMuted(this.save.muted);
 
@@ -59,6 +61,7 @@ export class Game {
         onRetry: () => this.startLevel(this.levelIndex),
         onNext: () => this.startLevel(this.levelIndex + 1),
         onMenu: () => this.toMenu(),
+        onBuy: (kind) => this.buy(kind),
         onToggleMute: () => {
           this.save.muted = !this.save.muted;
           this.sfx.setMuted(this.save.muted);
@@ -159,13 +162,25 @@ export class Game {
     this.popups.update(dt);
   }
 
+  /** Spends coins on the next level of an upgrade if the wallet allows it. */
+  private buy(kind: UpgradeKind): void {
+    const cost = upgradeCost(kind, this.save.upgrades[kind]);
+    if (this.save.coins < cost) return;
+    this.save.coins -= cost;
+    this.save.upgrades[kind]++;
+    writeSave(this.save);
+  }
+
   private finishLevel(mode: GameMode): void {
     const won = mode.outcome === 'won';
     this.state = 'result';
+    // coins are kept even when the run is lost: that is what makes retrying worthwhile
+    this.save.coins += mode.coinsEarned;
     let stars = 0;
     if (won) {
       const level = levels[this.levelIndex];
-      stars = starsFor(mode.survivors, referenceSurvivors(level));
+      const tier = Math.round((this.save.upgrades.damage + this.save.upgrades.rate) / 2);
+      stars = starsFor(mode.survivors, referenceSurvivors(level, tier));
       const prev = this.save.completed[level.id];
       this.save.completed[level.id] = {
         stars: Math.max(prev?.stars ?? 0, stars),
@@ -174,7 +189,15 @@ export class Game {
       writeSave(this.save);
     }
     this.ui.setData(levels, this.save, this.params.get('unlock') === 'all');
-    this.ui.showResult(won, mode.survivors, this.levelIndex + 1 < levels.length, stars);
+    writeSave(this.save);
+    this.ui.showResult(
+      won,
+      mode.survivors,
+      this.levelIndex + 1 < levels.length,
+      stars,
+      mode.coinsEarned,
+      levels[this.levelIndex].mode === 'stationary',
+    );
   }
 
   private draw(): void {

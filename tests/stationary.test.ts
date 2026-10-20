@@ -233,6 +233,60 @@ describe('StationarySim', () => {
   });
 });
 
+describe('coins', () => {
+  it('drops coins for kills and for smashed blocks', () => {
+    const level: StationaryLevel = {
+      ...base,
+      waves: [
+        {
+          monsters: [{ kind: 'grunt', count: 2, hp: 1, interval: 1, x: 0 }],
+          obstacles: [{ x: 0.9, y: 8, hp: 5, width: 3, grow: 0 }],
+        },
+      ],
+    };
+    const sim = new StationarySim(level, mulberry32(1));
+    const drops: number[] = [];
+    sim.hooks.coin = (_x, _y, amount) => drops.push(amount);
+    run(sim, 60, chase);
+    expect(sim.phase).toBe('won');
+    expect(drops.length).toBe(3); // two monsters and one block
+    expect(sim.coinsRaw).toBe(drops.reduce((a, b) => a + b, 0));
+    expect(sim.coinsRaw).toBeGreaterThan(0);
+  });
+
+  it('keeps coins from a lost run', () => {
+    const level: StationaryLevel = {
+      ...base,
+      startCount: 3,
+      waves: [
+        {
+          monsters: [
+            { kind: 'grunt', count: 3, hp: 1, interval: 0.5, x: 0 },
+            { kind: 'boss', count: 1, hp: 1e6, interval: 1, delay: 4, x: 0 },
+          ],
+        },
+      ],
+    };
+    const sim = new StationarySim(level, mulberry32(1));
+    run(sim, 120, chase);
+    expect(sim.phase).toBe('lost');
+    expect(sim.coinsRaw).toBeGreaterThan(0);
+  });
+
+  it('upgrades make the same squad stronger', () => {
+    const killTime = (damageMul: number) => {
+      const level: StationaryLevel = {
+        ...base,
+        waves: [{ monsters: [{ kind: 'tank', count: 1, hp: 200, interval: 1, x: 0, spread: 0 }] }],
+      };
+      const sim = new StationarySim(level, mulberry32(3), {}, { damageMul, rateMul: 1 });
+      run(sim, 90, chase);
+      return sim.phase === 'won' ? sim.time : Infinity;
+    };
+    expect(killTime(3)).toBeLessThan(killTime(1));
+  });
+});
+
 describe('stationary level validation', () => {
   const ok = {
     id: 's',

@@ -10,15 +10,15 @@
         {
           "kind": "grunt",
           "count": 6,
-          "hp": 8,
-          "interval": 1.6
+          "hp": 14,
+          "interval": 1.44
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 40,
+          "hp": 48,
           "item": {
             "kind": "crowd",
             "op": "+",
@@ -32,15 +32,15 @@
         {
           "kind": "grunt",
           "count": 8,
-          "hp": 10,
-          "interval": 1.4
+          "hp": 18,
+          "interval": 1.26
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 72,
+          "hp": 86,
           "item": {
             "kind": "upgrade",
             "stat": "rate",
@@ -54,22 +54,22 @@
         {
           "kind": "grunt",
           "count": 10,
-          "hp": 12,
-          "interval": 1.2
+          "hp": 21,
+          "interval": 1.08
         },
         {
           "kind": "runner",
           "count": 4,
-          "hp": 8,
-          "interval": 2.5,
-          "delay": 3.0
+          "hp": 14,
+          "interval": 2.25,
+          "delay": 2.7
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 112,
+          "hp": 134,
           "item": {
             "kind": "weapon",
             "weapon": "rifle"

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeRunner } from '../src/levels/analyze';
-import { analyzeStationary } from '../src/modes/stationary/bot';
+import { MAX_TIER, analyzeStationary, minimumTier } from '../src/modes/stationary/bot';
 import { validateLevel } from '../src/levels/validate';
 
 // Validates every level file the way the game does, and checks that a perfect
@@ -47,15 +47,17 @@ for (const file of files) {
     }
     console.log(`ok   ${file}  [${level.mode}] best case: ${analysis.bestFinalCount} survivors`);
   } else {
-    const analysis = analyzeStationary(level);
-    if (analysis.winRate === 0) {
-      console.error(`FAIL ${file}: the bot could not win in any run`);
+    const { tier, analysis } = minimumTier(level);
+    if (tier < 0) {
+      console.error(`FAIL ${file}: the bot cannot win even with tier ${MAX_TIER} upgrades`);
       failed = true;
       continue;
     }
-    const warn = analysis.winRate < 0.6 ? '  WARNING: hard, the bot wins less than 60%' : '';
+    const base = analyzeStationary(level, 5, 0);
+    const warn =
+      base.winRate >= 0.6 ? '  WARNING: too easy, should need upgrades (bot wins without any)' : '';
     console.log(
-      `ok   ${file}  [${level.mode}] bot wins ${Math.round(analysis.winRate * 100)}%, best ${analysis.bestSurvivors} survivors, lowest squad ${Math.round(analysis.tightness * 100)}% of start${warn}`,
+      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${Math.round(analysis.winRate * 100)}%), ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
     );
   }
 }
