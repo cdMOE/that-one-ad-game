@@ -59,7 +59,7 @@ export class Game {
       {
         onStartLevel: (i) => this.startLevel(i),
         onRetry: () => this.startLevel(this.levelIndex),
-        onNext: () => this.startLevel(this.levelIndex + 1),
+        onNext: () => this.startLevel(this.nextIndex(this.levelIndex)),
         onMenu: () => this.toMenu(),
         onBuy: (kind) => this.buy(kind),
         onToggleMute: () => {
@@ -162,6 +162,13 @@ export class Game {
     this.popups.update(dt);
   }
 
+  /** Index of the next level of the same mode, or -1 when it was the last one. */
+  private nextIndex(index: number): number {
+    const mode = levels[index].mode;
+    for (let i = index + 1; i < levels.length; i++) if (levels[i].mode === mode) return i;
+    return -1;
+  }
+
   /** Spends coins on the next level of an upgrade if the wallet allows it. */
   private buy(kind: UpgradeKind): void {
     const cost = upgradeCost(kind, this.save.upgrades[kind]);
@@ -193,7 +200,7 @@ export class Game {
     this.ui.showResult(
       won,
       mode.survivors,
-      this.levelIndex + 1 < levels.length,
+      this.nextIndex(this.levelIndex) >= 0,
       stars,
       mode.coinsEarned,
       levels[this.levelIndex].mode === 'stationary',

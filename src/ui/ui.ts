@@ -8,6 +8,7 @@ import {
 } from '../core/shop';
 import type { SaveData } from '../core/storage';
 import type { Level } from '../levels';
+import { LEVEL_MODES, type LevelMode } from '../levels/schema';
 
 export interface UiHandlers {
   onStartLevel(index: number): void;
@@ -22,6 +23,11 @@ export interface UiHandlers {
 }
 
 type ElChild = Node | string;
+
+const MODE_INFO: Record<LevelMode, { title: string; blurb: string }> = {
+  runner: { title: 'RUNNER', blurb: 'Run, pick the right gates, crush the boss' },
+  stationary: { title: 'SHOOTER', blurb: 'Slide, shoot, earn coins, buy upgrades' },
+};
 
 const starText = (n: number) => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
 
@@ -63,7 +69,10 @@ export class Ui {
   private readonly hint: HTMLElement;
   private hintTimer = 0;
   private readonly nextBtn: HTMLButtonElement;
-  private readonly playBtn: HTMLButtonElement;
+  private readonly modeList: HTMLElement;
+  private readonly levelTitle: HTMLElement;
+  private readonly levelShopBtn: HTMLButtonElement;
+  private currentMode: LevelMode = 'runner';
   private readonly fpsEl: HTMLElement | null;
   private readonly shop: HTMLElement;
   private readonly shopCoins: HTMLElement;
@@ -104,28 +113,30 @@ export class Ui {
     });
 
     // main menu
-    this.playBtn = h('button', { class: 'btn btn-primary', text: 'PLAY' });
+    this.modeList = h('div', { class: 'mode-list' });
     this.menu = h(
       'section',
       { class: 'screen menu' },
       h('h1', { class: 'title' }, h('span', { text: 'THAT ONE' }), h('span', { text: 'AD GAME' })),
       h('p', { class: 'tagline', text: GAME_TAGLINE }),
-      this.playBtn,
-      h('button', {
-        class: 'btn btn-secondary',
-        text: 'LEVELS',
-        onclick: click(() => this.openLevels()),
-      }),
+      h('p', { class: 'pick', text: 'Choose a game mode' }),
+      this.modeList,
       this.shopBtn,
       h('p', { class: 'fine', text: 'Open source. MIT licensed. No ads. Promise.' }),
     );
 
     // level select
     this.levelGrid = h('div', { class: 'level-grid' });
+    this.levelTitle = h('h2');
+    this.levelShopBtn = h('button', {
+      class: 'btn btn-primary btn-small',
+      onclick: click(() => this.openShop(() => this.openLevels(this.currentMode))),
+    });
     this.levelScreen = h(
       'section',
       { class: 'screen levels' },
-      h('h2', { text: 'Select level' }),
+      this.levelTitle,
+      this.levelShopBtn,
       this.levelGrid,
       h('button', {
         class: 'btn btn-secondary',
@@ -220,15 +231,21 @@ export class Ui {
     this.setMuted(save.muted);
   }
 
-  isUnlocked(index: number): boolean {
-    if (this.unlockAll || index === 0) return true;
-    return this.save.completed[this.levels[index - 1].id] !== undefined;
+  /** Global indices of the levels of one mode, in order. */
+  private indicesOf(mode: LevelMode): number[] {
+    const out: number[] = [];
+    this.levels.forEach((l, i) => {
+      if (l.mode === mode) out.push(i);
+    });
+    return out;
   }
 
-  /** First level the player has not beaten yet (or the last one when everything is done). */
-  nextLevelIndex(): number {
-    const i = this.levels.findIndex((l) => this.save.completed[l.id] === undefined);
-    return i === -1 ? this.levels.length - 1 : i;
+  /** A level unlocks when the previous level of the same mode has been beaten. */
+  isUnlocked(index: number): boolean {
+    const list = this.indicesOf(this.levels[index].mode);
+    const pos = list.indexOf(index);
+    if (this.unlockAll || pos <= 0) return true;
+    return this.save.completed[this.levels[list[pos - 1]].id] !== undefined;
   }
 
   setMuted(muted: boolean): void {
@@ -243,13 +260,28 @@ export class Ui {
 
   showMenu(): void {
     this.hideAll();
-    const next = this.nextLevelIndex();
-    const started = Object.keys(this.save.completed).length > 0;
-    this.playBtn.textContent = started ? `PLAY LEVEL ${next + 1}` : 'PLAY';
-    this.playBtn.onclick = () => {
-      this.handlers.onClick();
-      this.handlers.onStartLevel(next);
-    };
+    this.modeList.replaceChildren();
+    for (const mode of LEVEL_MODES) {
+      const list = this.indicesOf(mode);
+      if (list.length === 0) continue;
+      const done = list.filter((i) => this.save.completed[this.levels[i].id]).length;
+      const info = MODE_INFO[mode];
+      this.modeList.append(
+        h(
+          'button',
+          {
+            class: `mode-card mode-${mode}`,
+            onclick: () => {
+              this.handlers.onClick();
+              this.openLevels(mode);
+            },
+          },
+          h('span', { class: 'mode-title', text: info.title }),
+          h('span', { class: 'mode-blurb', text: info.blurb }),
+          h('span', { class: 'mode-progress', text: `${done}/${list.length} levels` }),
+        ),
+      );
+    }
     this.shopBtn.textContent = `UPGRADES \u00b7 ${this.save.coins} coins`;
     this.menu.hidden = false;
   }
@@ -296,16 +328,21 @@ export class Ui {
     }
   }
 
-  openLevels(): void {
+  openLevels(mode: LevelMode): void {
     this.hideAll();
+    this.currentMode = mode;
+    this.levelTitle.textContent = MODE_INFO[mode].title;
+    this.levelShopBtn.hidden = mode !== 'stationary';
+    this.levelShopBtn.textContent = `UPGRADES \u00b7 ${this.save.coins} coins`;
     this.levelGrid.replaceChildren();
-    this.levels.forEach((level, i) => {
+    this.indicesOf(mode).forEach((i, pos) => {
+      const level = this.levels[i];
       const unlocked = this.isUnlocked(i);
       const result = this.save.completed[level.id];
       const cell = h(
         'button',
         { class: `level-cell${result ? ' done' : ''}${unlocked ? '' : ' locked'}` },
-        h('span', { class: 'level-num', text: String(i + 1) }),
+        h('span', { class: 'level-num', text: String(pos + 1) }),
         h('span', { class: 'level-name', text: level.name }),
         h('span', {
           class: 'level-best',
@@ -324,7 +361,8 @@ export class Ui {
 
   showHud(level: Level, index: number): void {
     this.hideAll();
-    this.hudName.textContent = `${index + 1}. ${level.name}`;
+    const pos = this.indicesOf(level.mode).indexOf(index);
+    this.hudName.textContent = `${pos + 1}. ${level.name}`;
     this.setProgress(0);
     this.hud.hidden = false;
     this.hint.hidden = true;
