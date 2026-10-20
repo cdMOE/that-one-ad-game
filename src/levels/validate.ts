@@ -3,13 +3,11 @@ import {
   LEVEL_MODES,
   MONSTER_KINDS,
   OBSTACLE_KINDS,
-  SPAWN_SIDES,
   UPGRADE_STATS,
   WEAPON_IDS,
-  type ChoiceDef,
+  type ItemDef,
   type MonsterKind,
   type SpawnDef,
-  type SpawnSide,
   type StationaryLevel,
   type StationaryObstacleDef,
   type UpgradeStat,
@@ -239,101 +237,87 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
   const out: SpawnDef[] = [];
   (r.arr(v, path, { min: 1, max: 20 }) ?? []).forEach((item, i) => {
     const p = `${path}[${i}]`;
-    const o = r.obj(item, p, ['kind', 'count', 'hp', 'from', 'interval', 'delay']);
+    const o = r.obj(item, p, ['kind', 'count', 'hp', 'interval', 'delay', 'x', 'spread']);
     if (!o) return;
     const kind = r.oneOf<MonsterKind>(o.kind, `${p}.kind`, MONSTER_KINDS);
     const count = r.num(o.count, `${p}.count`, { min: 1, max: 300, int: true });
     const hp = r.num(o.hp, `${p}.hp`, { above: 0, max: 1_000_000 });
-    const from = r.oneOf<SpawnSide>(o.from, `${p}.from`, SPAWN_SIDES);
     const interval = r.num(o.interval, `${p}.interval`, { min: 0.1, max: 30 });
     const delay = o.delay === undefined ? 0 : r.num(o.delay, `${p}.delay`, { min: 0, max: 120 });
+    const x = o.x === undefined ? 0.6 : r.num(o.x, `${p}.x`, { min: -1, max: 1 });
+    const spread =
+      o.spread === undefined ? 0.25 : r.num(o.spread, `${p}.spread`, { min: 0, max: 1 });
     if (
       kind !== undefined &&
       count !== undefined &&
       hp !== undefined &&
-      from !== undefined &&
       interval !== undefined &&
-      delay !== undefined
+      delay !== undefined &&
+      x !== undefined &&
+      spread !== undefined
     ) {
-      out.push({ kind, count, hp, from, interval, delay });
+      out.push({ kind, count, hp, interval, delay, x, spread });
     }
   });
   return out;
 }
 
+function readItem(r: Reader, v: unknown, path: string): ItemDef | undefined {
+  if (typeof v !== 'object' || v === null) {
+    r.fail(path, 'expected an object');
+    return undefined;
+  }
+  const kind = r.oneOf('kind' in v ? (v as Rec).kind : undefined, `${path}.kind`, [
+    'crowd',
+    'upgrade',
+    'weapon',
+  ] as const);
+  if (kind === 'crowd') {
+    const o = r.obj(v, path, ['kind', 'op', 'value']);
+    if (!o) return undefined;
+    const gate = readGate(r, { op: o.op, value: o.value }, path);
+    return gate ? { kind: 'crowd', ...gate } : undefined;
+  }
+  if (kind === 'upgrade') {
+    const o = r.obj(v, path, ['kind', 'stat', 'value']);
+    if (!o) return undefined;
+    const stat = r.oneOf<UpgradeStat>(o.stat, `${path}.stat`, UPGRADE_STATS);
+    const value = r.num(o.value, `${path}.value`, { above: 0, max: 10 });
+    if (!stat || value === undefined) return undefined;
+    if (stat === 'pellets' && !Number.isInteger(value)) {
+      r.fail(`${path}.value`, 'pellets must be an integer');
+    }
+    return { kind: 'upgrade', stat, value };
+  }
+  if (kind === 'weapon') {
+    const o = r.obj(v, path, ['kind', 'weapon']);
+    if (!o) return undefined;
+    const weapon = r.oneOf<WeaponId>(o.weapon, `${path}.weapon`, WEAPON_IDS);
+    return weapon ? { kind: 'weapon', weapon } : undefined;
+  }
+  return undefined;
+}
+
 function readStationaryObstacles(r: Reader, v: unknown, path: string): StationaryObstacleDef[] {
   const out: StationaryObstacleDef[] = [];
-  (r.arr(v, path, { max: 6 }) ?? []).forEach((item, i) => {
+  (r.arr(v, path, { max: 4 }) ?? []).forEach((item, i) => {
     const p = `${path}[${i}]`;
-    const o = r.obj(item, p, ['x', 'y', 'hp', 'width', 'required', 'reward', 'drift', 'damage']);
+    const o = r.obj(item, p, ['x', 'y', 'hp', 'width', 'grow', 'item']);
     if (!o) return;
     const x = r.num(o.x, `${p}.x`, { min: -1, max: 1 });
-    const y = r.num(o.y, `${p}.y`, { min: 3, max: 16 });
+    const y = r.num(o.y, `${p}.y`, { min: 4, max: 15 });
     const hp = r.num(o.hp, `${p}.hp`, { min: 1, max: 1_000_000, int: true });
-    const width = o.width === undefined ? 2.4 : r.num(o.width, `${p}.width`, { min: 1, max: 6 });
-    const drift = o.drift === undefined ? 0 : r.num(o.drift, `${p}.drift`, { min: 0, max: 2 });
-    const damage =
-      o.damage === undefined ? 5 : r.num(o.damage, `${p}.damage`, { min: 1, int: true });
-    if (o.required !== undefined && typeof o.required !== 'boolean') {
-      r.fail(`${p}.required`, 'expected true or false');
-    }
-    const reward = o.reward === undefined ? undefined : readGate(r, o.reward, `${p}.reward`);
+    const width = o.width === undefined ? 4.2 : r.num(o.width, `${p}.width`, { min: 1, max: 8 });
+    const grow = o.grow === undefined ? 0 : r.num(o.grow, `${p}.grow`, { min: 0, max: 1000 });
+    const itemDef = o.item === undefined ? undefined : readItem(r, o.item, `${p}.item`);
     if (
       x !== undefined &&
       y !== undefined &&
       hp !== undefined &&
       width !== undefined &&
-      drift !== undefined &&
-      damage !== undefined
+      grow !== undefined
     ) {
-      out.push({
-        x,
-        y,
-        hp,
-        width,
-        required: o.required !== false,
-        drift,
-        damage,
-        ...(reward ? { reward } : {}),
-      });
-    }
-  });
-  return out;
-}
-
-function readChoices(r: Reader, v: unknown, path: string): ChoiceDef[] {
-  const out: ChoiceDef[] = [];
-  (r.arr(v, path, { min: 2, max: 3 }) ?? []).forEach((item, i) => {
-    const p = `${path}[${i}]`;
-    if (typeof item !== 'object' || item === null) {
-      r.fail(p, 'expected an object');
-      return;
-    }
-    const kind = r.oneOf('kind' in item ? (item as Rec).kind : undefined, `${p}.kind`, [
-      'crowd',
-      'upgrade',
-      'weapon',
-    ] as const);
-    if (kind === 'crowd') {
-      const o = r.obj(item, p, ['kind', 'op', 'value']);
-      if (!o) return;
-      const gate = readGate(r, { op: o.op, value: o.value }, p);
-      if (gate) out.push({ kind: 'crowd', ...gate });
-    } else if (kind === 'upgrade') {
-      const o = r.obj(item, p, ['kind', 'stat', 'value']);
-      if (!o) return;
-      const stat = r.oneOf<UpgradeStat>(o.stat, `${p}.stat`, UPGRADE_STATS);
-      const value = r.num(o.value, `${p}.value`, { above: 0, max: 10 });
-      if (stat && value !== undefined) {
-        if (stat === 'pellets' && !Number.isInteger(value))
-          r.fail(`${p}.value`, 'pellets must be an integer');
-        out.push({ kind: 'upgrade', stat, value });
-      }
-    } else if (kind === 'weapon') {
-      const o = r.obj(item, p, ['kind', 'weapon']);
-      if (!o) return;
-      const weapon = r.oneOf<WeaponId>(o.weapon, `${p}.weapon`, WEAPON_IDS);
-      if (weapon) out.push({ kind: 'weapon', weapon });
+      out.push({ x, y, hp, width, grow, ...(itemDef ? { item: itemDef } : {}) });
     }
   });
   return out;
@@ -348,13 +332,12 @@ function readStationary(r: Reader, o: Rec): StationaryLevel | undefined {
   const waves: WaveDef[] = [];
   (r.arr(o.waves, 'waves', { min: 1, max: 30 }) ?? []).forEach((item, i) => {
     const p = `waves[${i}]`;
-    const w = r.obj(item, p, ['monsters', 'obstacles', 'choices']);
+    const w = r.obj(item, p, ['monsters', 'obstacles']);
     if (!w) return;
     const monsters = readSpawns(r, w.monsters, `${p}.monsters`);
     const obstacles =
       w.obstacles === undefined ? [] : readStationaryObstacles(r, w.obstacles, `${p}.obstacles`);
-    const choices = w.choices === undefined ? [] : readChoices(r, w.choices, `${p}.choices`);
-    waves.push({ monsters, obstacles, choices });
+    waves.push({ monsters, obstacles });
   });
   if (id === undefined || name === undefined || startCount === undefined || weapon === undefined) {
     return undefined;

@@ -12,11 +12,11 @@ _Screenshots: coming soon (put captures in `docs/screenshots/` and link them her
 
 The core is mode-agnostic. A level's `"mode"` field picks the variant:
 
-| Mode           | Idea                                                                                                    | Status            |
-| -------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
-| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds.                           | ready (10 levels) |
-| `stationary`   | You stand still and shoot: auto-aim at monsters, hold to aim at HP blocks, pick upgrades between waves. | ready (5 levels)  |
-| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                                       | planned           |
+| Mode           | Idea                                                                                         | Status            |
+| -------------- | -------------------------------------------------------------------------------------------- | ----------------- |
+| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds.                | ready (10 levels) |
+| `stationary`   | You slide the squad, every soldier shoots; smash HP blocks, catch the power-ups behind them. | ready (5 levels)  |
+| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                            | planned           |
 
 New modes are one file plus a registry entry, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -92,39 +92,53 @@ possible crowd survives.
 
 ### Stationary (shooter) levels
 
-`"mode": "stationary"` levels are a list of waves. The squad auto-fires at the nearest monster;
-holding a finger (or the mouse button, or `A`/`D`) aims by hand, which is how you destroy blocks
-that have an HP counter while monsters keep coming. A wave is cleared when all monsters are dead
-and all `required` blocks are destroyed; then the player picks one card.
+`"mode": "stationary"` levels are a list of waves. The squad slides left and right (drag a
+finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet straight ahead**. Bullets
+keep part of the squad's sideways speed, so moving the squad sweeps the fire across the field.
+Monsters come down from the top (by default the right side). A block with an HP counter stops
+bullets; the **power-up hidden behind it** (more soldiers, an upgrade or a better weapon) falls
+towards the squad once the block breaks, and you have to move under it to catch it. A wave is
+cleared when all monsters, blocks and falling items are resolved. Give later blocks more HP (or
+let them `grow`) to raise the pressure.
 
 ```json
 {
   "id": "stationary-02",
-  "name": "Crate Expectations",
+  "name": "Heavy Crates",
   "mode": "stationary",
-  "startCount": 12,
+  "startCount": 10,
   "weapon": "rifle",
   "waves": [
     {
-      "monsters": [{ "kind": "grunt", "count": 10, "hp": 20, "from": "right", "interval": 0.8 }],
-      "obstacles": [{ "x": -0.65, "y": 7, "hp": 70, "reward": { "op": "+", "value": 10 } }],
-      "choices": [
-        { "kind": "crowd", "op": "+", "value": 8 },
-        { "kind": "upgrade", "stat": "rate", "value": 0.3 },
-        { "kind": "weapon", "weapon": "shotgun" }
+      "monsters": [{ "kind": "grunt", "count": 10, "hp": 20, "interval": 1.2 }],
+      "obstacles": [
+        { "x": -0.55, "y": 8, "hp": 90, "item": { "kind": "crowd", "op": "+", "value": 5 } }
+      ]
+    },
+    {
+      "monsters": [{ "kind": "grunt", "count": 12, "hp": 30, "interval": 1.0, "x": 0.7 }],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 160,
+          "grow": 3,
+          "item": { "kind": "weapon", "weapon": "shotgun" }
+        }
       ]
     }
   ]
 }
 ```
 
-| Field             | Meaning                                                                                                                                                                                             |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `weapon`          | `pistol`, `rifle`, `shotgun`, `minigun`. Damage scales with the squad size.                                                                                                                         |
-| `monsters[].kind` | `grunt`, `runner` (fast), `tank` (slow, bites hard), `boss`                                                                                                                                         |
-| `monsters[].from` | `left`, `right` or `top`; `interval` seconds between spawns, optional `delay`                                                                                                                       |
-| `obstacles[]`     | HP block at `x` (-1..1) and `y` (3..16 in front of the squad). Optional `reward` (a gate effect), `drift` (creeps towards you, costs `damage` units on arrival), `required` (default true), `width` |
-| `choices[]`       | 2-3 cards shown after the wave: `crowd` (gate effect), `upgrade` (`rate`, `damage`, `pellets`) or `weapon`                                                                                          |
+| Field               | Meaning                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `weapon`            | `pistol`, `rifle`, `shotgun`, `minigun`; each soldier carries one. Squads above 40 still hit harder per bullet.           |
+| `monsters[].kind`   | `grunt`, `runner` (fast), `tank` (slow, bites hard), `boss`                                                               |
+| `monsters[]` timing | `count` monsters, `interval` seconds apart, optional `delay`                                                              |
+| `monsters[].x`      | Lane from -1 (left) to 1 (right), default 0.6; `spread` scatters them around it                                           |
+| `obstacles[]`       | Block at `x` (-1..1) and `y` (4..15 in front of the squad) with `hp`, optional `width`, `grow` (HP gained per second)     |
+| `obstacles[].item`  | Power-up behind the block: `crowd` (a gate effect like `+5` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon` |
 
 `npm run validate:levels` plays every stationary level with a bot (5 runs) and reports its win
 rate and how close it came to losing. Levels the bot never wins are rejected.

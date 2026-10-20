@@ -1,0 +1,81 @@
+{
+  "id": "stationary-01",
+  "name": "First Blood",
+  "mode": "stationary",
+  "startCount": 6,
+  "weapon": "pistol",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 6,
+          "hp": 8,
+          "interval": 1.6
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 40,
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 4
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 8,
+          "hp": 10,
+          "interval": 1.4
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 72,
+          "item": {
+            "kind": "upgrade",
+            "stat": "rate",
+            "value": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 10,
+          "hp": 12,
+          "interval": 1.2
+        },
+        {
+          "kind": "runner",
+          "count": 4,
+          "hp": 8,
+          "interval": 2.5,
+          "delay": 3.0
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 112,
+          "item": {
+            "kind": "weapon",
+            "weapon": "rifle"
+          }
+        }
+      ]
+    }
+  ]
+}

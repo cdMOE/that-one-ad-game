@@ -1,6 +1,6 @@
-import { applyGate, clampCount, type GateEffect } from '../../core/rules';
-import { formationSpacing, visibleFor } from '../../core/swarm';
-import type { ChoiceDef, MonsterKind, SpawnSide, StationaryLevel } from '../../levels/schema';
+import { applyGate, clampCount } from '../../core/rules';
+import { gridSlotX, gridSlotY } from '../../core/swarm';
+import type { ItemDef, MonsterKind, StationaryLevel } from '../../levels/schema';
 import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from './weapons';
 
 /**
@@ -8,39 +8,46 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
  * same code runs in the game, in unit tests and in the level-validation bot. The view
  * (stationary.ts) only reads its state and reacts to the hooks.
  *
- * World: the squad stands at (0, 0); y grows "up" the screen. Monsters walk straight
- * at the squad from the left, right or top edge.
+ * World: the squad is a phalanx at the bottom that slides left and right; y grows "up"
+ * the screen. Every soldier fires its own bullet straight ahead and the bullet keeps part
+ * of the soldier's sideways speed, so moving the squad sweeps the fire across the field.
+ * Monsters walk down from the top towards the squad; blocks with a hit-point counter stop
+ * bullets and hide power-ups that fall towards the squad once the block breaks.
  */
 
-export const ARENA = { halfWidth: 6, spawnX: 7.2, spawnTop: 19, muzzle: 0.9 };
+export const ARENA = { halfWidth: 6, spawnTop: 19 };
+/** Distance between neighbouring soldiers; also the size of the formation grid. */
+export const SOLDIER_SPACING = 0.46;
+export const GRID_COLS = 8;
+/** At most this many soldiers are simulated and drawn; bigger squads hit harder per bullet. */
+export const MAX_SHOOTERS = 40;
+/** How much of the squad's sideways speed a bullet inherits. */
+export const BULLET_INHERIT = 0.8;
+const SQUAD_MAX_SPEED = 13;
+const ITEM_FALL_SPEED = 1.5;
+const OBSTACLE_HEIGHT = 1.3;
+const BULLET_LIFE = 1.3;
 
 export interface MonsterStats {
   speed: number;
   radius: number;
-  /** Squad units lost when it reaches the squad. */
+  /** Squad soldiers lost when it reaches the squad. */
   bite: number;
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 1.7, radius: 0.45, bite: 1 },
-  runner: { speed: 3.4, radius: 0.34, bite: 1 },
-  tank: { speed: 0.9, radius: 0.8, bite: 4 },
-  boss: { speed: 0.55, radius: 1.7, bite: 25 },
-};
-export const MONSTER_KIND_INDEX: Record<MonsterKind, number> = {
-  grunt: 0,
-  runner: 1,
-  tank: 2,
-  boss: 3,
+  grunt: { speed: 1.5, radius: 0.45, bite: 1 },
+  runner: { speed: 3, radius: 0.34, bite: 1 },
+  tank: { speed: 0.8, radius: 0.8, bite: 4 },
+  boss: { speed: 0.5, radius: 1.7, bite: 20 },
 };
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'boss'];
+const MONSTER_KIND_INDEX: Record<MonsterKind, number> = { grunt: 0, runner: 1, tank: 2, boss: 3 };
 
-export const MAX_MONSTERS = 160;
-export const MAX_BULLETS = 320;
-const BULLET_LIFE = 1.4;
-const OBSTACLE_HEIGHT = 1.3;
+export const MAX_MONSTERS = 120;
+export const MAX_BULLETS = 700;
 
-export type SimPhase = 'gap' | 'fighting' | 'choosing' | 'won' | 'lost';
+export type SimPhase = 'gap' | 'fighting' | 'won' | 'lost';
 
 export interface ObstacleState {
   x: number;
@@ -49,27 +56,32 @@ export interface ObstacleState {
   maxHp: number;
   width: number;
   height: number;
-  required: boolean;
-  reward?: GateEffect;
-  drift: number;
-  damage: number;
+  grow: number;
+  item?: ItemDef;
   alive: boolean;
   /** 1 right after a hit, decays in the view. */
   flash: number;
 }
 
+/** A power-up on its way down to the squad. */
+export interface ItemState {
+  x: number;
+  y: number;
+  def: ItemDef;
+}
+
 export interface SimHooks {
-  volley?(x: number, y: number, angle: number): void;
+  /** A soldier fired; (x, y) is the muzzle position. Called once per bullet batch. */
+  shot?(x: number, y: number): void;
   hit?(x: number, y: number): void;
   kill?(x: number, y: number, kind: MonsterKind, radius: number): void;
   bite?(x: number, y: number, lost: number): void;
-  obstacleHit?(o: ObstacleState): void;
-  /** `delta` is the squad change from the reward (0 if none). */
-  obstacleBreak?(o: ObstacleState, delta: number, crashed: boolean): void;
+  obstacleHit?(x: number, y: number): void;
+  obstacleBreak?(o: ObstacleState): void;
+  itemCollected?(item: ItemState, delta: number): void;
+  itemLost?(item: ItemState): void;
   waveStart?(index: number, total: number): void;
   waveClear?(): void;
-  choices?(choices: ChoiceDef[]): void;
-  chosen?(choice: ChoiceDef): void;
   ended?(won: boolean): void;
 }
 
@@ -77,7 +89,8 @@ interface Spawn {
   t: number;
   kind: MonsterKind;
   hp: number;
-  from: SpawnSide;
+  x: number;
+  spread: number;
 }
 
 /** Closest approach of a bullet's segment to a circle; returns the segment parameter or -1. */
@@ -105,13 +118,15 @@ export class StationarySim {
   phase: SimPhase = 'gap';
   waveIndex = -1;
   time = 0;
-  /** Manual aim target (world coords). When null the squad auto-aims. */
-  aim: { x: number; y: number } | null = null;
-  /** Current barrel angle in radians (0 = right, PI/2 = up the screen). */
-  aimAngle = Math.PI / 2;
-  choiceList: ChoiceDef[] = [];
-  obstacles: ObstacleState[] = [];
   kills = 0;
+
+  /** Where the player wants the squad (world x). The squad slides there. */
+  targetX = 0;
+  squadX = 0;
+  squadVx = 0;
+
+  obstacles: ObstacleState[] = [];
+  items: ItemState[] = [];
 
   // monsters (structure of arrays, fixed capacity)
   readonly mx = new Float32Array(MAX_MONSTERS);
@@ -128,6 +143,9 @@ export class StationarySim {
   readonly bdmg = new Float32Array(MAX_BULLETS);
   readonly blife = new Float32Array(MAX_BULLETS);
 
+  private readonly fireAcc = new Float32Array(MAX_SHOOTERS);
+  private readonly liveMonsters = new Int16Array(MAX_MONSTERS);
+  private liveCount = 0;
   private bulletHead = 0;
   private gapTimer = 0.8;
   private waveTime = 0;
@@ -135,7 +153,6 @@ export class StationarySim {
   private queueIndex = 0;
   private waveTotal = 1;
   private waveDone = 0;
-  private fireAcc = 0;
 
   constructor(
     readonly level: StationaryLevel,
@@ -144,6 +161,7 @@ export class StationarySim {
   ) {
     this.count = level.startCount;
     this.weapon = newWeaponState(level.weapon);
+    for (let i = 0; i < MAX_SHOOTERS; i++) this.fireAcc[i] = (i * 0.618) % 1; // stagger the guns
   }
 
   get progress(): number {
@@ -153,10 +171,27 @@ export class StationarySim {
     return Math.min(1, (wave + within) / this.level.waves.length);
   }
 
-  /** Radius of the squad's formation, used for contact checks. */
-  playerRadius(): number {
-    const n = visibleFor(this.count);
-    return n === 0 ? 0 : formationSpacing(n, 2.6) * Math.sqrt(n);
+  /** Number of soldiers that are simulated and drawn (and fire). */
+  get shooters(): number {
+    return Math.min(this.count, MAX_SHOOTERS);
+  }
+
+  get cols(): number {
+    return Math.max(1, Math.min(GRID_COLS, this.shooters));
+  }
+
+  /** Half the width of the formation, used to keep it inside the arena. */
+  halfWidth(): number {
+    return ((this.cols - 1) / 2) * SOLDIER_SPACING + 0.35;
+  }
+
+  /** World position of soldier `i` (0 = front row). */
+  soldierX(i: number): number {
+    return this.squadX + gridSlotX(i, this.shooters, this.cols) * SOLDIER_SPACING;
+  }
+
+  soldierY(i: number): number {
+    return gridSlotY(i, this.cols) * SOLDIER_SPACING;
   }
 
   get monstersAlive(): number {
@@ -168,27 +203,27 @@ export class StationarySim {
   update(dt: number): void {
     if (this.phase === 'won' || this.phase === 'lost') return;
     this.time += dt;
+    this.moveSquad(dt);
     this.updateBullets(dt);
     for (const o of this.obstacles) o.flash = Math.max(0, o.flash - dt * 6);
     if (this.phase === 'gap') {
       this.gapTimer -= dt;
       if (this.gapTimer <= 0) this.startWave(this.waveIndex + 1);
-    } else if (this.phase === 'fighting') {
+    } else {
       this.updateFight(dt);
     }
   }
 
-  /** Picks one of the offered cards (index into `choiceList`). */
-  choose(i: number): void {
-    if (this.phase !== 'choosing') return;
-    const c = this.choiceList[i];
-    if (!c) return;
-    if (c.kind === 'crowd') this.count = applyGate(this.count, c);
-    else if (c.kind === 'upgrade') applyUpgrade(this.weapon, c.stat, c.value);
-    else this.weapon.id = c.weapon;
-    this.hooks.chosen?.(c);
-    this.phase = 'gap';
-    this.gapTimer = 0.9;
+  private moveSquad(dt: number): void {
+    const limit = ARENA.halfWidth - this.halfWidth();
+    const want = Math.max(-limit, Math.min(limit, this.targetX));
+    const dx = want - this.squadX;
+    const step = Math.max(
+      -SQUAD_MAX_SPEED * dt,
+      Math.min(SQUAD_MAX_SPEED * dt, dx * Math.min(1, 16 * dt)),
+    );
+    this.squadX += step;
+    this.squadVx = dt > 0 ? step / dt : 0;
   }
 
   // ---- waves --------------------------------------------------------------
@@ -210,7 +245,8 @@ export class StationarySim {
           t: (s.delay ?? 0) + i * s.interval,
           kind: s.kind,
           hp: s.hp,
-          from: s.from,
+          x: s.x ?? 0.6,
+          spread: s.spread ?? 0.25,
         });
       }
       total += s.count;
@@ -221,16 +257,15 @@ export class StationarySim {
       y: o.y,
       hp: o.hp,
       maxHp: o.hp,
-      width: o.width ?? 2.4,
+      width: o.width ?? 4.2,
       height: OBSTACLE_HEIGHT,
-      required: o.required !== false,
-      ...(o.reward ? { reward: o.reward } : {}),
-      drift: o.drift ?? 0,
-      damage: o.damage ?? 5,
+      grow: o.grow ?? 0,
+      ...(o.item ? { item: o.item } : {}),
       alive: true,
       flash: 0,
     }));
-    total += this.obstacles.filter((o) => o.required).length;
+    total += this.obstacles.length;
+    this.items = [];
     this.waveTotal = Math.max(1, total);
     this.waveDone = 0;
     this.phase = 'fighting';
@@ -238,18 +273,12 @@ export class StationarySim {
   }
 
   private clearWave(): void {
-    this.obstacles = [];
     this.hooks.waveClear?.();
-    const wave = this.level.waves[this.waveIndex];
     if (this.waveIndex + 1 >= this.level.waves.length) {
       this.end(true);
-    } else if (wave.choices && wave.choices.length > 0) {
-      this.phase = 'choosing';
-      this.choiceList = wave.choices;
-      this.hooks.choices?.(wave.choices);
     } else {
       this.phase = 'gap';
-      this.gapTimer = 1;
+      this.gapTimer = 1.2;
     }
   }
 
@@ -269,20 +298,9 @@ export class StationarySim {
       }
     }
     if (slot < 0) return; // pool full: drop the spawn rather than allocate
-    let x: number;
-    let y: number;
-    if (s.from === 'right') {
-      x = ARENA.spawnX;
-      y = 1.5 + this.rng() * 10;
-    } else if (s.from === 'left') {
-      x = -ARENA.spawnX;
-      y = 1.5 + this.rng() * 10;
-    } else {
-      x = (this.rng() * 2 - 1) * 4.6;
-      y = ARENA.spawnTop;
-    }
-    this.mx[slot] = x;
-    this.my[slot] = y;
+    const lane = s.x * ARENA.halfWidth + (this.rng() * 2 - 1) * s.spread * ARENA.halfWidth;
+    this.mx[slot] = Math.max(-ARENA.halfWidth + 0.5, Math.min(ARENA.halfWidth - 0.5, lane));
+    this.my[slot] = ARENA.spawnTop;
     this.mhp[slot] = s.hp;
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
@@ -295,129 +313,109 @@ export class StationarySim {
       this.spawn(this.queue[this.queueIndex++]);
     }
 
-    const pr = this.playerRadius();
+    // monsters walk straight at the squad
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!this.malive[i]) continue;
       const stats = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]];
       const x = this.mx[i];
       const y = this.my[i];
-      const d = Math.hypot(x, y);
-      if (d < pr * 0.8 + stats.radius) {
+      if (y <= 0.5 + stats.radius * 0.6) {
         this.malive[i] = 0;
         this.waveDone++;
         this.count = clampCount(this.count - stats.bite);
-        this.hooks.bite?.(x, y, stats.bite);
+        this.hooks.bite?.(x, Math.max(0, y), stats.bite);
         if (this.count <= 0) {
           this.end(false);
           return;
         }
         continue;
       }
+      const tx = this.squadX - x;
+      const ty = -y;
+      const d = Math.hypot(tx, ty);
       const step = Math.min(d, stats.speed * dt);
-      this.mx[i] = x - (x / d) * step;
-      this.my[i] = y - (y / d) * step;
+      this.mx[i] = x + (tx / d) * step;
+      this.my[i] = y + (ty / d) * step;
     }
 
     for (const o of this.obstacles) {
-      if (!o.alive || o.drift <= 0) continue;
-      o.y -= o.drift * dt;
-      if (o.y - o.height / 2 < pr * 0.8) {
-        o.alive = false;
-        this.count = clampCount(this.count - o.damage);
-        if (o.required) this.waveDone++;
-        this.hooks.obstacleBreak?.(o, -o.damage, true);
-        if (this.count <= 0) {
-          this.end(false);
-          return;
-        }
+      if (o.alive && o.grow > 0) {
+        o.hp += o.grow * dt;
+        o.maxHp = Math.max(o.maxHp, o.hp);
       }
     }
 
+    this.updateItems(dt);
     this.fire(dt);
 
     if (
       this.queueIndex >= this.queue.length &&
       this.monstersAlive === 0 &&
-      !this.obstacles.some((o) => o.alive && o.required)
+      this.items.length === 0 &&
+      !this.obstacles.some((o) => o.alive)
     ) {
       this.clearWave();
     }
   }
 
-  /** Nearest visible monster; else the nearest required obstacle; else null. */
-  autoTarget(): { x: number; y: number } | null {
-    let best = -1;
-    let bestD = Infinity;
-    for (let i = 0; i < MAX_MONSTERS; i++) {
-      if (!this.malive[i]) continue;
-      const x = this.mx[i];
-      const y = this.my[i];
-      if (Math.abs(x) > 6.4 || y > 18) continue; // not on screen yet
-      const d = Math.hypot(x, y);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
+  private updateItems(dt: number): void {
+    const hw = this.halfWidth();
+    for (let k = this.items.length - 1; k >= 0; k--) {
+      const item = this.items[k];
+      item.y -= ITEM_FALL_SPEED * dt;
+      if (item.y <= 1 && Math.abs(item.x - this.squadX) <= hw + 0.7) {
+        this.items.splice(k, 1);
+        const before = this.count;
+        this.applyItem(item.def);
+        this.hooks.itemCollected?.(item, this.count - before);
+      } else if (item.y < -1.5) {
+        this.items.splice(k, 1);
+        this.hooks.itemLost?.(item);
       }
     }
-    if (best >= 0) return { x: this.mx[best], y: this.my[best] };
-    let target: ObstacleState | null = null;
-    for (const o of this.obstacles) {
-      if (!o.alive) continue;
-      if (!target || (o.required && !target.required) || o.y < target.y) target = o;
-    }
-    return target ? { x: target.x, y: target.y } : null;
   }
 
-  /** Distance of the nearest monster that is already on screen (Infinity if none). */
-  nearestMonsterDistance(): number {
-    let best = Infinity;
-    for (let i = 0; i < MAX_MONSTERS; i++) {
-      if (!this.malive[i]) continue;
-      best = Math.min(best, Math.hypot(this.mx[i], this.my[i]));
-    }
-    return best;
+  private applyItem(def: ItemDef): void {
+    if (def.kind === 'crowd') this.count = applyGate(this.count, def);
+    else if (def.kind === 'upgrade') applyUpgrade(this.weapon, def.stat, def.value);
+    else this.weapon.id = def.weapon;
   }
 
+  /** Every soldier fires on its own clock; bullets keep part of the squad's sideways speed. */
   private fire(dt: number): void {
     const w = effectiveWeapon(this.weapon);
-    const target = this.aim ?? this.autoTarget();
-    if (target) {
-      const want = Math.atan2(target.y, target.x);
-      let diff = want - this.aimAngle;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      this.aimAngle += diff * Math.min(1, 16 * dt);
-    }
-    this.fireAcc = Math.min(this.fireAcc + w.rate * dt, 2);
-    if (!target) {
-      this.fireAcc = Math.min(this.fireAcc, 1);
-      return;
-    }
-    while (this.fireAcc >= 1) {
-      this.fireAcc -= 1;
-      const pellets = Math.max(1, w.pellets);
-      const damage = (w.total * this.count) / pellets;
+    const n = this.shooters;
+    const pellets = Math.max(1, w.pellets);
+    // bigger squads than we can draw hit harder per bullet, so the counter always matters
+    const perBullet = (w.damage * (this.count / n)) / pellets;
+    for (let i = 0; i < n; i++) {
+      this.fireAcc[i] += w.rate * dt;
+      if (this.fireAcc[i] < 1) continue;
+      this.fireAcc[i] = Math.min(this.fireAcc[i] - 1, 1);
+      const x = this.soldierX(i);
+      const y = this.soldierY(i) + 0.5;
       for (let p = 0; p < pellets; p++) {
         const fan = pellets > 1 ? (p / (pellets - 1) - 0.5) * w.spread : 0;
-        const a = this.aimAngle + fan + (this.rng() - 0.5) * w.jitter;
-        const i = this.bulletHead;
+        const a = Math.PI / 2 + fan + (this.rng() - 0.5) * w.jitter;
+        const b = this.bulletHead;
         this.bulletHead = (this.bulletHead + 1) % MAX_BULLETS;
-        this.bx[i] = Math.cos(a) * ARENA.muzzle;
-        this.by[i] = Math.sin(a) * ARENA.muzzle;
-        this.bvx[i] = Math.cos(a) * w.speed;
-        this.bvy[i] = Math.sin(a) * w.speed;
-        this.bdmg[i] = damage;
-        this.blife[i] = BULLET_LIFE;
+        this.bx[b] = x;
+        this.by[b] = y;
+        this.bvx[b] = Math.cos(a) * w.speed + this.squadVx * BULLET_INHERIT;
+        this.bvy[b] = Math.sin(a) * w.speed;
+        this.bdmg[b] = perBullet;
+        this.blife[b] = BULLET_LIFE;
       }
-      this.hooks.volley?.(
-        Math.cos(this.aimAngle) * ARENA.muzzle,
-        Math.sin(this.aimAngle) * ARENA.muzzle,
-        this.aimAngle,
-      );
+      this.hooks.shot?.(x, y);
     }
   }
 
   private updateBullets(dt: number): void {
+    // compact list of living monsters so each bullet only tests those
+    let live = 0;
+    for (let m = 0; m < MAX_MONSTERS; m++) if (this.malive[m]) this.liveMonsters[live++] = m;
+    this.liveCount = live;
+
     for (let i = 0; i < MAX_BULLETS; i++) {
       if (this.blife[i] <= 0) continue;
       this.blife[i] -= dt;
@@ -427,7 +425,7 @@ export class StationarySim {
       const y1 = y0 + this.bvy[i] * dt;
       this.bx[i] = x1;
       this.by[i] = y1;
-      if (Math.abs(x1) > 9 || y1 > 22 || y1 < -6) {
+      if (Math.abs(x1) > 8 || y1 > 21 || y1 < -6) {
         this.blife[i] = 0;
         continue;
       }
@@ -439,9 +437,11 @@ export class StationarySim {
   private collide(i: number, x0: number, y0: number, x1: number, y1: number): boolean {
     let bestT = 2;
     let monster = -1;
-    for (let m = 0; m < MAX_MONSTERS; m++) {
-      if (!this.malive[m]) continue;
+    for (let k = 0; k < this.liveCount; k++) {
+      const m = this.liveMonsters[k];
+      if (!this.malive[m]) continue; // killed earlier this step
       const r = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[m]]].radius + 0.12;
+      if (Math.abs(this.my[m] - y1) > r + 1.2) continue; // cheap vertical reject
       const t = segmentCircle(x0, y0, x1, y1, this.mx[m], this.my[m], r);
       if (t >= 0 && t < bestT) {
         bestT = t;
@@ -469,13 +469,18 @@ export class StationarySim {
     if (obstacle) {
       obstacle.hp -= dmg;
       obstacle.flash = 1;
-      this.hooks.obstacleHit?.(obstacle);
+      this.hooks.obstacleHit?.(this.bx[i], obstacle.y - obstacle.height / 2);
       if (obstacle.hp <= 0) {
         obstacle.alive = false;
-        if (obstacle.required) this.waveDone++;
-        const before = this.count;
-        if (obstacle.reward) this.count = applyGate(this.count, obstacle.reward);
-        this.hooks.obstacleBreak?.(obstacle, this.count - before, false);
+        this.waveDone++;
+        if (obstacle.item) {
+          this.items.push({
+            x: obstacle.x,
+            y: obstacle.y + obstacle.height / 2 + 0.9,
+            def: obstacle.item,
+          });
+        }
+        this.hooks.obstacleBreak?.(obstacle);
       }
       return true;
     }

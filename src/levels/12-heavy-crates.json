@@ -1,0 +1,117 @@
+{
+  "id": "stationary-02",
+  "name": "Heavy Crates",
+  "mode": "stationary",
+  "startCount": 10,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 10,
+          "hp": 18,
+          "interval": 1.05
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 101,
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 5
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 12,
+          "hp": 24,
+          "interval": 0.88
+        },
+        {
+          "kind": "runner",
+          "count": 5,
+          "hp": 12,
+          "interval": 1.75,
+          "delay": 2.62
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 185,
+          "item": {
+            "kind": "upgrade",
+            "stat": "damage",
+            "value": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 14,
+          "hp": 30,
+          "interval": 0.79
+        },
+        {
+          "kind": "tank",
+          "count": 2,
+          "hp": 121,
+          "interval": 5.25,
+          "delay": 1.75
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 286,
+          "item": {
+            "kind": "crowd",
+            "op": "x",
+            "value": 2
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 16,
+          "hp": 36,
+          "interval": 0.7
+        },
+        {
+          "kind": "runner",
+          "count": 8,
+          "hp": 14,
+          "interval": 1.31,
+          "delay": 1.75
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 403,
+          "item": {
+            "kind": "weapon",
+            "weapon": "shotgun"
+          }
+        }
+      ]
+    }
+  ]
+}

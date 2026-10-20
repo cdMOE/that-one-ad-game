@@ -1,8 +1,6 @@
-import { applyGate } from '../../core/rules';
 import { mulberry32 } from '../../core/rng';
-import type { ChoiceDef, StationaryLevel } from '../../levels/schema';
-import { StationarySim } from './sim';
-import { effectiveWeapon, type WeaponState } from './weapons';
+import type { StationaryLevel } from '../../levels/schema';
+import { MAX_MONSTERS, StationarySim } from './sim';
 
 export interface BotResult {
   won: boolean;
@@ -12,40 +10,32 @@ export interface BotResult {
   lowest: number;
 }
 
-/** Rough firepower of a squad: soldiers x volleys per second x damage x pellets (spread counts half). */
-function firepower(count: number, w: WeaponState): number {
-  const e = effectiveWeapon(w);
-  return count * e.rate * e.damage * (1 + (e.pellets - 1) * 0.5);
-}
-
-function pickChoice(choices: ChoiceDef[], count: number, w: WeaponState): number {
-  let best = 0;
-  let bestScore = -Infinity;
-  choices.forEach((c, i) => {
-    let score: number;
-    if (c.kind === 'crowd') {
-      score = firepower(applyGate(count, c), w);
-    } else if (c.kind === 'upgrade') {
-      const next = { ...w };
-      if (c.stat === 'rate') next.rateMul += c.value;
-      else if (c.stat === 'damage') next.damageMul += c.value;
-      else next.extraPellets += Math.round(c.value);
-      score = firepower(count, next);
-    } else {
-      score = firepower(count, { ...w, id: c.weapon });
+/**
+ * Where the bot wants the squad: under a monster that is about to reach it; otherwise
+ * under a falling power-up; otherwise under the block; otherwise under the nearest monster.
+ */
+function botTarget(sim: StationarySim): number {
+  let nearest = -1;
+  let nearestY = Infinity;
+  for (let i = 0; i < MAX_MONSTERS; i++) {
+    if (sim.malive[i] && sim.my[i] < nearestY) {
+      nearestY = sim.my[i];
+      nearest = i;
     }
-    if (score > bestScore) {
-      bestScore = score;
-      best = i;
-    }
-  });
-  return best;
+  }
+  const block = sim.obstacles.find((o) => o.alive);
+  const item = sim.items[0];
+  if (nearest >= 0 && nearestY < 7) return sim.mx[nearest];
+  if (item) return item.x;
+  if (block && (nearest < 0 || nearestY > 10)) return block.x;
+  if (nearest >= 0) return sim.mx[nearest];
+  return 0;
 }
 
 /**
- * A simple but sensible player: auto-aims at monsters, but turns to a required block
- * whenever no monster is close, and always takes the card that raises firepower most.
- * Used by `npm run validate:levels` to check that a level can be won.
+ * A simple but sensible player: it keeps the squad under whatever is most urgent (close
+ * monsters, falling power-ups, the block). Used by `npm run validate:levels` to check
+ * that a level can be won.
  */
 export function runBot(level: StationaryLevel, seed: number, maxSeconds = 300): BotResult {
   const sim = new StationarySim(level, mulberry32(seed));
@@ -54,12 +44,7 @@ export function runBot(level: StationaryLevel, seed: number, maxSeconds = 300): 
   let lowest = sim.count;
   for (let step = 0; step < steps; step++) {
     if (sim.phase === 'won' || sim.phase === 'lost') break;
-    if (sim.phase === 'choosing') {
-      sim.choose(pickChoice(sim.choiceList, sim.count, sim.weapon));
-      continue;
-    }
-    const block = sim.obstacles.find((o) => o.alive && o.required);
-    sim.aim = block && sim.nearestMonsterDistance() > 5.5 ? { x: block.x, y: block.y } : null;
+    sim.targetX = botTarget(sim);
     sim.update(dt);
     lowest = Math.min(lowest, sim.count);
   }

@@ -1,0 +1,129 @@
+{
+  "id": "stationary-04",
+  "name": "Two Fronts",
+  "mode": "stationary",
+  "startCount": 14,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 12,
+          "hp": 38,
+          "interval": 0.77,
+          "x": 0.7
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 8,
+          "hp": 194,
+          "width": 3.6,
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 8
+          }
+        },
+        {
+          "x": 0.15,
+          "y": 11,
+          "hp": 151,
+          "width": 3,
+          "item": {
+            "kind": "upgrade",
+            "stat": "damage",
+            "value": 0.4
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 14,
+          "hp": 50,
+          "interval": 0.69,
+          "x": 0.7
+        },
+        {
+          "kind": "runner",
+          "count": 6,
+          "hp": 21,
+          "interval": 1.54,
+          "delay": 2.31,
+          "x": -0.2
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 8,
+          "hp": 324,
+          "width": 3.6,
+          "item": {
+            "kind": "weapon",
+            "weapon": "shotgun"
+          }
+        },
+        {
+          "x": 0.1,
+          "y": 11,
+          "hp": 259,
+          "width": 3,
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 10
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "tank",
+          "count": 3,
+          "hp": 264,
+          "interval": 3.08,
+          "x": 0.7
+        },
+        {
+          "kind": "grunt",
+          "count": 16,
+          "hp": 53,
+          "interval": 0.62,
+          "delay": 0.77,
+          "x": 0.5
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.6,
+          "y": 8,
+          "hp": 475,
+          "width": 3.6,
+          "item": {
+            "kind": "upgrade",
+            "stat": "rate",
+            "value": 0.6
+          }
+        },
+        {
+          "x": 0.1,
+          "y": 11,
+          "hp": 389,
+          "width": 3,
+          "item": {
+            "kind": "crowd",
+            "op": "x",
+            "value": 2
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,8 @@
 export class Input {
   /** Keyboard axis: -1 (left) .. +1 (right). */
   axis = 0;
+  /** True once a mouse has been seen; false again as soon as a finger touches the stage. */
+  usesMouse = false;
   /** True while a finger/mouse button is held on the stage. */
   pointerDown = false;
   /** Pointer position in CSS px relative to the stage's top-left corner. */
@@ -40,6 +42,7 @@ export class Input {
       this.activePointer = e.pointerId;
       this.lastX = e.clientX;
       this.pointerDown = true;
+      this.usesMouse = e.pointerType === 'mouse';
       this.track(target, e);
       this.downAt = performance.now();
       this.downX = this.pointerX;
@@ -47,6 +50,11 @@ export class Input {
       target.setPointerCapture(e.pointerId);
     });
     on(target, 'pointermove', (e) => {
+      // a mouse can steer just by hovering
+      if (e.pointerType === 'mouse') {
+        this.usesMouse = true;
+        this.track(target, e);
+      }
       if (e.pointerId !== this.activePointer) return;
       this.dragDx += e.clientX - this.lastX;
       this.lastX = e.clientX;

@@ -22,6 +22,21 @@ export function formationSpacing(n: number, maxRadius: number, ideal = 0.42): nu
   return Math.min(ideal, maxRadius / Math.sqrt(n));
 }
 
+/**
+ * Slot of unit `i` in a phalanx of `n` units with `cols` columns (units of spacing).
+ * Row 0 is the front row; later rows sit behind it (negative y); a partial last row is
+ * centred. Used by the shooter mode, where every soldier is also a gun.
+ */
+export function gridSlotX(i: number, n: number, cols: number): number {
+  const row = Math.floor(i / cols);
+  const inRow = Math.min(cols, n - row * cols);
+  return i - row * cols - (inRow - 1) / 2;
+}
+
+export function gridSlotY(i: number, cols: number): number {
+  return 0 - Math.floor(i / cols);
+}
+
 /** Drawn radius of a single unit for a given spacing. */
 export function unitRadius(spacing: number): number {
   return Math.max(0.1, Math.min(0.27, spacing * 0.65));
@@ -44,6 +59,7 @@ export class Swarm {
   private readonly phase: Float32Array;
   private readonly slotX: Float32Array;
   private readonly slotY: Float32Array;
+  private gridCols = 0;
 
   constructor(readonly capacity: number) {
     this.x = new Float32Array(capacity);
@@ -59,6 +75,20 @@ export class Swarm {
       this.slotX[i] = r * Math.cos(a);
       this.slotY[i] = r * Math.sin(a);
       this.phase[i] = Math.random() * Math.PI * 2;
+    }
+  }
+
+  /** Switches from the spiral to a phalanx with `cols` columns (see `gridSlotX`). */
+  useGrid(cols: number): void {
+    this.gridCols = cols;
+    this.relayout();
+  }
+
+  private relayout(): void {
+    if (this.gridCols === 0) return;
+    for (let i = 0; i < this.n; i++) {
+      this.slotX[i] = gridSlotX(i, this.n, this.gridCols);
+      this.slotY[i] = gridSlotY(i, this.gridCols);
     }
   }
 
@@ -92,6 +122,7 @@ export class Swarm {
       this.vy[i] = 0;
       this.n++;
     }
+    this.relayout();
   }
 
   /** Teleports every unit onto its formation slot (used when a level starts). */

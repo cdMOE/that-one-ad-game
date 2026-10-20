@@ -124,7 +124,7 @@ export class Game {
       this.ui.showHint(
         level.mode === 'runner'
           ? 'Drag left / right to pick the best gate'
-          : 'Auto-aim shoots monsters. Hold anywhere to aim yourself, e.g. at a block.',
+          : 'Move your squad (drag or mouse). Every soldier shoots straight ahead. Smash the block, then catch the power-up!',
         5000,
       );
     }

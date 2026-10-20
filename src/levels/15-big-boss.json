@@ -1,0 +1,128 @@
+{
+  "id": "stationary-05",
+  "name": "Big Boss",
+  "mode": "stationary",
+  "startCount": 20,
+  "weapon": "rifle",
+  "waves": [
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 16,
+          "hp": 41,
+          "interval": 0.62
+        },
+        {
+          "kind": "runner",
+          "count": 6,
+          "hp": 20,
+          "interval": 1.54,
+          "delay": 2.31
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 245,
+          "grow": 3,
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 10
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 18,
+          "hp": 50,
+          "interval": 0.54
+        },
+        {
+          "kind": "tank",
+          "count": 3,
+          "hp": 248,
+          "interval": 3.08,
+          "delay": 1.54
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 408,
+          "grow": 5,
+          "item": {
+            "kind": "weapon",
+            "weapon": "minigun"
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "runner",
+          "count": 14,
+          "hp": 30,
+          "interval": 0.54
+        },
+        {
+          "kind": "grunt",
+          "count": 14,
+          "hp": 58,
+          "interval": 0.69,
+          "delay": 0.77
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 612,
+          "grow": 7,
+          "item": {
+            "kind": "upgrade",
+            "stat": "damage",
+            "value": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "monsters": [
+        {
+          "kind": "grunt",
+          "count": 12,
+          "hp": 58,
+          "interval": 0.77
+        },
+        {
+          "kind": "boss",
+          "count": 1,
+          "hp": 3712,
+          "interval": 0.77,
+          "delay": 4.62
+        }
+      ],
+      "obstacles": [
+        {
+          "x": -0.55,
+          "y": 8,
+          "hp": 775,
+          "grow": 8,
+          "item": {
+            "kind": "crowd",
+            "op": "x",
+            "value": 2
+          }
+        }
+      ]
+    }
+  ]
+}
