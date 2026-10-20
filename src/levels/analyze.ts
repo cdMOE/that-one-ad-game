@@ -57,3 +57,15 @@ export function analyzeRunner(level: RunnerLevel): RunnerAnalysis {
   }
   return { winnable: true, bestFinalCount: count };
 }
+
+/**
+ * Star rating (1-3) for a won level, based on how much of the best possible crowd
+ * survived. Beating a level always earns at least one star.
+ */
+export function starsFor(survivors: number, bestPossible: number): 1 | 2 | 3 {
+  if (bestPossible <= 0) return 3;
+  const ratio = survivors / bestPossible;
+  if (ratio >= 0.8) return 3;
+  if (ratio >= 0.45) return 2;
+  return 1;
+}

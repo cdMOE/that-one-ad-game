@@ -5,6 +5,7 @@ import { Loop } from './core/loop';
 import { ParticleSystem, PopupSystem } from './core/particles';
 import { drawBackdrop } from './core/render';
 import { loadSave, writeSave, type SaveData } from './core/storage';
+import { analyzeRunner, starsFor } from './levels/analyze';
 import { levels, type Level } from './levels';
 import { createMode, type GameContext, type GameMode } from './modes';
 import { RunnerMode } from './modes/runner';
@@ -117,6 +118,7 @@ export class Game {
     this.backdrop = null;
     this.state = 'playing';
     this.ui.showHud(levels[index], index);
+    if (index === 0) this.ui.showHint('Drag left / right to pick the best gate');
   }
 
   private toMenu(): void {
@@ -151,13 +153,20 @@ export class Game {
   private finishLevel(mode: GameMode): void {
     const won = mode.outcome === 'won';
     this.state = 'result';
+    let stars = 0;
     if (won) {
-      const id = levels[this.levelIndex].id;
-      this.save.completed[id] = Math.max(this.save.completed[id] ?? 0, mode.survivors);
+      const level = levels[this.levelIndex];
+      const best = level.mode === 'runner' ? analyzeRunner(level).bestFinalCount : mode.survivors;
+      stars = starsFor(mode.survivors, best);
+      const prev = this.save.completed[level.id];
+      this.save.completed[level.id] = {
+        stars: Math.max(prev?.stars ?? 0, stars),
+        best: Math.max(prev?.best ?? 0, mode.survivors),
+      };
       writeSave(this.save);
     }
     this.ui.setData(levels, this.save, this.params.get('unlock') === 'all');
-    this.ui.showResult(won, mode.survivors, this.levelIndex + 1 < levels.length);
+    this.ui.showResult(won, mode.survivors, this.levelIndex + 1 < levels.length, stars);
   }
 
   private draw(): void {

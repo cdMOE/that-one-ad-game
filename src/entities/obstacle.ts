@@ -15,12 +15,17 @@ export function createObstacle(def: ObstacleDef): Obstacle {
   return { def, x: def.x * HALF_TRACK, halfWidth: (def.width * TRACK_WIDTH) / 2, hit: false };
 }
 
-export function updateObstacle(o: Obstacle, time: number): void {
+/** Lateral centre of an obstacle at a given time (swaying ones move). */
+export function obstacleX(o: Obstacle, time: number): number {
   const sway = o.def.sway;
   const base = o.def.x * HALF_TRACK;
-  o.x = sway ? base + Math.sin(time * sway.speed) * sway.amplitude * HALF_TRACK : base;
+  const x = sway ? base + Math.sin(time * sway.speed) * sway.amplitude * HALF_TRACK : base;
   // keep the whole obstacle on the track
-  o.x = Math.max(-HALF_TRACK + o.halfWidth, Math.min(HALF_TRACK - o.halfWidth, o.x));
+  return Math.max(-HALF_TRACK + o.halfWidth, Math.min(HALF_TRACK - o.halfWidth, x));
+}
+
+export function updateObstacle(o: Obstacle, time: number): void {
+  o.x = obstacleX(o, time);
 }
 
 export function drawObstacle(

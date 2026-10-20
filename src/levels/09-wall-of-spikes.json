@@ -1,0 +1,45 @@
+{
+  "id": "runner-09",
+  "name": "Wall of Spikes",
+  "mode": "runner",
+  "length": 130,
+  "speed": 6,
+  "startCount": 15,
+  "gates": [
+    {
+      "at": 14,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "+", "value": 10 }
+      ]
+    },
+    {
+      "at": 40,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "+", "value": 20 }
+      ]
+    },
+    {
+      "at": 82,
+      "options": [
+        { "op": "x", "value": 4 },
+        { "op": "+", "value": 10 }
+      ]
+    },
+    {
+      "at": 105,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "x", "value": 2 }
+      ]
+    }
+  ],
+  "enemies": [{ "at": 70, "count": 30 }],
+  "obstacles": [
+    { "at": 28, "kind": "spikes", "x": 0, "width": 1, "damage": 10 },
+    { "at": 55, "kind": "spikes", "x": 0, "width": 1, "damage": 20 },
+    { "at": 95, "kind": "spikes", "x": 0, "width": 1, "damage": 15 }
+  ],
+  "boss": { "name": "Porcupine King", "count": 50 }
+}

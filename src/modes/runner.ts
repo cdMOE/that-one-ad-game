@@ -1,6 +1,6 @@
-import { COLORS, HALF_TRACK, MAX_VISIBLE_UNITS } from '../config';
+import { COLORS, HALF_TRACK, MAX_VISIBLE_UNITS, TRACK_WIDTH } from '../config';
 import { Pc } from '../core/particles';
-import { drawPill, drawSwarm, drawTrack, unitSprite } from '../core/render';
+import { drawCrown, drawPill, drawSwarm, drawTrack, unitSprite } from '../core/render';
 import { applyGate, formatCount, isGoodGate } from '../core/rules';
 import { formationSpacing, Swarm, unitRadius, visibleFor } from '../core/swarm';
 import { EnemyGroup } from '../entities/enemy';
@@ -11,7 +11,13 @@ import {
   gateLaneCenter,
   type GateRow,
 } from '../entities/gate';
-import { createObstacle, drawObstacle, updateObstacle, type Obstacle } from '../entities/obstacle';
+import {
+  createObstacle,
+  drawObstacle,
+  obstacleX,
+  updateObstacle,
+  type Obstacle,
+} from '../entities/obstacle';
 import type { RunnerLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
 
@@ -22,7 +28,7 @@ const FIGHT_SECONDS = 1.3; // a fight takes about this long, whatever the crowd 
 const MIN_KILL_RATE = 14; // units per second per side, so tiny fights do not crawl
 const DEATH_PARTICLE_BUDGET = 40; // particle spawns per frame for dying units
 
-type Phase = 'run' | 'fight' | 'victory' | 'defeat';
+type Phase = 'ready' | 'run' | 'fight' | 'victory' | 'defeat';
 
 /**
  * Auto-running mode: the crowd moves forward by itself and the player only steers
@@ -40,8 +46,13 @@ export class RunnerMode implements GameMode {
   private px = 0;
   private count: number;
   private time = 0;
-  private phase: Phase = 'run';
-  private phaseTimer = 0;
+  private phase: Phase = 'ready';
+  private phaseTimer = 0.6;
+  private introShown = false;
+  /** Squash/stretch of the crowd: > 0 bursts outwards (good gate), < 0 squeezes. */
+  private pulse = 0;
+  /** Pops the crowd counter whenever the number changes. */
+  private pillPop = 0;
   private spacing = 0.42;
 
   private readonly player = new Swarm(MAX_VISIBLE_UNITS);
@@ -96,9 +107,19 @@ export class RunnerMode implements GameMode {
     this.deathBudget = DEATH_PARTICLE_BUDGET;
     for (const o of this.obstacles) updateObstacle(o, this.time);
     for (const row of this.gates) row.flash = Math.max(0, row.flash - dt * 2.2);
+    this.pulse *= Math.exp(-6 * dt);
+    this.pillPop *= Math.exp(-7 * dt);
 
     let vy = 0;
     switch (this.phase) {
+      case 'ready':
+        if (!this.introShown && !this.autopilot) {
+          this.introShown = true;
+          this.ctx.popups.add(0, 4.5, 'GO!', COLORS.gold, 1.7);
+        }
+        this.phaseTimer -= dt;
+        if (this.phaseTimer <= 0) this.phase = 'run';
+        break;
       case 'run':
         vy = this.speed;
         this.steer(dt, drag);
@@ -126,7 +147,15 @@ export class RunnerMode implements GameMode {
     }
 
     this.spacing = formationSpacing(this.player.n, PLAYER_MAX_RADIUS);
-    this.player.update(dt, this.px, this.dist, 0, vy, this.spacing, this.time);
+    this.player.update(
+      dt,
+      this.px,
+      this.dist,
+      0,
+      vy,
+      this.spacing * (1 + 0.35 * this.pulse),
+      this.time,
+    );
     for (const e of this.enemies) e.update(dt, this.time);
     camera.dist = this.dist;
   }
@@ -158,7 +187,7 @@ export class RunnerMode implements GameMode {
   private autoTarget(limit: number): number {
     let target = 0;
     const row = this.gates[this.nextGate];
-    if (row && row.at - this.dist < 14) {
+    if (row && row.at - this.dist < 20) {
       let best = 0;
       let bestValue = -1;
       row.options.forEach((g, i) => {
@@ -173,11 +202,12 @@ export class RunnerMode implements GameMode {
     for (let i = this.nextObstacle; i < this.obstacles.length; i++) {
       const o = this.obstacles[i];
       const ahead = o.def.at - this.dist;
-      if (ahead > 7) break;
+      if (ahead > 9) break;
+      const ox = obstacleX(o, this.time + ahead / this.speed); // where it will be when we arrive
       const margin = o.halfWidth + this.playerRadius() * 0.35 + 0.4;
-      if (Math.abs(target - o.x) < margin) {
-        const leftSide = o.x - margin;
-        const rightSide = o.x + margin;
+      if (Math.abs(target - ox) < margin) {
+        const leftSide = ox - margin;
+        const rightSide = ox + margin;
         const rightOk = rightSide <= limit;
         const leftOk = leftSide >= -limit;
         if (rightOk && (!leftOk || Math.abs(rightSide - this.px) < Math.abs(leftSide - this.px))) {
@@ -200,6 +230,7 @@ export class RunnerMode implements GameMode {
 
   private syncPlayer(): void {
     this.player.setSize(visibleFor(this.count), this.onPlayerDeath, this.px, this.dist);
+    this.pillPop = Math.max(this.pillPop, 0.5);
   }
 
   private checkGates(): void {
@@ -225,6 +256,20 @@ export class RunnerMode implements GameMode {
         1.15,
       );
       particles.burst(laneX, row.at, 16, 5, good ? Pc.Good : Pc.Bad, 0.55, 0.18);
+      for (let k = 0; k < 26; k++) {
+        const w = TRACK_WIDTH / row.options.length;
+        particles.emit(
+          laneX + (Math.random() - 0.5) * w,
+          row.at,
+          (Math.random() - 0.5) * 3,
+          2 + Math.random() * 5,
+          0.6,
+          0.16,
+          good ? Pc.Good : Pc.Bad,
+        );
+      }
+      this.pulse = good ? 1 : -0.6;
+      this.pillPop = 1;
       sfx.gate(good);
       camera.shake(Math.min(0.18, 0.04 + Math.abs(delta) / 400));
       this.syncPlayer();
@@ -264,9 +309,10 @@ export class RunnerMode implements GameMode {
       const dy = e.y - this.dist;
       if (dy > 14) break; // enemies are sorted by distance
       if (dy < -14) continue;
-      const dx = e.x - this.px;
+      // Enemy crowds always engage, wherever they stand across the track: `x` only
+      // decides where they come from, so a level cannot be skipped by dodging them.
       const reach = (rp + e.radius()) * 0.8;
-      if (dx * dx + dy * dy < reach * reach) {
+      if (dy < reach) {
         this.phase = 'fight';
         this.fightTarget = e;
         this.killAcc = 0;
@@ -381,6 +427,7 @@ export class RunnerMode implements GameMode {
       if (e.dead || e.y < yMin || e.y > yMax) continue;
       const labelY = cam.sy(e.y + e.radius() + 0.9);
       if (e.isBoss) {
+        drawCrown(g, cam.sx(e.x), labelY - fontPx * 3.3, fontPx * 1.3);
         drawPill(g, e.name, cam.sx(e.x), labelY - fontPx * 1.6, COLORS.bossDark, fontPx * 0.75);
         drawPill(
           g,
@@ -402,7 +449,7 @@ export class RunnerMode implements GameMode {
         cam.sx(this.px),
         cam.sy(this.dist - this.playerRadius() - 1),
         COLORS.player,
-        fontPx * 1.1,
+        fontPx * 1.1 * (1 + 0.3 * this.pillPop),
         '#04302c',
       );
     }

@@ -1,0 +1,69 @@
+{
+  "id": "runner-08",
+  "name": "Rush Hour",
+  "mode": "runner",
+  "length": 140,
+  "speed": 8,
+  "startCount": 10,
+  "gates": [
+    {
+      "at": 12,
+      "options": [
+        { "op": "+", "value": 5 },
+        { "op": "x", "value": 2 }
+      ]
+    },
+    {
+      "at": 22,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "-", "value": 5 }
+      ]
+    },
+    {
+      "at": 32,
+      "options": [
+        { "op": "-", "value": 10 },
+        { "op": "+", "value": 10 },
+        { "op": "x", "value": 2 }
+      ]
+    },
+    {
+      "at": 55,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "/", "value": 2 }
+      ]
+    },
+    {
+      "at": 80,
+      "options": [
+        { "op": "+", "value": 20 },
+        { "op": "x", "value": 2 }
+      ]
+    },
+    {
+      "at": 108,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "+", "value": 30 }
+      ]
+    }
+  ],
+  "enemies": [
+    { "at": 45, "count": 40 },
+    { "at": 95, "count": 80 }
+  ],
+  "obstacles": [
+    { "at": 65, "kind": "spikes", "x": -0.6, "width": 0.3, "damage": 6 },
+    {
+      "at": 72,
+      "kind": "saw",
+      "x": 0,
+      "width": 0.25,
+      "damage": 6,
+      "sway": { "amplitude": 0.8, "speed": 3 }
+    }
+  ],
+  "boss": { "name": "Road Rage", "count": 100 }
+}

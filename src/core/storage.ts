@@ -1,9 +1,21 @@
-const KEY = 'that-one-ad-game:v1';
+const KEY = 'that-one-ad-game:v2';
+
+export interface LevelResult {
+  /** 1-3 stars, the best ever earned. */
+  stars: number;
+  /** Most survivors ever left alive. */
+  best: number;
+}
 
 export interface SaveData {
-  /** Best number of survivors per completed level id. */
-  completed: Record<string, number>;
+  completed: Record<string, LevelResult>;
   muted: boolean;
+}
+
+function isResult(v: unknown): v is LevelResult {
+  if (typeof v !== 'object' || v === null) return false;
+  const r = v as Record<string, unknown>;
+  return typeof r.stars === 'number' && typeof r.best === 'number';
 }
 
 /** localStorage can throw (private mode, blocked cookies), so every access is guarded. */
@@ -12,11 +24,12 @@ export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh;
-    const parsed = JSON.parse(raw) as Partial<SaveData>;
-    return {
-      completed: typeof parsed.completed === 'object' && parsed.completed ? parsed.completed : {},
-      muted: parsed.muted === true,
-    };
+    const parsed = JSON.parse(raw) as { completed?: Record<string, unknown>; muted?: unknown };
+    const completed: Record<string, LevelResult> = {};
+    for (const [id, value] of Object.entries(parsed.completed ?? {})) {
+      if (isResult(value)) completed[id] = value;
+    }
+    return { completed, muted: parsed.muted === true };
   } catch {
     return fresh;
   }

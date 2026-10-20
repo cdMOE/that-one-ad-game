@@ -1,0 +1,39 @@
+{
+  "id": "runner-06",
+  "name": "Fork in the Road",
+  "mode": "runner",
+  "length": 120,
+  "speed": 6.5,
+  "startCount": 8,
+  "gates": [
+    {
+      "at": 15,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "+", "value": 10 }
+      ]
+    },
+    {
+      "at": 55,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "-", "value": 5 },
+        { "op": "x", "value": 2 }
+      ]
+    },
+    {
+      "at": 95,
+      "options": [
+        { "op": "+", "value": 25 },
+        { "op": "x", "value": 2 }
+      ]
+    }
+  ],
+  "enemies": [
+    { "at": 35, "count": 8, "x": -0.7 },
+    { "at": 35, "count": 8, "x": 0.7 },
+    { "at": 75, "count": 18 }
+  ],
+  "obstacles": [],
+  "boss": { "name": "Two-Face", "count": 25 }
+}

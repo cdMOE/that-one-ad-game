@@ -14,6 +14,8 @@ export interface UiHandlers {
 
 type ElChild = Node | string;
 
+const starText = (n: number) => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
+
 function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: { class?: string; text?: string; onclick?: () => void; title?: string } = {},
@@ -48,6 +50,9 @@ export class Ui {
   private readonly result: HTMLElement;
   private readonly resultTitle: HTMLElement;
   private readonly resultSub: HTMLElement;
+  private readonly resultStars: HTMLElement;
+  private readonly hint: HTMLElement;
+  private hintTimer = 0;
   private readonly nextBtn: HTMLButtonElement;
   private readonly playBtn: HTMLButtonElement;
   private readonly fpsEl: HTMLElement | null;
@@ -120,6 +125,9 @@ export class Ui {
     // result
     this.resultTitle = h('h2', { class: 'result-title' });
     this.resultSub = h('p', { class: 'result-sub' });
+    this.resultStars = h('div', { class: 'stars' });
+    this.hint = h('div', { class: 'hint' });
+    this.hint.hidden = true;
     this.nextBtn = h('button', {
       class: 'btn btn-primary',
       text: 'NEXT LEVEL',
@@ -129,6 +137,7 @@ export class Ui {
       'section',
       { class: 'screen result' },
       this.resultTitle,
+      this.resultStars,
       this.resultSub,
       this.nextBtn,
       h('button', {
@@ -144,7 +153,7 @@ export class Ui {
     );
 
     this.fpsEl = debug ? h('div', { class: 'fps' }) : null;
-    root.append(this.hud, this.menu, this.levelScreen, this.result);
+    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.result);
     if (this.fpsEl) root.append(this.fpsEl);
     document.title = GAME_TITLE;
     this.hideAll();
@@ -198,15 +207,15 @@ export class Ui {
     this.levelGrid.replaceChildren();
     this.levels.forEach((level, i) => {
       const unlocked = this.isUnlocked(i);
-      const best = this.save.completed[level.id];
+      const result = this.save.completed[level.id];
       const cell = h(
         'button',
-        { class: `level-cell${best !== undefined ? ' done' : ''}${unlocked ? '' : ' locked'}` },
+        { class: `level-cell${result ? ' done' : ''}${unlocked ? '' : ' locked'}` },
         h('span', { class: 'level-num', text: String(i + 1) }),
         h('span', { class: 'level-name', text: level.name }),
         h('span', {
           class: 'level-best',
-          text: best !== undefined ? `✓ ${best}` : unlocked ? '' : 'locked',
+          text: result ? starText(result.stars) : unlocked ? '' : 'locked',
         }),
       );
       cell.disabled = !unlocked;
@@ -224,14 +233,31 @@ export class Ui {
     this.hudName.textContent = `${index + 1}. ${level.name}`;
     this.setProgress(0);
     this.hud.hidden = false;
+    this.hint.hidden = true;
+  }
+
+  /** Short instruction text over the track that fades out by itself. */
+  showHint(text: string, ms = 3500): void {
+    this.hint.textContent = text;
+    this.hint.hidden = false;
+    this.hint.classList.remove('fade');
+    window.clearTimeout(this.hintTimer);
+    this.hintTimer = window.setTimeout(() => this.hint.classList.add('fade'), ms);
   }
 
   setProgress(p: number): void {
     this.hudBar.style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`;
   }
 
-  showResult(won: boolean, survivors: number, hasNext: boolean): void {
+  showResult(won: boolean, survivors: number, hasNext: boolean, stars: number): void {
     this.hud.hidden = true;
+    this.hint.hidden = true;
+    this.resultStars.hidden = !won;
+    this.resultStars.replaceChildren(
+      ...[1, 2, 3].map((n) =>
+        h('span', { class: n <= stars ? 'star on' : 'star', text: '\u2605' }),
+      ),
+    );
     this.result.classList.toggle('won', won);
     this.result.classList.toggle('lost', !won);
     this.resultTitle.textContent = won ? 'VICTORY!' : 'DEFEATED';

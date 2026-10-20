@@ -12,11 +12,11 @@ _Screenshots: coming soon (put captures in `docs/screenshots/` and link them her
 
 The core is mode-agnostic. A level's `"mode"` field picks the variant:
 
-| Mode           | Idea                                                                          | Status  |
-| -------------- | ----------------------------------------------------------------------------- | ------- |
-| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds. | ready   |
-| `stationary`   | You stand still, enemy waves come, pick upgrades between waves.               | planned |
-| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.             | planned |
+| Mode           | Idea                                                                          | Status            |
+| -------------- | ----------------------------------------------------------------------------- | ----------------- |
+| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds. | ready (10 levels) |
+| `stationary`   | You stand still, enemy waves come, pick upgrades between waves.               | planned           |
+| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.             | planned           |
 
 New modes are one file plus a registry entry, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -86,6 +86,9 @@ want it (`04-my-level.json`), and it shows up in the game. A runner level looks 
 
 Rules worth knowing: a fight removes units one-to-one from both sides and the larger crowd keeps
 the difference. A draw is a loss. `÷` rounds to nearest and never takes a living crowd to zero.
+Enemy crowds always engage when the crowd reaches them, wherever they stand (`x` only decides
+where they come from), so they cannot be skipped. Stars (1 to 3) depend on how much of the best
+possible crowd survives.
 
 Check your level before opening a pull request:
 

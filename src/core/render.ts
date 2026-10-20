@@ -141,3 +141,25 @@ export function drawPill(
   ctx.fillStyle = textColor;
   ctx.fillText(text, cx, cy + fontPx * 0.04);
 }
+
+/** Little gold crown that marks the boss. `w` is its width in px. */
+export function drawCrown(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number): void {
+  const h = w * 0.7;
+  const l = cx - w / 2;
+  const t = cy - h / 2;
+  ctx.beginPath();
+  ctx.moveTo(l, t + h);
+  ctx.lineTo(l, t + h * 0.25);
+  ctx.lineTo(l + w * 0.25, t + h * 0.6);
+  ctx.lineTo(cx, t);
+  ctx.lineTo(l + w * 0.75, t + h * 0.6);
+  ctx.lineTo(l + w, t + h * 0.25);
+  ctx.lineTo(l + w, t + h);
+  ctx.closePath();
+  ctx.fillStyle = COLORS.gold;
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, w * 0.07);
+  ctx.strokeStyle = 'rgba(6,8,22,0.7)';
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+}

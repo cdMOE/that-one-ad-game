@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { analyzeRunner } from '../src/levels/analyze';
+import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
 
@@ -128,5 +128,19 @@ describe('analyzeRunner', () => {
     const a = analyzeRunner(level);
     expect(a.winnable).toBe(false);
     expect(a.failure).toContain('boss');
+  });
+});
+
+describe('starsFor', () => {
+  it('rewards keeping more of the best possible crowd', () => {
+    expect(starsFor(10, 10)).toBe(3);
+    expect(starsFor(8, 10)).toBe(3);
+    expect(starsFor(5, 10)).toBe(2);
+    expect(starsFor(1, 10)).toBe(1);
+  });
+
+  it('gives full stars when the best case is unknown or exceeded', () => {
+    expect(starsFor(3, 0)).toBe(3);
+    expect(starsFor(30, 10)).toBe(3);
   });
 });

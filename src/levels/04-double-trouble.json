@@ -1,0 +1,38 @@
+{
+  "id": "runner-04",
+  "name": "Double Trouble",
+  "mode": "runner",
+  "length": 115,
+  "speed": 6,
+  "startCount": 6,
+  "gates": [
+    {
+      "at": 14,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "+", "value": 4 }
+      ]
+    },
+    {
+      "at": 30,
+      "options": [
+        { "op": "+", "value": 6 },
+        { "op": "x", "value": 2 },
+        { "op": "-", "value": 4 }
+      ]
+    },
+    {
+      "at": 62,
+      "options": [
+        { "op": "x", "value": 3 },
+        { "op": "+", "value": 10 }
+      ]
+    }
+  ],
+  "enemies": [
+    { "at": 46, "count": 14 },
+    { "at": 90, "count": 12 }
+  ],
+  "obstacles": [{ "at": 74, "kind": "spikes", "x": -0.5, "width": 0.4, "damage": 5 }],
+  "boss": { "name": "Twinzilla", "count": 12 }
+}

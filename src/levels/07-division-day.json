@@ -1,0 +1,47 @@
+{
+  "id": "runner-07",
+  "name": "Division Day",
+  "mode": "runner",
+  "length": 130,
+  "speed": 6,
+  "startCount": 20,
+  "gates": [
+    {
+      "at": 15,
+      "options": [
+        { "op": "/", "value": 2 },
+        { "op": "+", "value": 5 },
+        { "op": "/", "value": 3 }
+      ]
+    },
+    {
+      "at": 35,
+      "options": [
+        { "op": "x", "value": 2 },
+        { "op": "/", "value": 2 }
+      ]
+    },
+    {
+      "at": 65,
+      "options": [
+        { "op": "/", "value": 2 },
+        { "op": "-", "value": 10 },
+        { "op": "+", "value": 15 }
+      ]
+    },
+    {
+      "at": 90,
+      "options": [
+        { "op": "x", "value": 4 },
+        { "op": "/", "value": 2 },
+        { "op": "+", "value": 10 }
+      ]
+    }
+  ],
+  "enemies": [
+    { "at": 50, "count": 30 },
+    { "at": 105, "count": 60 }
+  ],
+  "obstacles": [{ "at": 78, "kind": "spikes", "x": 0.4, "width": 0.5, "damage": 8 }],
+  "boss": { "name": "The Divider", "count": 70 }
+}

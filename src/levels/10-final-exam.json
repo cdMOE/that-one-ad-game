@@ -1,0 +1,158 @@
+{
+  "id": "runner-10",
+  "name": "Final Exam",
+  "mode": "runner",
+  "length": 180,
+  "speed": 7,
+  "startCount": 12,
+  "gates": [
+    {
+      "at": 14,
+      "options": [
+        {
+          "op": "x",
+          "value": 3
+        },
+        {
+          "op": "+",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "at": 50,
+      "options": [
+        {
+          "op": "x",
+          "value": 3
+        },
+        {
+          "op": "/",
+          "value": 2
+        },
+        {
+          "op": "+",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "at": 80,
+      "options": [
+        {
+          "op": "+",
+          "value": 30
+        },
+        {
+          "op": "x",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "at": 110,
+      "options": [
+        {
+          "op": "-",
+          "value": 20
+        },
+        {
+          "op": "x",
+          "value": 3
+        },
+        {
+          "op": "/",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "at": 140,
+      "options": [
+        {
+          "op": "x",
+          "value": 3
+        },
+        {
+          "op": "+",
+          "value": 40
+        }
+      ]
+    },
+    {
+      "at": 168,
+      "options": [
+        {
+          "op": "x",
+          "value": 4
+        },
+        {
+          "op": "+",
+          "value": 50
+        }
+      ]
+    }
+  ],
+  "enemies": [
+    {
+      "at": 35,
+      "count": 20
+    },
+    {
+      "at": 65,
+      "count": 15,
+      "x": -0.5
+    },
+    {
+      "at": 65,
+      "count": 15,
+      "x": 0.5
+    },
+    {
+      "at": 125,
+      "count": 80
+    },
+    {
+      "at": 155,
+      "count": 100
+    }
+  ],
+  "obstacles": [
+    {
+      "at": 25,
+      "kind": "spikes",
+      "x": 0,
+      "width": 0.3,
+      "damage": 5
+    },
+    {
+      "at": 95,
+      "kind": "saw",
+      "x": 0,
+      "width": 0.25,
+      "damage": 8,
+      "sway": {
+        "amplitude": 0.9,
+        "speed": 2.5
+      }
+    },
+    {
+      "at": 118,
+      "kind": "spikes",
+      "x": 0,
+      "width": 1,
+      "damage": 25
+    },
+    {
+      "at": 148,
+      "kind": "spikes",
+      "x": 0.3,
+      "width": 0.4,
+      "damage": 15
+    }
+  ],
+  "boss": {
+    "name": "The Final Boss",
+    "count": 55
+  }
+}
