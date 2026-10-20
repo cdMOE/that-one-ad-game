@@ -4,184 +4,416 @@
   "mode": "stationary",
   "startCount": 1,
   "weapon": "rifle",
-  "waves": [
+  "lanes": [
     {
-      "monsters": [
+      "x": -0.6,
+      "width": 3.6,
+      "elements": [
         {
-          "kind": "grunt",
-          "count": 12,
-          "hp": 13,
-          "interval": 1.12
-        }
-      ],
-      "obstacles": [
+          "type": "block",
+          "hp": 44
+        },
         {
-          "x": -0.6,
-          "y": 8,
-          "hp": 60,
+          "type": "item",
           "item": {
             "kind": "crowd",
             "op": "+",
-            "value": 6
-          },
-          "width": 3.6
+            "value": 1
+          }
         },
         {
-          "x": 0.1,
-          "y": 11,
-          "hp": 48,
-          "width": 3,
+          "type": "item",
           "item": {
             "kind": "crowd",
             "op": "+",
-            "value": 5
+            "value": 1
           }
-        }
-      ]
-    },
-    {
-      "monsters": [
-        {
-          "kind": "grunt",
-          "count": 15,
-          "hp": 21,
-          "interval": 0.95
         },
         {
-          "kind": "runner",
-          "count": 5,
-          "hp": 12,
-          "interval": 1.4,
-          "delay": 2.5,
-          "x": 0.2,
-          "spread": 0.5
-        }
-      ],
-      "obstacles": [
-        {
-          "x": -0.6,
-          "y": 8,
-          "hp": 105,
-          "item": {
-            "kind": "weapon",
-            "weapon": "shotgun"
-          },
-          "width": 3.6
+          "type": "block",
+          "hp": 66
         },
         {
-          "x": 0.1,
-          "y": 11,
-          "hp": 84,
-          "width": 3,
-          "item": {
-            "kind": "upgrade",
-            "stat": "damage",
-            "value": 0.4
-          }
-        }
-      ]
-    },
-    {
-      "monsters": [
-        {
-          "kind": "grunt",
-          "count": 18,
-          "hp": 29,
-          "interval": 0.78
-        },
-        {
-          "kind": "runner",
-          "count": 7,
-          "hp": 16,
-          "interval": 1.2,
-          "delay": 2.5,
-          "x": 0.2,
-          "spread": 0.5
-        },
-        {
-          "kind": "tank",
-          "count": 2,
-          "hp": 263,
-          "interval": 3.0,
-          "delay": 3.5,
-          "x": 0.7
-        }
-      ],
-      "obstacles": [
-        {
-          "x": -0.6,
-          "y": 8,
-          "hp": 183,
+          "type": "item",
           "item": {
             "kind": "upgrade",
             "stat": "rate",
-            "value": 0.6
-          },
-          "width": 3.6
+            "value": 0.5
+          }
         },
         {
-          "x": 0.1,
-          "y": 11,
-          "hp": 147,
-          "width": 3,
+          "type": "block",
+          "hp": 98
+        },
+        {
+          "type": "item",
           "item": {
             "kind": "crowd",
             "op": "+",
-            "value": 8
+            "value": 2
           }
-        }
-      ]
-    },
-    {
-      "monsters": [
-        {
-          "kind": "grunt",
-          "count": 21,
-          "hp": 37,
-          "interval": 0.61
         },
         {
-          "kind": "runner",
-          "count": 9,
-          "hp": 20,
-          "interval": 1.0,
-          "delay": 2.5,
-          "x": 0.2,
-          "spread": 0.5
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
         },
         {
-          "kind": "tank",
-          "count": 2,
-          "hp": 335,
-          "interval": 3.0,
-          "delay": 3.5,
-          "x": 0.7
-        }
-      ],
-      "obstacles": [
+          "type": "block",
+          "hp": 148
+        },
         {
-          "x": -0.6,
-          "y": 8,
-          "hp": 321,
+          "type": "item",
+          "item": {
+            "kind": "weapon",
+            "weapon": "shotgun"
+          }
+        },
+        {
+          "type": "block",
+          "hp": 221
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
+        },
+        {
+          "type": "block",
+          "hp": 332
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "upgrade",
+            "stat": "damage",
+            "value": 0.5
+          }
+        },
+        {
+          "type": "block",
+          "hp": 498
+        },
+        {
+          "type": "item",
           "item": {
             "kind": "crowd",
             "op": "x",
             "value": 2
-          },
-          "width": 3.6
+          }
         },
         {
-          "x": 0.1,
-          "y": 11,
-          "hp": 257,
-          "width": 3,
+          "type": "block",
+          "hp": 748
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 3
+          }
+        },
+        {
+          "type": "item",
           "item": {
             "kind": "upgrade",
             "stat": "rate",
-            "value": 0.4
+            "value": 0.5
           }
         }
       ]
+    },
+    {
+      "x": 0.2,
+      "width": 3,
+      "elements": [
+        {
+          "type": "block",
+          "hp": 35
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 1
+          }
+        },
+        {
+          "type": "block",
+          "hp": 54
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "upgrade",
+            "stat": "damage",
+            "value": 0.5
+          }
+        },
+        {
+          "type": "block",
+          "hp": 84
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "x",
+            "value": 2
+          }
+        },
+        {
+          "type": "block",
+          "hp": 130
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "crowd",
+            "op": "+",
+            "value": 3
+          }
+        },
+        {
+          "type": "item",
+          "item": {
+            "kind": "upgrade",
+            "stat": "rate",
+            "value": 0.5
+          }
+        }
+      ]
+    }
+  ],
+  "monsters": [
+    {
+      "kind": "grunt",
+      "count": 57,
+      "hp": 8,
+      "interval": 0.49,
+      "delay": 2,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "grunt",
+      "count": 77,
+      "hp": 10,
+      "interval": 0.44,
+      "delay": 11,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 15,
+      "hp": 6,
+      "interval": 0.4,
+      "delay": 14,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "grunt",
+      "count": 96,
+      "hp": 11,
+      "interval": 0.39,
+      "delay": 20,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 22,
+      "hp": 7,
+      "interval": 0.4,
+      "delay": 23,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "tank",
+      "count": 1,
+      "hp": 79,
+      "interval": 2.5,
+      "delay": 22,
+      "x": 0.5,
+      "spread": 0.3
+    },
+    {
+      "kind": "grunt",
+      "count": 116,
+      "hp": 13,
+      "interval": 0.34,
+      "delay": 29,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 28,
+      "hp": 8,
+      "interval": 0.4,
+      "delay": 32,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "grunt",
+      "count": 136,
+      "hp": 14,
+      "interval": 0.29,
+      "delay": 38,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 35,
+      "hp": 9,
+      "interval": 0.4,
+      "delay": 41,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "tank",
+      "count": 2,
+      "hp": 101,
+      "interval": 2.5,
+      "delay": 40,
+      "x": 0.5,
+      "spread": 0.3
+    },
+    {
+      "kind": "grunt",
+      "count": 156,
+      "hp": 16,
+      "interval": 0.24,
+      "delay": 47,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 41,
+      "hp": 10,
+      "interval": 0.4,
+      "delay": 50,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "grunt",
+      "count": 176,
+      "hp": 18,
+      "interval": 0.19,
+      "delay": 56,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 48,
+      "hp": 11,
+      "interval": 0.4,
+      "delay": 59,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "tank",
+      "count": 3,
+      "hp": 124,
+      "interval": 2.5,
+      "delay": 58,
+      "x": 0.5,
+      "spread": 0.3
+    },
+    {
+      "kind": "grunt",
+      "count": 195,
+      "hp": 19,
+      "interval": 0.16,
+      "delay": 65,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 55,
+      "hp": 12,
+      "interval": 0.4,
+      "delay": 68,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "grunt",
+      "count": 215,
+      "hp": 21,
+      "interval": 0.16,
+      "delay": 74,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    {
+      "kind": "runner",
+      "count": 61,
+      "hp": 13,
+      "interval": 0.4,
+      "delay": 77,
+      "x": 0.1,
+      "spread": 0.7
+    },
+    {
+      "kind": "tank",
+      "count": 3,
+      "hp": 147,
+      "interval": 2.5,
+      "delay": 76,
+      "x": 0.5,
+      "spread": 0.3
     }
   ]
 }

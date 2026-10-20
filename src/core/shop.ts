@@ -24,21 +24,21 @@ interface UpgradeInfo {
 export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   damage: {
     title: 'Damage',
-    baseCost: 20,
+    baseCost: 30,
     costGrowth: 1.5,
     perLevel: 0.12,
     blurb: 'more damage per bullet',
   },
   rate: {
     title: 'Fire rate',
-    baseCost: 20,
+    baseCost: 30,
     costGrowth: 1.5,
     perLevel: 0.08,
     blurb: 'shots per second',
   },
   coins: {
     title: 'Coin bonus',
-    baseCost: 30,
+    baseCost: 45,
     costGrowth: 1.55,
     perLevel: 0.2,
     blurb: 'coins per kill',

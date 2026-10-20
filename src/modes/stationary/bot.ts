@@ -14,8 +14,9 @@ export interface BotResult {
 }
 
 /**
- * Where the bot wants the squad: under a monster that is about to reach it; otherwise
- * under a falling power-up; otherwise under the block; otherwise under the nearest monster.
+ * Where the bot wants the squad: under a monster that is about to reach it; otherwise under
+ * a falling power-up; otherwise under a monster that is getting close; otherwise under the
+ * front block of a lane; otherwise under the nearest monster.
  */
 function botTarget(sim: StationarySim): number {
   let nearest = -1;
@@ -26,18 +27,19 @@ function botTarget(sim: StationarySim): number {
       nearest = i;
     }
   }
-  const block = sim.obstacles.find((o) => o.alive);
-  const item = sim.items[0];
+  const front = sim.lanes.find((l) => l.elements.length > 0);
+  const el = front?.elements[0];
+  if (nearest >= 0 && nearestY < 3) return sim.mx[nearest];
+  if (front && el?.type === 'item') return front.x;
   if (nearest >= 0 && nearestY < 7) return sim.mx[nearest];
-  if (item) return item.x;
-  if (block && (nearest < 0 || nearestY > 10)) return block.x;
+  if (front) return front.x;
   if (nearest >= 0) return sim.mx[nearest];
   return 0;
 }
 
 /**
  * A simple but sensible player: it keeps the squad under whatever is most urgent (close
- * monsters, falling power-ups, the block). Used by `npm run validate:levels` to check
+ * monsters, falling power-ups, the front block). Used by `npm run validate:levels` to check
  * that a level can be won.
  */
 export function runBot(

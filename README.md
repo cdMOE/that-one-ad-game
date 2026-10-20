@@ -92,53 +92,58 @@ possible crowd survives.
 
 ### Stationary (shooter) levels
 
-`"mode": "stationary"` levels are a list of waves. The squad slides left and right (drag a
-finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet dead straight ahead** from
-its own position, so sliding the squad sweeps the fire across the field.
-Monsters come down from the top (by default the right side). A block with an HP counter stops
-bullets; the **power-up hidden behind it** (more soldiers, an upgrade or a better weapon) falls
-towards the squad once the block breaks, and you have to move under it to catch it. A wave is
-cleared when all monsters, blocks and falling items are resolved. Give later blocks more HP (or
-let them `grow`) to raise the pressure.
+`"mode": "stationary"` levels have **lanes** and **monster streams**. The squad slides left and
+right (drag a finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet dead
+straight ahead** from its own position; there is no aiming. Monsters pour down in masses
+(by default from the right). A lane is a column that slides towards the squad: the **front block**
+(HP counter, stops bullets) holds close to the squad until it is shot to pieces, and the
+**power-ups behind it are all visible**. When a power-up is at the front it falls, and you catch
+it by moving underneath. A chain like block, +1, +1, bigger block, weapon, block, +1 is just a list.
 
 ```json
 {
-  "id": "stationary-02",
-  "name": "Heavy Crates",
+  "id": "stationary-01",
+  "name": "First Blood",
   "mode": "stationary",
-  "startCount": 10,
-  "weapon": "rifle",
-  "waves": [
+  "startCount": 1,
+  "weapon": "pistol",
+  "lanes": [
     {
-      "monsters": [{ "kind": "grunt", "count": 10, "hp": 20, "interval": 1.2 }],
-      "obstacles": [
-        { "x": -0.55, "y": 8, "hp": 90, "item": { "kind": "crowd", "op": "+", "value": 5 } }
-      ]
-    },
-    {
-      "monsters": [{ "kind": "grunt", "count": 12, "hp": 30, "interval": 1.0, "x": 0.7 }],
-      "obstacles": [
-        {
-          "x": -0.55,
-          "y": 8,
-          "hp": 160,
-          "grow": 3,
-          "item": { "kind": "weapon", "weapon": "shotgun" }
-        }
+      "x": -0.55,
+      "elements": [
+        { "type": "block", "hp": 10 },
+        { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 1 } },
+        { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 1 } },
+        { "type": "block", "hp": 24, "grow": 1 },
+        { "type": "item", "item": { "kind": "weapon", "weapon": "rifle" } }
       ]
     }
+  ],
+  "monsters": [
+    {
+      "kind": "grunt",
+      "count": 40,
+      "hp": 2,
+      "interval": 0.3,
+      "delay": 2,
+      "x": 0.5,
+      "spread": 0.45
+    },
+    { "kind": "tank", "count": 2, "hp": 40, "interval": 4, "delay": 12 }
   ]
 }
 ```
 
-| Field               | Meaning                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `weapon`            | `pistol`, `rifle`, `shotgun`, `minigun`; each soldier carries one. Squads above 40 still hit harder per bullet.           |
-| `monsters[].kind`   | `grunt`, `runner` (fast), `tank` (slow, bites hard), `boss`                                                               |
-| `monsters[]` timing | `count` monsters, `interval` seconds apart, optional `delay`                                                              |
-| `monsters[].x`      | Lane from -1 (left) to 1 (right), default 0.6; `spread` scatters them around it                                           |
-| `obstacles[]`       | Block at `x` (-1..1) and `y` (4..15 in front of the squad) with `hp`, optional `width`, `grow` (HP gained per second)     |
-| `obstacles[].item`  | Power-up behind the block: `crowd` (a gate effect like `+5` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon` |
+| Field        | Meaning                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `weapon`     | `pistol`, `rifle`, `shotgun`, `minigun`; each soldier carries one. Squads above 40 still hit harder per bullet.                                                          |
+| `lanes[]`    | One or two lanes at `x` (-1..1), optional `width`. `elements` are listed front first.                                                                                    |
+| `elements[]` | `{ "type": "block", "hp", "grow"? }` or `{ "type": "item", "item": ... }`. `grow` = HP gained per second while it is the front block.                                    |
+| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon`                                                                           |
+| `monsters[]` | Streams: `kind` (`grunt`, `runner`, `tank`, `boss`), `count`, `hp`, `interval` seconds apart, optional `delay` (from level start), `x` (-1..1, default 0.6) and `spread` |
+
+The level is won when every lane is empty and all monsters are dead (or dead by biting); it is lost
+when the squad reaches zero.
 
 **Coins and upgrades.** Every kill (and every smashed block) drops coins, and coins are kept even
 when a run is lost. In the shop (menu or result screen) they buy permanent upgrades for damage,

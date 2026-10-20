@@ -9,9 +9,9 @@ import {
   type MonsterKind,
   type SpawnDef,
   type StationaryLevel,
-  type StationaryObstacleDef,
+  type LaneDef,
+  type LaneElementDef,
   type UpgradeStat,
-  type WaveDef,
   type WeaponId,
   type BossDef,
   type EnemyDef,
@@ -231,11 +231,19 @@ function readRunner(r: Reader, o: Rec): RunnerLevel | undefined {
   };
 }
 
-const STATIONARY_KEYS = ['id', 'name', 'mode', 'startCount', 'weapon', 'waves'] as const;
+const STATIONARY_KEYS = [
+  'id',
+  'name',
+  'mode',
+  'startCount',
+  'weapon',
+  'lanes',
+  'monsters',
+] as const;
 
 function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
   const out: SpawnDef[] = [];
-  (r.arr(v, path, { min: 1, max: 20 }) ?? []).forEach((item, i) => {
+  (r.arr(v, path, { min: 1, max: 60 }) ?? []).forEach((item, i) => {
     const p = `${path}[${i}]`;
     const o = r.obj(item, p, ['kind', 'count', 'hp', 'interval', 'delay', 'x', 'spread']);
     if (!o) return;
@@ -298,27 +306,39 @@ function readItem(r: Reader, v: unknown, path: string): ItemDef | undefined {
   return undefined;
 }
 
-function readStationaryObstacles(r: Reader, v: unknown, path: string): StationaryObstacleDef[] {
-  const out: StationaryObstacleDef[] = [];
-  (r.arr(v, path, { max: 4 }) ?? []).forEach((item, i) => {
+function readLanes(r: Reader, v: unknown, path: string): LaneDef[] {
+  const out: LaneDef[] = [];
+  (r.arr(v, path, { min: 1, max: 2 }) ?? []).forEach((item, i) => {
     const p = `${path}[${i}]`;
-    const o = r.obj(item, p, ['x', 'y', 'hp', 'width', 'grow', 'item']);
+    const o = r.obj(item, p, ['x', 'width', 'elements']);
     if (!o) return;
     const x = r.num(o.x, `${p}.x`, { min: -1, max: 1 });
-    const y = r.num(o.y, `${p}.y`, { min: 4, max: 15 });
-    const hp = r.num(o.hp, `${p}.hp`, { min: 1, max: 1_000_000, int: true });
-    const width = o.width === undefined ? 4.2 : r.num(o.width, `${p}.width`, { min: 1, max: 8 });
-    const grow = o.grow === undefined ? 0 : r.num(o.grow, `${p}.grow`, { min: 0, max: 1000 });
-    const itemDef = o.item === undefined ? undefined : readItem(r, o.item, `${p}.item`);
-    if (
-      x !== undefined &&
-      y !== undefined &&
-      hp !== undefined &&
-      width !== undefined &&
-      grow !== undefined
-    ) {
-      out.push({ x, y, hp, width, grow, ...(itemDef ? { item: itemDef } : {}) });
-    }
+    const width = o.width === undefined ? 3.6 : r.num(o.width, `${p}.width`, { min: 1, max: 8 });
+    const elements: LaneElementDef[] = [];
+    (r.arr(o.elements, `${p}.elements`, { min: 1, max: 60 }) ?? []).forEach((el, j) => {
+      const ep = `${p}.elements[${j}]`;
+      if (typeof el !== 'object' || el === null) {
+        r.fail(ep, 'expected an object');
+        return;
+      }
+      const type = r.oneOf('type' in el ? (el as Rec).type : undefined, `${ep}.type`, [
+        'block',
+        'item',
+      ] as const);
+      if (type === 'block') {
+        const b = r.obj(el, ep, ['type', 'hp', 'grow']);
+        if (!b) return;
+        const hp = r.num(b.hp, `${ep}.hp`, { min: 1, max: 1_000_000, int: true });
+        const grow = b.grow === undefined ? 0 : r.num(b.grow, `${ep}.grow`, { min: 0, max: 1000 });
+        if (hp !== undefined && grow !== undefined) elements.push({ type: 'block', hp, grow });
+      } else if (type === 'item') {
+        const it = r.obj(el, ep, ['type', 'item']);
+        if (!it) return;
+        const def = readItem(r, it.item, `${ep}.item`);
+        if (def) elements.push({ type: 'item', item: def });
+      }
+    });
+    if (x !== undefined && width !== undefined) out.push({ x, width, elements });
   });
   return out;
 }
@@ -329,20 +349,12 @@ function readStationary(r: Reader, o: Rec): StationaryLevel | undefined {
   const name = r.str(o.name, 'name');
   const startCount = r.num(o.startCount, 'startCount', { min: 1, int: true });
   const weapon = r.oneOf<WeaponId>(o.weapon, 'weapon', WEAPON_IDS);
-  const waves: WaveDef[] = [];
-  (r.arr(o.waves, 'waves', { min: 1, max: 30 }) ?? []).forEach((item, i) => {
-    const p = `waves[${i}]`;
-    const w = r.obj(item, p, ['monsters', 'obstacles']);
-    if (!w) return;
-    const monsters = readSpawns(r, w.monsters, `${p}.monsters`);
-    const obstacles =
-      w.obstacles === undefined ? [] : readStationaryObstacles(r, w.obstacles, `${p}.obstacles`);
-    waves.push({ monsters, obstacles });
-  });
+  const lanes = readLanes(r, o.lanes, 'lanes');
+  const monsters = readSpawns(r, o.monsters, 'monsters');
   if (id === undefined || name === undefined || startCount === undefined || weapon === undefined) {
     return undefined;
   }
-  return { id, name, mode: 'stationary', startCount, weapon, waves };
+  return { id, name, mode: 'stationary', startCount, weapon, lanes, monsters };
 }
 
 /** Per-mode readers. Register new modes here (and in schema.ts / modes/index.ts). */

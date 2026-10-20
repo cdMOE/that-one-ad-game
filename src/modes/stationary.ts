@@ -15,8 +15,9 @@ import {
   MONSTER_KIND_BY_INDEX,
   SOLDIER_SPACING,
   StationarySim,
-  type ItemState,
-  type ObstacleState,
+  BLOCK_HEIGHT,
+  type LaneElement,
+  type LaneState,
 } from './stationary/sim';
 import { WEAPONS, itemLabel } from './stationary/weapons';
 
@@ -46,6 +47,7 @@ export class StationaryMode implements GameMode {
   private endTimer = -1;
   private shotCounter = 0;
   private deathBudget = 0;
+  private introShown = false;
   private readonly coinMul: number;
   private coinPulse = 0;
 
@@ -113,33 +115,24 @@ export class StationaryMode implements GameMode {
           this.pillPop = 1;
           sfx.hit();
         },
-        obstacleHit: (x, y) => {
+        blockHit: (x, y) => {
           if (Math.random() < 0.25) particles.burst(x, y, 1, 3, Pc.Gold, 0.25, 0.14);
         },
-        obstacleBreak: (o) => {
-          particles.burst(o.x, o.y, 40, 8, Pc.Gold, 0.8, 0.2);
-          camera.shake(0.25);
+        blockBreak: (x, y) => {
+          particles.burst(x, y, 30, 8, Pc.Gold, 0.7, 0.2);
+          camera.shake(0.2);
           sfx.boom();
-          popups.add(o.x, o.y + 1.8, 'SMASHED!', COLORS.gold, 1.1);
         },
-        itemCollected: (item, delta) => {
-          const label = itemLabel(item.def);
+        itemCollected: (_x, _y, def) => {
+          const label = itemLabel(def);
           particles.burst(this.sim.squadX, 1, 24, 6, Pc.Good, 0.6, 0.18);
           popups.add(this.sim.squadX, 3, label.title, COLORS.player, 1.3);
           sfx.gate(true);
           this.pillPop = 1;
-          void delta;
         },
-        itemLost: (item) => {
-          popups.add(item.x, 1.5, 'MISSED', COLORS.bad, 1);
+        itemLost: (x) => {
+          popups.add(x, 1.5, 'MISSED', COLORS.bad, 1);
           sfx.gate(false);
-        },
-        waveStart: (i, total) => {
-          popups.add(0, 9, total > 1 ? `WAVE ${i + 1}/${total}` : 'FIGHT!', COLORS.gold, 1.4);
-        },
-        waveClear: () => {
-          popups.add(0, 7, 'CLEARED!', COLORS.player, 1.2);
-          sfx.gate(true);
         },
         ended: (won) => {
           this.endTimer = won ? 1.7 : 1;
@@ -194,6 +187,10 @@ export class StationaryMode implements GameMode {
     this.time += dt;
     this.deathBudget = 40;
     camera.dist = 0;
+    if (!this.introShown) {
+      this.introShown = true;
+      this.ctx.popups.add(0, 9, 'FIGHT!', COLORS.gold, 1.4);
+    }
     this.recoil *= Math.exp(-12 * dt);
     this.pillPop *= Math.exp(-7 * dt);
     this.coinPulse *= Math.exp(-8 * dt);
@@ -242,10 +239,12 @@ export class StationaryMode implements GameMode {
     const sim = this.sim;
     drawTrack(g, cam, 0, false);
 
-    for (const o of sim.obstacles)
-      if (o.alive && o.item) this.drawItem(g, o.x, o.y + o.height / 2 + 0.9, o.item, true);
-    for (const item of sim.items) this.drawFalling(g, item);
-    for (const o of sim.obstacles) if (o.alive) this.drawObstacle(g, o);
+    for (const lane of sim.lanes) {
+      lane.elements.forEach((e, k) => {
+        if (e.type === 'item' && e.item) this.drawItem(g, lane.x, e.y, e.item, k === 0);
+        else this.drawBlock(g, lane, e);
+      });
+    }
     this.drawMonsters(g);
     this.drawBullets(g);
 
@@ -351,13 +350,13 @@ export class StationaryMode implements GameMode {
     }
   }
 
-  /** A power-up icon. `hidden` ones sit behind a block and are drawn faded. */
+  /** A power-up icon; the front one (`front`) glows so the player knows to catch it. */
   private drawItem(
     g: CanvasRenderingContext2D,
     x: number,
     y: number,
     def: ItemDef,
-    hidden: boolean,
+    front: boolean,
   ): void {
     const cam = this.ctx.camera;
     const s = cam.scale;
@@ -377,8 +376,13 @@ export class StationaryMode implements GameMode {
       bottom = '#7c4dd8';
     }
     const label = itemLabel(def);
-    g.globalAlpha = hidden ? 0.75 : 1;
-    const bob = hidden ? 0 : Math.sin(this.time * 6) * 0.06 * s;
+    if (front) {
+      g.fillStyle = 'rgba(255,255,255,0.16)';
+      g.beginPath();
+      g.arc(cx, cy, s * (1.25 + 0.12 * Math.sin(this.time * 8)), 0, Math.PI * 2);
+      g.fill();
+    }
+    const bob = front ? Math.sin(this.time * 6) * 0.06 * s : 0;
     const grad = g.createLinearGradient(0, cy - size / 2, 0, cy + size / 2);
     grad.addColorStop(0, top);
     grad.addColorStop(1, bottom);
@@ -387,7 +391,7 @@ export class StationaryMode implements GameMode {
     g.roundRect(cx - size * 0.8, cy - size / 2 + bob, size * 1.6, size, size * 0.25);
     g.fill();
     g.lineWidth = 3;
-    g.strokeStyle = hidden ? 'rgba(6,8,22,0.5)' : COLORS.white;
+    g.strokeStyle = front ? COLORS.white : 'rgba(6,8,22,0.6)';
     g.stroke();
     g.textAlign = 'center';
     g.textBaseline = 'middle';
@@ -405,28 +409,12 @@ export class StationaryMode implements GameMode {
     g.globalAlpha = 1;
   }
 
-  private drawFalling(g: CanvasRenderingContext2D, item: ItemState): void {
-    const cam = this.ctx.camera;
-    // glow so the player notices it is something to catch
-    g.fillStyle = 'rgba(255,255,255,0.18)';
-    g.beginPath();
-    g.arc(
-      cam.sx(item.x),
-      cam.sy(item.y),
-      cam.scale * (1.3 + 0.15 * Math.sin(this.time * 8)),
-      0,
-      Math.PI * 2,
-    );
-    g.fill();
-    this.drawItem(g, item.x, item.y, item.def, false);
-  }
-
-  private drawObstacle(g: CanvasRenderingContext2D, o: ObstacleState): void {
+  private drawBlock(g: CanvasRenderingContext2D, lane: LaneState, o: LaneElement): void {
     const cam = this.ctx.camera;
     const s = cam.scale;
-    const w = o.width * s;
-    const h = o.height * s;
-    const x = cam.sx(o.x) - w / 2;
+    const w = lane.width * s;
+    const h = BLOCK_HEIGHT * s;
+    const x = cam.sx(lane.x) - w / 2;
     const y = cam.sy(o.y) - h / 2;
     const grad = g.createLinearGradient(0, y, 0, y + h);
     grad.addColorStop(0, '#7482ad');

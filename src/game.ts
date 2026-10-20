@@ -127,7 +127,7 @@ export class Game {
       this.ui.showHint(
         level.mode === 'runner'
           ? 'Drag left / right to pick the best gate'
-          : 'Move your squad (drag or mouse). Every soldier shoots straight ahead. Smash the block, then catch the power-up!',
+          : 'Slide your squad (drag or mouse). Smash the blocks, catch the power-ups, mow down the horde!',
         5000,
       );
     }

@@ -75,7 +75,7 @@ export interface SpawnDef {
   hp: number;
   /** Seconds between two monsters. */
   interval: number;
-  /** Seconds after the wave starts before the first one appears. */
+  /** Seconds after the level starts before the first one appears. */
   delay?: number;
   /** Lane centre, -1 (left) .. 1 (right). Default 0.6: the right side. */
   x?: number;
@@ -86,36 +86,41 @@ export interface SpawnDef {
 export const UPGRADE_STATS = ['rate', 'damage', 'pellets'] as const;
 export type UpgradeStat = (typeof UPGRADE_STATS)[number];
 
-/** A power-up hidden behind an obstacle; it falls towards the squad once the obstacle breaks. */
+/** A power-up on the lane; the squad catches it by moving underneath it. */
 export type ItemDef =
   | { kind: 'crowd'; op: GateEffect['op']; value: number }
   | { kind: 'upgrade'; stat: UpgradeStat; value: number }
   | { kind: 'weapon'; weapon: WeaponId };
 
-/** A block with a hit-point counter. Bullets cannot pass it. */
-export interface StationaryObstacleDef {
-  /** Lateral position, -1 (left) .. 1 (right). */
-  x: number;
-  /** Distance in front of the squad. */
-  y: number;
-  hp: number;
-  /** Block width in world units (default 4.2). */
-  width?: number;
-  /** Extra hit points the block gains every second while it stands (default 0). */
-  grow?: number;
-  /** Power-up behind the block. */
-  item?: ItemDef;
-}
+/** One thing on a lane: a block with an HP counter (stops bullets) or a power-up. */
+export type LaneElementDef =
+  | {
+      type: 'block';
+      hp: number;
+      /** Extra hit points the block gains every second while it is the front block (default 0). */
+      grow?: number;
+    }
+  | { type: 'item'; item: ItemDef };
 
-export interface WaveDef {
-  monsters: SpawnDef[];
-  obstacles?: StationaryObstacleDef[];
+/**
+ * A column of blocks and power-ups that slides towards the squad. The front element stops
+ * at the hold line if it is a block (bullets must break it) and falls to the squad if it is
+ * a power-up; everything behind it is visible and waits its turn.
+ */
+export interface LaneDef {
+  /** Lateral position of the lane, -1 (left) .. 1 (right). */
+  x: number;
+  /** Lane width in world units (default 3.6). */
+  width?: number;
+  /** Front element first. */
+  elements: LaneElementDef[];
 }
 
 export interface StationaryLevel extends LevelBase {
   mode: 'stationary';
   weapon: WeaponId;
-  waves: WaveDef[];
+  lanes: LaneDef[];
+  monsters: SpawnDef[];
 }
 
 /** Union of all level shapes, discriminated by `mode`. */

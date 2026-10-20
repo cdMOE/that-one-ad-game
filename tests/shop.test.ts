@@ -20,7 +20,7 @@ describe('shop', () => {
   });
 
   it('starts cheap and gets steep', () => {
-    expect(upgradeCost('damage', 0)).toBeLessThanOrEqual(25);
+    expect(upgradeCost('damage', 0)).toBeLessThanOrEqual(35);
     expect(upgradeCost('damage', 10)).toBeGreaterThan(upgradeCost('damage', 0) * 30);
   });
 
