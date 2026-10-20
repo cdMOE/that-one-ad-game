@@ -24,7 +24,7 @@ export const MAX_SHOOTERS = 40;
 /** How much of the squad's sideways speed a bullet inherits. */
 export const BULLET_INHERIT = 0.8;
 const SQUAD_MAX_SPEED = 13;
-const ITEM_FALL_SPEED = 1.5;
+const ITEM_FALL_SPEED = 2.4;
 const OBSTACLE_HEIGHT = 1.3;
 /** Coins for smashing a block. */
 const BLOCK_COINS = 15;
@@ -40,10 +40,10 @@ export interface MonsterStats {
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 1.5, radius: 0.45, bite: 1, coins: 3 },
-  runner: { speed: 3, radius: 0.34, bite: 1, coins: 4 },
-  tank: { speed: 0.8, radius: 0.8, bite: 4, coins: 15 },
-  boss: { speed: 0.5, radius: 1.7, bite: 20, coins: 150 },
+  grunt: { speed: 2.3, radius: 0.45, bite: 1, coins: 3 },
+  runner: { speed: 4.2, radius: 0.34, bite: 1, coins: 4 },
+  tank: { speed: 1.3, radius: 0.8, bite: 4, coins: 15 },
+  boss: { speed: 0.8, radius: 1.7, bite: 20, coins: 150 },
 };
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'boss'];
 const MONSTER_KIND_INDEX: Record<MonsterKind, number> = { grunt: 0, runner: 1, tank: 2, boss: 3 };
@@ -161,7 +161,7 @@ export class StationarySim {
   private readonly liveMonsters = new Int16Array(MAX_MONSTERS);
   private liveCount = 0;
   private bulletHead = 0;
-  private gapTimer = 0.8;
+  private gapTimer = 0.4;
   private waveTime = 0;
   private queue: Spawn[] = [];
   private queueIndex = 0;
@@ -295,7 +295,7 @@ export class StationarySim {
       this.end(true);
     } else {
       this.phase = 'gap';
-      this.gapTimer = 1.2;
+      this.gapTimer = 0.5;
     }
   }
 

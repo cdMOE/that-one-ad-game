@@ -9,9 +9,9 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 12,
-          "hp": 133,
-          "interval": 0.69,
+          "count": 22,
+          "hp": 47,
+          "interval": 0.31,
           "x": 0.7
         }
       ],
@@ -19,7 +19,7 @@
         {
           "x": -0.6,
           "y": 8,
-          "hp": 388,
+          "hp": 155,
           "width": 3.6,
           "item": {
             "kind": "crowd",
@@ -30,7 +30,7 @@
         {
           "x": 0.15,
           "y": 11,
-          "hp": 302,
+          "hp": 121,
           "width": 3,
           "item": {
             "kind": "upgrade",
@@ -44,17 +44,17 @@
       "monsters": [
         {
           "kind": "grunt",
-          "count": 14,
-          "hp": 175,
-          "interval": 0.62,
+          "count": 26,
+          "hp": 61,
+          "interval": 0.28,
           "x": 0.7
         },
         {
           "kind": "runner",
-          "count": 6,
-          "hp": 74,
-          "interval": 1.39,
-          "delay": 2.08,
+          "count": 11,
+          "hp": 26,
+          "interval": 0.63,
+          "delay": 1.04,
           "x": -0.2
         }
       ],
@@ -62,7 +62,7 @@
         {
           "x": -0.6,
           "y": 8,
-          "hp": 648,
+          "hp": 259,
           "width": 3.6,
           "item": {
             "kind": "weapon",
@@ -72,7 +72,7 @@
         {
           "x": 0.1,
           "y": 11,
-          "hp": 518,
+          "hp": 207,
           "width": 3,
           "item": {
             "kind": "crowd",
@@ -86,17 +86,17 @@
       "monsters": [
         {
           "kind": "tank",
-          "count": 3,
-          "hp": 924,
-          "interval": 2.77,
+          "count": 6,
+          "hp": 323,
+          "interval": 1.25,
           "x": 0.7
         },
         {
           "kind": "grunt",
-          "count": 16,
-          "hp": 186,
-          "interval": 0.56,
-          "delay": 0.69,
+          "count": 29,
+          "hp": 65,
+          "interval": 0.25,
+          "delay": 0.34,
           "x": 0.5
         }
       ],
@@ -104,7 +104,7 @@
         {
           "x": -0.6,
           "y": 8,
-          "hp": 950,
+          "hp": 380,
           "width": 3.6,
           "item": {
             "kind": "upgrade",
@@ -115,7 +115,7 @@
         {
           "x": 0.1,
           "y": 11,
-          "hp": 778,
+          "hp": 311,
           "width": 3,
           "item": {
             "kind": "crowd",
