@@ -10,8 +10,8 @@
         {
           "kind": "grunt",
           "count": 22,
-          "hp": 47,
-          "interval": 0.31,
+          "hp": 27,
+          "interval": 0.23,
           "x": 0.7
         }
       ],
@@ -19,7 +19,7 @@
         {
           "x": -0.6,
           "y": 8,
-          "hp": 155,
+          "hp": 102,
           "width": 3.6,
           "item": {
             "kind": "crowd",
@@ -30,7 +30,7 @@
         {
           "x": 0.15,
           "y": 11,
-          "hp": 121,
+          "hp": 80,
           "width": 3,
           "item": {
             "kind": "upgrade",
@@ -45,16 +45,16 @@
         {
           "kind": "grunt",
           "count": 26,
-          "hp": 61,
-          "interval": 0.28,
+          "hp": 35,
+          "interval": 0.21,
           "x": 0.7
         },
         {
           "kind": "runner",
           "count": 11,
-          "hp": 26,
-          "interval": 0.63,
-          "delay": 1.04,
+          "hp": 16,
+          "interval": 0.47,
+          "delay": 0.78,
           "x": -0.2
         }
       ],
@@ -62,7 +62,7 @@
         {
           "x": -0.6,
           "y": 8,
-          "hp": 259,
+          "hp": 170,
           "width": 3.6,
           "item": {
             "kind": "weapon",
@@ -72,7 +72,7 @@
         {
           "x": 0.1,
           "y": 11,
-          "hp": 207,
+          "hp": 136,
           "width": 3,
           "item": {
             "kind": "crowd",
@@ -87,16 +87,16 @@
         {
           "kind": "tank",
           "count": 6,
-          "hp": 323,
-          "interval": 1.25,
+          "hp": 188,
+          "interval": 0.94,
           "x": 0.7
         },
         {
           "kind": "grunt",
           "count": 29,
-          "hp": 65,
-          "interval": 0.25,
-          "delay": 0.34,
+          "hp": 38,
+          "interval": 0.19,
+          "delay": 0.26,
           "x": 0.5
         }
       ],
@@ -104,7 +104,7 @@
         {
           "x": -0.6,
           "y": 8,
-          "hp": 380,
+          "hp": 251,
           "width": 3.6,
           "item": {
             "kind": "upgrade",
@@ -115,7 +115,7 @@
         {
           "x": 0.1,
           "y": 11,
-          "hp": 311,
+          "hp": 206,
           "width": 3,
           "item": {
             "kind": "crowd",

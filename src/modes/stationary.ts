@@ -26,8 +26,8 @@ const SOLDIER_RADIUS = 0.25;
 
 /**
  * Stationary shooter: the squad slides left and right (drag, mouse or A/D) and every
- * soldier fires one bullet straight ahead; bullets keep part of the squad's sideways speed,
- * so you sweep the fire across the field. Monsters come down from the top right, a block
+ * soldier fires one bullet dead straight ahead from its own position, so you sweep the
+ * fire across the field. Monsters come down from the top right, a block
  * with an HP counter stops bullets, and the power-up hidden behind it falls towards the
  * squad once the block breaks.
  *

@@ -94,17 +94,20 @@ describe('StationarySim', () => {
     expect(sim.kills).toBe(0);
   });
 
-  it('bullets keep part of the squad speed', () => {
+  it('bullets fly dead straight from the soldier that fired them', () => {
     const sim = new StationarySim(base, mulberry32(1));
-    let sideways = 0;
+    let checked = 0;
     for (let i = 0; i < 80; i++) {
-      sim.targetX = Math.floor(i / 10) % 2 === 0 ? 5 : -5; // keep sweeping
+      sim.targetX = Math.floor(i / 10) % 2 === 0 ? 5 : -5; // sweeping must not bend bullets
       sim.update(1 / 30);
       for (let b = 0; b < MAX_BULLETS; b++) {
-        if (sim.blife[b] > 0 && sim.bvx[b] > 3) sideways++;
+        if (sim.blife[b] > 0) {
+          expect(sim.bvx[b]).toBeCloseTo(0, 5);
+          checked++;
+        }
       }
     }
-    expect(sideways).toBeGreaterThan(0);
+    expect(checked).toBeGreaterThan(0);
   });
 
   it('loses when monsters wipe the squad out', () => {

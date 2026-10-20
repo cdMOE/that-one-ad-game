@@ -9,22 +9,20 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
  * (stationary.ts) only reads its state and reacts to the hooks.
  *
  * World: the squad is a phalanx at the bottom that slides left and right; y grows "up"
- * the screen. Every soldier fires its own bullet straight ahead and the bullet keeps part
- * of the soldier's sideways speed, so moving the squad sweeps the fire across the field.
+ * the screen. Every soldier fires its own bullet dead straight ahead from its own position,
+ * so sliding the squad sweeps the fire across the field.
  * Monsters walk down from the top towards the squad; blocks with a hit-point counter stop
  * bullets and hide power-ups that fall towards the squad once the block breaks.
  */
 
-export const ARENA = { halfWidth: 6, spawnTop: 19 };
+export const ARENA = { halfWidth: 6, spawnTop: 16 };
 /** Distance between neighbouring soldiers; also the size of the formation grid. */
 export const SOLDIER_SPACING = 0.46;
 export const GRID_COLS = 8;
 /** At most this many soldiers are simulated and drawn; bigger squads hit harder per bullet. */
 export const MAX_SHOOTERS = 40;
-/** How much of the squad's sideways speed a bullet inherits. */
-export const BULLET_INHERIT = 0.8;
-const SQUAD_MAX_SPEED = 13;
-const ITEM_FALL_SPEED = 2.4;
+const SQUAD_MAX_SPEED = 16;
+const ITEM_FALL_SPEED = 3.4;
 const OBSTACLE_HEIGHT = 1.3;
 /** Coins for smashing a block. */
 const BLOCK_COINS = 15;
@@ -40,10 +38,10 @@ export interface MonsterStats {
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 2.3, radius: 0.45, bite: 1, coins: 3 },
-  runner: { speed: 4.2, radius: 0.34, bite: 1, coins: 4 },
-  tank: { speed: 1.3, radius: 0.8, bite: 4, coins: 15 },
-  boss: { speed: 0.8, radius: 1.7, bite: 20, coins: 150 },
+  grunt: { speed: 3.8, radius: 0.45, bite: 1, coins: 3 },
+  runner: { speed: 6.2, radius: 0.34, bite: 1, coins: 4 },
+  tank: { speed: 2.1, radius: 0.8, bite: 4, coins: 15 },
+  boss: { speed: 1.2, radius: 1.7, bite: 20, coins: 150 },
 };
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'boss'];
 const MONSTER_KIND_INDEX: Record<MonsterKind, number> = { grunt: 0, runner: 1, tank: 2, boss: 3 };
@@ -398,7 +396,7 @@ export class StationarySim {
     else this.weapon.id = def.weapon;
   }
 
-  /** Every soldier fires on its own clock; bullets keep part of the squad's sideways speed. */
+  /** Every soldier fires on its own clock, straight up from where it stands. */
   private fire(dt: number): void {
     const w = effectiveWeapon(this.weapon);
     const n = this.shooters;
@@ -413,12 +411,12 @@ export class StationarySim {
       const y = this.soldierY(i) + 0.5;
       for (let p = 0; p < pellets; p++) {
         const fan = pellets > 1 ? (p / (pellets - 1) - 0.5) * w.spread : 0;
-        const a = Math.PI / 2 + fan + (this.rng() - 0.5) * w.jitter;
+        const a = Math.PI / 2 + fan; // bullets fly dead straight from the soldier
         const b = this.bulletHead;
         this.bulletHead = (this.bulletHead + 1) % MAX_BULLETS;
         this.bx[b] = x;
         this.by[b] = y;
-        this.bvx[b] = Math.cos(a) * w.speed + this.squadVx * BULLET_INHERIT;
+        this.bvx[b] = Math.cos(a) * w.speed;
         this.bvy[b] = Math.sin(a) * w.speed;
         this.bdmg[b] = perBullet;
         this.blife[b] = BULLET_LIFE;

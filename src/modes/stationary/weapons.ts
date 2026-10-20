@@ -14,22 +14,19 @@ export interface WeaponStats {
   pellets: number;
   /** Total fan angle (radians) the pellets are spread over. */
   spread: number;
-  /** Random aim error (radians). */
-  jitter: number;
   /** Bullet speed in world units per second. */
   speed: number;
 }
 
 export const WEAPONS: Record<WeaponId, WeaponStats> = {
-  pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, jitter: 0.03, speed: 20 },
-  rifle: { name: 'Rifle', rate: 4.5, damage: 1, pellets: 1, spread: 0, jitter: 0.04, speed: 24 },
+  pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, speed: 20 },
+  rifle: { name: 'Rifle', rate: 4.5, damage: 1, pellets: 1, spread: 0, speed: 24 },
   shotgun: {
     name: 'Shotgun',
     rate: 1.4,
     damage: 2.8,
     pellets: 4,
     spread: 0.45,
-    jitter: 0.05,
     speed: 20,
   },
   minigun: {
@@ -38,7 +35,6 @@ export const WEAPONS: Record<WeaponId, WeaponStats> = {
     damage: 0.8,
     pellets: 1,
     spread: 0,
-    jitter: 0.1,
     speed: 26,
   },
 };

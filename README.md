@@ -93,8 +93,8 @@ possible crowd survives.
 ### Stationary (shooter) levels
 
 `"mode": "stationary"` levels are a list of waves. The squad slides left and right (drag a
-finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet straight ahead**. Bullets
-keep part of the squad's sideways speed, so moving the squad sweeps the fire across the field.
+finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet dead straight ahead** from
+its own position, so sliding the squad sweeps the fire across the field.
 Monsters come down from the top (by default the right side). A block with an HP counter stops
 bullets; the **power-up hidden behind it** (more soldiers, an upgrade or a better weapon) falls
 towards the squad once the block breaks, and you have to move under it to catch it. A wave is

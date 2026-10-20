@@ -10,15 +10,15 @@
         {
           "kind": "grunt",
           "count": 18,
-          "hp": 29,
-          "interval": 0.43
+          "hp": 10,
+          "interval": 0.32
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 121,
+          "hp": 66,
           "item": {
             "kind": "crowd",
             "op": "+",
@@ -32,22 +32,22 @@
         {
           "kind": "grunt",
           "count": 22,
-          "hp": 38,
-          "interval": 0.36
+          "hp": 12,
+          "interval": 0.27
         },
         {
           "kind": "runner",
           "count": 9,
-          "hp": 18,
-          "interval": 0.71,
-          "delay": 1.18
+          "hp": 6,
+          "interval": 0.53,
+          "delay": 0.89
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 222,
+          "hp": 120,
           "item": {
             "kind": "upgrade",
             "stat": "damage",
@@ -61,22 +61,22 @@
         {
           "kind": "grunt",
           "count": 26,
-          "hp": 47,
-          "interval": 0.32
+          "hp": 15,
+          "interval": 0.24
         },
         {
           "kind": "tank",
           "count": 4,
-          "hp": 188,
-          "interval": 2.13,
-          "delay": 0.79
+          "hp": 60,
+          "interval": 1.6,
+          "delay": 0.59
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 343,
+          "hp": 185,
           "item": {
             "kind": "crowd",
             "op": "x",
@@ -90,22 +90,22 @@
         {
           "kind": "grunt",
           "count": 29,
-          "hp": 56,
-          "interval": 0.28
+          "hp": 18,
+          "interval": 0.21
         },
         {
           "kind": "runner",
           "count": 15,
-          "hp": 22,
-          "interval": 0.53,
-          "delay": 0.79
+          "hp": 7,
+          "interval": 0.4,
+          "delay": 0.59
         }
       ],
       "obstacles": [
         {
           "x": -0.55,
           "y": 8,
-          "hp": 484,
+          "hp": 261,
           "item": {
             "kind": "weapon",
             "weapon": "shotgun"
