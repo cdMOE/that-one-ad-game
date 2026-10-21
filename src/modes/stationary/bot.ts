@@ -21,6 +21,11 @@ export interface BotResult {
   blocks: number;
   /** How far the run got (the progress bar the player sees: 1 = won). */
   progress: number;
+  /**
+   * Share of the run's time the upgrade lane still had something on it (1 = never ran dry). Low
+   * on a won run means the end was played with nothing left to go for.
+   */
+  laneShare: number;
 }
 
 /**
@@ -115,6 +120,7 @@ export function runBot(
   // a plain number is a validator tier; otherwise the exact upgrade levels the player owns
   const up = typeof loadout === 'number' ? tierUpgrades(loadout) : loadout;
   let blocks = 0;
+  let laneDry = -1;
   const sim = new StationarySim(
     level,
     mulberry32(seed),
@@ -136,6 +142,7 @@ export function runBot(
     sim.update(dt);
     trace?.(sim);
     lowest = Math.min(lowest, sim.count);
+    if (laneDry < 0 && sim.lane.elements.length === 0) laneDry = sim.time;
   }
   return {
     won: sim.phase === 'won',
@@ -145,6 +152,7 @@ export function runBot(
     coins: sim.coinsRaw,
     blocks,
     progress: sim.progress,
+    laneShare: laneDry < 0 ? 1 : laneDry / Math.max(sim.time, 1e-6),
   };
 }
 
@@ -159,6 +167,12 @@ export interface StationaryAnalysis {
   coinsPerRun: number;
   /** Median of how far the runs got (1 = won). */
   medianProgress: number;
+  /** Median `laneShare` of the won runs (0 when none was won). */
+  medianLaneShare: number;
+}
+
+function median(values: number[]): number {
+  return values.sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
 }
 
 export function analyzeStationary(
@@ -171,10 +185,12 @@ export function analyzeStationary(
   let best = 0;
   let tight = Infinity;
   const progress: number[] = [];
+  const lane: number[] = [];
   for (let seed = 1; seed <= runs; seed++) {
     const r = runBot(level, seed * 7919, tier);
     coins += r.coins;
     progress.push(r.progress);
+    if (r.won) lane.push(r.laneShare);
     if (r.won) {
       wins++;
       best = Math.max(best, r.survivors);
@@ -186,7 +202,8 @@ export function analyzeStationary(
     bestSurvivors: best,
     tightness: wins > 0 ? tight / level.startCount : 0,
     coinsPerRun: coins / runs,
-    medianProgress: progress.sort((a, b) => a - b)[Math.floor(runs / 2)] ?? 0,
+    medianProgress: median(progress),
+    medianLaneShare: median(lane),
   };
 }
 
@@ -208,6 +225,13 @@ export const VALIDATION_RUNS = 20;
  * run pays for the first damage and fire-rate upgrade, so the second run is visibly stronger.
  */
 export const TUTORIAL = { firstRun: [0.25, 0.5], maxTier: 3 } as const;
+
+/**
+ * At the tier a level is first won, the upgrade lane must still have something on it for this
+ * share of the run (median of the won runs). Otherwise the run that finally wins ends with
+ * nothing left to go for, which feels like watching instead of playing.
+ */
+export const LANE_LASTS = 0.85;
 
 /**
  * Lowest uniform upgrade tier at which the bot reaches `WIN_RATE_TARGET`, or -1 if even the

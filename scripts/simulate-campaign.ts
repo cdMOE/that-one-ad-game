@@ -42,7 +42,10 @@ for (const [order, level] of levels.entries()) {
   while (!won && runs < maxRuns) {
     const r = runBot(level, seed++ * 7919, up);
     runs++;
-    path.push(r.won ? 'won' : `${Math.floor(r.progress * 100)}%`);
+    // a won run also says how long the upgrade lane lasted (see LANE_LASTS)
+    path.push(
+      r.won ? `won (lane ${Math.round(r.laneShare * 100)}%)` : `${Math.floor(r.progress * 100)}%`,
+    );
     coins += r.coins;
     earned += r.coins;
     won = r.won;

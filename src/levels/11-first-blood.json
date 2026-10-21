@@ -2,7 +2,7 @@
   "id": "stationary-01",
   "name": "First Blood",
   "mode": "stationary",
-  "startCount": 3,
+  "startCount": 1,
   "weapon": "pistol",
   "lane": {
     "side": "left",
@@ -23,8 +23,8 @@
         "type": "item",
         "item": {
           "kind": "crowd",
-          "op": "+",
-          "value": 1
+          "op": "x",
+          "value": 2
         }
       },
       {
@@ -37,6 +37,18 @@
           "kind": "upgrade",
           "stat": "rate",
           "value": 0.5
+        }
+      },
+      {
+        "type": "block",
+        "hp": 60
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 1
         }
       },
       {
@@ -61,7 +73,7 @@
       },
       {
         "type": "block",
-        "hp": 220
+        "hp": 150
       },
       {
         "type": "item",
@@ -113,6 +125,42 @@
       {
         "type": "block",
         "hp": 1400
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "x",
+          "value": 2
+        }
+      },
+      {
+        "type": "block",
+        "hp": 3000
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 3
+        }
+      },
+      {
+        "type": "block",
+        "hp": 5000
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 5
+        }
+      },
+      {
+        "type": "block",
+        "hp": 8000
       },
       {
         "type": "item",
@@ -416,7 +464,7 @@
     {
       "kind": "tank",
       "count": 5,
-      "hp": 700,
+      "hp": 520,
       "interval": 1.2,
       "delay": 70,
       "x": 0.3,

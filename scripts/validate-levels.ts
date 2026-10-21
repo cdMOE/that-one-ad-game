@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeRunner } from '../src/levels/analyze';
 import {
+  LANE_LASTS,
   MAX_TIER,
   TUTORIAL,
   VALIDATION_RUNS,
@@ -66,6 +67,13 @@ for (const file of files) {
       failed = true;
       continue;
     }
+    if (analysis.medianLaneShare < LANE_LASTS) {
+      console.error(
+        `FAIL ${file}: at tier ${tier} the upgrade lane is empty after ${pct(analysis.medianLaneShare)} of a won run (needs ${pct(LANE_LASTS)}): make it longer or its last blocks tougher`,
+      );
+      failed = true;
+      continue;
+    }
     const base = analyzeStationary(level, VALIDATION_RUNS, 0);
     if (order === 0) {
       // the tutorial: lost without upgrades, part of the way in, and won with a few
@@ -89,7 +97,7 @@ for (const file of files) {
         ? '  WARNING: too easy, should need upgrades (bot wins without any)'
         : '';
     console.log(
-      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${pct(analysis.winRate)}), first run ends at ${pct(base.medianProgress)}, ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
+      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${pct(analysis.winRate)}, lane lasts ${pct(analysis.medianLaneShare)}), first run ends at ${pct(base.medianProgress)}, ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
     );
   }
 }
