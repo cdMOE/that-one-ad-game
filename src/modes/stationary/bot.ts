@@ -7,7 +7,7 @@ import {
   type UpgradeLevels,
 } from '../../core/shop';
 import type { StationaryLevel } from '../../levels/schema';
-import { MAX_MONSTERS, MONSTERS, MONSTER_KIND_BY_INDEX, StationarySim } from './sim';
+import { ARENA, MAX_MONSTERS, MONSTERS, MONSTER_KIND_BY_INDEX, StationarySim } from './sim';
 
 export interface BotResult {
   won: boolean;
@@ -49,11 +49,15 @@ function dodgeTarget(sim: StationarySim): number | null {
   );
 }
 
-/** Index of the elite closest to the squad, or -1 when none is on the field. */
+/**
+ * Index of the elite closest to the squad, or -1 when none is on the field. One still walking in
+ * through the haze beyond `spawnTop` is out of range and does not count.
+ */
 function nearestElite(sim: StationarySim): number {
   let best = -1;
   for (let i = 0; i < MAX_MONSTERS; i++) {
     if (!sim.malive[i] || !MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].elite) continue;
+    if (sim.my[i] > ARENA.spawnTop) continue;
     if (best < 0 || sim.my[i] < sim.my[best]) best = i;
   }
   return best;

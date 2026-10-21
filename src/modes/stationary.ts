@@ -24,6 +24,11 @@ import { WEAPONS, itemLabel } from './stationary/weapons';
 
 const DRAG_GAIN = 1.3; // finger travel -> squad travel
 const KEY_SPEED = 11; // A/D, world units per second
+/**
+ * Only the first few lane elements carry their numbers: the low camera stacks the rest behind
+ * them, and their labels would pile up into an unreadable column.
+ */
+const LANE_LABELS = 2;
 
 /**
  * Stationary shooter: the squad slides left and right (drag, mouse or A/D) and every
@@ -55,7 +60,8 @@ export class StationaryMode implements GameMode {
   /** Attract mode behind the menu: plays itself, silently. */
   private demo = false;
   private readonly coinMul: number;
-  private coinPulse = 0;
+  /** Coins flying from a kill up to the coin counter in the HUD (screen px, 0..1 progress). */
+  private readonly flyingCoins: Array<{ x: number; y: number; t: number }> = [];
   /** What cost soldiers last: if the run is lost, that is what finished it. */
   private lastBlow: 'horde' | 'volley' | null = null;
 
@@ -90,19 +96,20 @@ export class StationaryMode implements GameMode {
       Math.random,
       {
         coin: (x, y, amount) => {
-          particles.burst(x, y, Math.min(6, 1 + amount), 4, Pc.Gold, 0.45, 0.2);
+          // the coin itself flies to the counter; a big payout still sparkles a little more
+          particles.burst(x, y, amount > 100 ? 6 : 1, 4, Pc.Gold, 0.45, 0.2);
           sfx.coin();
-          this.coinPulse = 1;
+          this.launchCoin(x, y);
         },
         shot: (x, y) => {
           sfx.shoot();
           this.recoil = 1;
-          if (++this.shotCounter % 6 === 0) {
+          if (++this.shotCounter % 24 === 0) {
             particles.emit(x, y + 0.2, (Math.random() - 0.5) * 2, 4, 0.1, 0.22, Pc.Gold);
           }
         },
         hit: (x, y) => {
-          if (Math.random() < 0.5) particles.burst(x, y, 1, 3, Pc.Enemy, 0.25, 0.12);
+          if (Math.random() < 0.2) particles.burst(x, y, 1, 3, Pc.Enemy, 0.25, 0.12);
           sfx.pop();
         },
         kill: (x, y, kind) => {
@@ -149,7 +156,7 @@ export class StationaryMode implements GameMode {
           sfx.hit();
         },
         blockHit: (x, y) => {
-          if (Math.random() < 0.25) particles.burst(x, y, 1, 3, Pc.Gold, 0.25, 0.14);
+          if (Math.random() < 0.1) particles.burst(x, y, 1, 3, Pc.Gold, 0.25, 0.14);
         },
         blockBreak: (x, y) => {
           particles.burst(x, y, 30, 8, Pc.Gold, 0.7, 0.2);
@@ -261,7 +268,7 @@ export class StationaryMode implements GameMode {
     this.fitView();
     this.time += dt;
     this.deathBudget = 40;
-    this.killBudget = 10;
+    this.killBudget = 5;
     camera.dist = 0;
     if (!this.introShown) {
       this.introShown = true;
@@ -269,7 +276,8 @@ export class StationaryMode implements GameMode {
     }
     this.recoil *= Math.exp(-12 * dt);
     this.pillPop *= Math.exp(-7 * dt);
-    this.coinPulse *= Math.exp(-8 * dt);
+    for (const c of this.flyingCoins) c.t += dt * 1.6;
+    while (this.flyingCoins.length > 0 && this.flyingCoins[0].t >= 1) this.flyingCoins.shift();
 
     // steering: keys > mouse position > finger drag
     const drag = input.consumeDrag();
@@ -328,6 +336,13 @@ export class StationaryMode implements GameMode {
     this.ctx.gl.release();
   }
 
+  /** Sends a coin from a world position up to the HUD counter (a few at a time, never a flood). */
+  private launchCoin(x: number, y: number): void {
+    if (this.demo || this.flyingCoins.length >= MAX_FLYING_COINS) return;
+    this.scene.placeAt(x, y, 0.8);
+    this.flyingCoins.push({ x: this.scene.sx, y: this.scene.sy, t: 0 });
+  }
+
   // ---- drawing ------------------------------------------------------------
 
   render(g: CanvasRenderingContext2D): void {
@@ -351,7 +366,7 @@ export class StationaryMode implements GameMode {
     popups.drawPlaced(g, this.scene);
     if (!this.demo) {
       this.drawWeaponLabel(g);
-      this.drawCoins(g);
+      this.drawFlyingCoins(g);
     }
   }
 
@@ -362,34 +377,38 @@ export class StationaryMode implements GameMode {
     const rows = Math.ceil(sim.shooters / sim.cols);
     sc.placeAt(sim.squadX, -(rows - 1) * SOLDIER_SPACING - 1.1, 0.1);
     const fontPx = Math.round(Math.max(14, sc.scale * 0.8) * 1.05 * (1 + 0.3 * this.pillPop));
-    drawPill(g, formatCount(this.shownCount), sc.sx, sc.sy, COLORS.player, fontPx, '#04302c');
+    drawPill(g, formatCount(this.shownCount), sc.sx, sc.sy, SQUAD_BLUE, fontPx);
   }
 
-  private drawCoins(g: CanvasRenderingContext2D): void {
+  /** Coins on their way to the counter at the top right, along a short arc. */
+  private drawFlyingCoins(g: CanvasRenderingContext2D): void {
     const cam = this.ctx.camera;
-    const px = Math.round(Math.max(14, cam.scale * 0.6) * (1 + 0.25 * this.coinPulse));
-    const text = formatCount(this.coinsEarned);
-    g.font = `900 ${px}px ${FONT}`;
-    g.textAlign = 'right';
-    g.textBaseline = 'middle';
-    const x = cam.width - 14;
-    const y = Math.max(64, cam.height * 0.1);
-    g.lineJoin = 'round';
-    g.lineWidth = px * 0.25;
-    g.strokeStyle = 'rgba(8,10,28,0.85)';
-    g.strokeText(text, x, y);
-    g.fillStyle = COLORS.gold;
-    g.fillText(text, x, y);
-    const w = g.measureText(text).width;
-    g.beginPath();
-    g.arc(x - w - px * 0.6, y, px * 0.42, 0, Math.PI * 2);
-    g.fill();
-    g.lineWidth = 2;
-    g.strokeStyle = '#b8861f';
-    g.stroke();
+    const tx = cam.width - 34;
+    const ty = 34;
+    for (const c of this.flyingCoins) {
+      const t = c.t * c.t;
+      // a little hop upwards first, then straight into the counter
+      const x = c.x + (tx - c.x) * t;
+      const y = c.y + (ty - c.y) * t - Math.sin(c.t * Math.PI) * 40;
+      const r = 9 - 3 * t;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fillStyle = '#ffcf33';
+      g.fill();
+      g.lineWidth = 2;
+      g.strokeStyle = '#a86a00';
+      g.stroke();
+      g.beginPath();
+      g.arc(x - r * 0.25, y - r * 0.25, r * 0.4, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(255,255,255,0.7)';
+      g.fill();
+    }
   }
 
-  /** HP labels of the big ones (a wave of grunts stays readable) with the 3D crown right below. */
+  /**
+   * Health bars over the big ones: a slim bar over tanks, and over minibosses and bosses a fat
+   * pill with the hit points written inside, like the boss bars in the ad shooters.
+   */
   private drawMonsterLabels(g: CanvasRenderingContext2D): void {
     const sim = this.sim;
     const sc = this.scene;
@@ -401,76 +420,63 @@ export class StationaryMode implements GameMode {
       const kind = MONSTER_KIND_BY_INDEX[sim.mkind[i]];
       if (kind === 'grunt' || kind === 'runner') continue;
       const r = MONSTERS[kind].radius;
-      sc.placeAt(sim.mx[i], sim.my[i], monsterTop(kind) * r + 0.5);
-      const fontPx = Math.round(
-        Math.max(11, sc.scale * (kind === 'boss' ? 0.8 : kind === 'miniboss' ? 0.6 : 0.45)),
-      );
+      sc.placeAt(sim.mx[i], sim.my[i], monsterTop(kind) * r + 0.4);
+      const share = Math.max(0, Math.min(1, sim.mhp[i] / sim.mmax[i]));
+      if (kind === 'tank') {
+        const w = Math.max(26, sc.scale * 1.4);
+        drawHealthBar(g, sc.sx, sc.sy, w, Math.max(5, w * 0.14), share);
+        continue;
+      }
+      const fontPx = Math.round(Math.max(13, sc.scale * (kind === 'boss' ? 0.75 : 0.6)));
+      const w = Math.max(fontPx * 4.2, sc.scale * r * 2);
+      const h = fontPx * 1.35;
+      drawHealthBar(g, sc.sx, sc.sy, w, h, share);
       const label = formatCount(Math.ceil(sim.mhp[i]));
       g.font = `900 ${fontPx}px ${FONT}`;
-      g.lineWidth = fontPx * 0.25;
-      g.strokeStyle = 'rgba(8,10,28,0.9)';
-      g.strokeText(label, sc.sx, sc.sy - fontPx * 0.5);
+      g.lineWidth = fontPx * 0.22;
+      g.strokeStyle = 'rgba(40,6,10,0.9)';
+      g.strokeText(label, sc.sx, sc.sy + fontPx * 0.04);
       g.fillStyle = '#fff';
-      g.fillText(label, sc.sx, sc.sy - fontPx * 0.5);
+      g.fillText(label, sc.sx, sc.sy + fontPx * 0.04);
     }
   }
 
-  /** HP counters on the blocks, hit-point bars under them and the captions of the power-ups. */
+  /** HP counters on the tyre piles and the captions over the power-ups. */
   private drawLaneLabels(g: CanvasRenderingContext2D): void {
     const sim = this.sim;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.lineJoin = 'round';
     sim.lane.elements.forEach((e, k) => {
-      if (e.type === 'item' && e.item) this.drawItemLabel(g, e, e.item, k === 0);
+      if (k >= LANE_LABELS) return;
+      if (e.type === 'item' && e.item) this.drawItemLabel(g, e, e.item);
       else this.drawBlockLabel(g, e);
     });
   }
 
-  private drawItemLabel(
-    g: CanvasRenderingContext2D,
-    e: LaneElement,
-    def: ItemDef,
-    front: boolean,
-  ): void {
+  private drawItemLabel(g: CanvasRenderingContext2D, e: LaneElement, def: ItemDef): void {
     const sc = this.scene;
-    const bob = front ? Math.sin(this.time * 6) * 0.08 : 0;
-    sc.placeAt(this.sim.lane.x, e.y, 0.74 + bob);
+    // over the light column of the pedestal (the weapon floats a little lower, inside it)
+    sc.placeAt(this.sim.lane.x, e.y, def.kind === 'weapon' ? 2.1 : 1.6);
     const label = itemLabel(def);
-    const size = sc.scale * 1.35;
-    const titlePx = Math.round(size * (label.title.length > 5 ? 0.3 : 0.42));
-    const dark = def.kind === 'upgrade';
-    g.font = `900 ${titlePx}px ${FONT}`;
-    g.lineWidth = titlePx * 0.18;
-    g.strokeStyle = dark ? 'rgba(255,255,255,0.35)' : 'rgba(8,10,28,0.6)';
-    g.strokeText(label.title, sc.sx, sc.sy - size * 0.08);
-    g.fillStyle = dark ? '#3b2a00' : COLORS.white;
-    g.fillText(label.title, sc.sx, sc.sy - size * 0.08);
-    g.font = `800 ${Math.round(size * 0.15)}px ${FONT}`;
-    g.fillStyle = dark ? 'rgba(59,42,0,0.8)' : 'rgba(255,255,255,0.9)';
-    g.fillText(label.sub, sc.sx, sc.sy + size * 0.2);
+    const titlePx = Math.round(Math.max(13, sc.scale * (label.title.length > 5 ? 0.42 : 0.62)));
+    drawBigNumber(g, label.title, sc.sx, sc.sy, titlePx, ITEM_FILL[def.kind]);
+    const subPx = Math.round(Math.max(8, titlePx * 0.36));
+    g.font = `900 ${subPx}px ${FONT}`;
+    g.lineWidth = subPx * 0.35;
+    g.strokeStyle = 'rgba(10,16,40,0.85)';
+    g.strokeText(label.sub, sc.sx, sc.sy + titlePx * 0.68);
+    g.fillStyle = '#fff';
+    g.fillText(label.sub, sc.sx, sc.sy + titlePx * 0.68);
   }
 
   private drawBlockLabel(g: CanvasRenderingContext2D, o: LaneElement): void {
     const sc = this.scene;
     const lane = this.sim.lane;
-    sc.placeAt(lane.x, o.y, 1.02);
-    const fontPx = Math.round(Math.min(sc.scale * BLOCK_HEIGHT * 0.62, sc.scale * 0.95));
-    g.font = `900 ${fontPx}px ${FONT}`;
-    g.lineWidth = fontPx * 0.2;
-    g.strokeStyle = 'rgba(8,10,28,0.85)';
-    const label = formatCount(Math.ceil(o.hp));
-    g.strokeText(label, sc.sx, sc.sy);
-    g.fillStyle = '#fff';
-    g.fillText(label, sc.sx, sc.sy);
-    // hit-point bar on the front face of the block
-    sc.placeAt(lane.x, o.y - BLOCK_HEIGHT / 2, 0.52);
-    const w = (lane.width - 0.5) * sc.scale;
-    const x = sc.sx - w / 2;
-    g.fillStyle = 'rgba(6,8,22,0.75)';
-    g.fillRect(x, sc.sy - 4, w, 8);
-    g.fillStyle = COLORS.gold;
-    g.fillRect(x, sc.sy - 4, w * Math.max(0, Math.min(1, o.hp / o.maxHp)), 8);
+    // big orange numbers on the front of the pile, like the obstacles in the ad shooters
+    sc.placeAt(lane.x, o.y - BLOCK_HEIGHT / 2, 0.6);
+    const fontPx = Math.round(Math.max(14, sc.scale * 0.95));
+    drawBigNumber(g, formatCount(Math.ceil(o.hp)), sc.sx, sc.sy, fontPx, BLOCK_FILL);
   }
 
   private drawWeaponLabel(g: CanvasRenderingContext2D): void {
@@ -479,7 +485,72 @@ export class StationaryMode implements GameMode {
     g.font = `800 ${px}px ${FONT}`;
     g.textAlign = 'left';
     g.textBaseline = 'middle';
-    g.fillStyle = 'rgba(255,255,255,0.75)';
+    g.fillStyle = 'rgba(20,30,60,0.75)';
     g.fillText(WEAPONS[this.sim.weapon.id].name.toUpperCase(), 12, cam.height - 18);
+  }
+}
+
+/** Colour of the squad counter: the soldiers' blue. */
+const SQUAD_BLUE = '#2f86e8';
+const MAX_FLYING_COINS = 18;
+/** Top and bottom colour of the big numbers on tyre piles: the ad shooters' orange. */
+const BLOCK_FILL: [string, string] = ['#ffe27a', '#ff7b1c'];
+const ITEM_FILL: Record<ItemDef['kind'], [string, string]> = {
+  crowd: ['#ffffff', '#cfe6ff'],
+  upgrade: ['#fff3b0', '#ffc23a'],
+  weapon: ['#e6fbff', '#7fe9ff'],
+};
+
+/** A chunky game number: vertical colour gradient, a thick dark outline and a drop shadow. */
+function drawBigNumber(
+  g: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  px: number,
+  fill: [string, string],
+): void {
+  g.font = `900 ${px}px ${FONT}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = px * 0.24;
+  g.strokeStyle = 'rgba(30,12,4,0.95)';
+  g.strokeText(text, x, y + px * 0.08); // the shadow
+  g.strokeText(text, x, y);
+  const grad = g.createLinearGradient(0, y - px * 0.45, 0, y + px * 0.45);
+  grad.addColorStop(0, fill[0]);
+  grad.addColorStop(1, fill[1]);
+  g.fillStyle = grad;
+  g.fillText(text, x, y);
+}
+
+/** A rounded health bar centred on (x, y): dark track, red fill for the share that is left. */
+function drawHealthBar(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  share: number,
+): void {
+  const l = x - w / 2;
+  const t = y - h / 2;
+  g.beginPath();
+  g.roundRect(l, t, w, h, h / 2);
+  g.fillStyle = 'rgba(20,22,34,0.85)';
+  g.fill();
+  if (share > 0) {
+    const pad = Math.max(1.5, h * 0.14);
+    g.beginPath();
+    g.roundRect(
+      l + pad,
+      t + pad,
+      Math.max(h - pad * 2, (w - pad * 2) * share),
+      h - pad * 2,
+      (h - pad * 2) / 2,
+    );
+    g.fillStyle = '#ff4433';
+    g.fill();
   }
 }

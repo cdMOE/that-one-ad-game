@@ -69,10 +69,12 @@ function towardsNearest(s: StationarySim): void {
   s.targetX = best >= 0 ? s.mx[best] : 0;
 }
 
+/** Elites that have walked in out of the haze, past `ARENA.spawnTop`. */
 function elitesOnField(s: StationarySim): number {
   let n = 0;
   for (let i = 0; i < s.malive.length; i++) {
-    if (s.malive[i] && MONSTERS[MONSTER_KIND_BY_INDEX[s.mkind[i]]].elite) n++;
+    if (!s.malive[i] || s.my[i] > ARENA.spawnTop + 1e-3) continue;
+    if (MONSTERS[MONSTER_KIND_BY_INDEX[s.mkind[i]]].elite) n++;
   }
   return n;
 }
@@ -360,7 +362,8 @@ describe('StationarySim', () => {
       const xs = new Set<number>();
       let n = 0;
       for (let i = 0; i < sim.malive.length; i++) {
-        if (!sim.malive[i]) continue;
+        // the ranks behind are still walking in through the haze
+        if (!sim.malive[i] || sim.my[i] > ARENA.spawnTop) continue;
         n++;
         xs.add(Math.round(sim.mx[i]));
         // they stay in their own lane the whole way down
@@ -667,7 +670,8 @@ describe('bodies', () => {
       startCount: 500,
       monsters: [
         { kind: 'miniboss', count: 1, hp: 1, interval: 1, delay: 0 },
-        { kind: 'boss', count: 1, hp: 1e9, interval: 1, delay: 0 },
+        // a moment later, so the miniboss is surely the one in front
+        { kind: 'boss', count: 1, hp: 1e9, interval: 1, delay: 0.5 },
       ],
     });
     const sim = new StationarySim(level, mulberry32(1));

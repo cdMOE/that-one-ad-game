@@ -23,9 +23,20 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
  */
 
 export const ARENA = { halfWidth: 6, spawnTop: 16 };
+/**
+ * Where monsters actually appear: far out in the haze beyond `ARENA.spawnTop`, so the horde walks
+ * in from the distance instead of popping out of a gate. Each one starts early by the time it
+ * needs for the extra way, so it still crosses `spawnTop` exactly when the level schedules it.
+ */
+export const SPAWN_FAR = 27;
 /** Distance between neighbouring soldiers; also the size of the formation grid. */
-export const SOLDIER_SPACING = 0.46;
-export const GRID_COLS = 8;
+export const SOLDIER_SPACING = 0.42;
+/**
+ * Columns of the formation. The full squad fires a lane (5 x 0.42 = 2.1) narrower than the
+ * smallest big target (a tank is 2.5 wide to bullets, a miniboss 3.2, a block 3.6), so a squad
+ * standing under one puts every bullet into it.
+ */
+export const GRID_COLS = 6;
 /** At most this many soldiers are simulated and drawn; bigger squads hit harder per bullet. */
 export const MAX_SHOOTERS = 40;
 /** Global pace of the shooter: everything (monsters, bullets, items) runs this much faster. */
@@ -139,11 +150,12 @@ const BODY_STIFFNESS = 0.4;
 /** An elite blocks the crowd as a disc this much smaller than its hit circle, so a tank still fits past it. */
 export const ELITE_BODY_SCALE = 0.85;
 
-export const MAX_MONSTERS = 450;
+/** Room for the horde on its long walk in from the haze, plus what reaches the squad. */
+export const MAX_MONSTERS = 600;
 export const MAX_BULLETS = 900;
 /** Monsters are sorted into horizontal slabs of this height so bullets only test nearby ones. */
 const BUCKET_H = 1;
-const BUCKETS = 22;
+const BUCKETS = 32;
 
 export type SimPhase = 'gap' | 'fighting' | 'won' | 'lost';
 
@@ -320,8 +332,10 @@ export class StationarySim {
     for (const s of level.monsters) {
       for (let i = 0; i < s.count; i++) {
         const columns = s.columns;
-        (MONSTERS[s.kind].elite ? this.eliteQueue : this.queue).push({
-          t: (s.delay ?? 0) + (columns ? Math.floor(i / columns) : i) * s.interval,
+        const stats = MONSTERS[s.kind];
+        const lead = (SPAWN_FAR - ARENA.spawnTop) / stats.speed;
+        (stats.elite ? this.eliteQueue : this.queue).push({
+          t: (s.delay ?? 0) + (columns ? Math.floor(i / columns) : i) * s.interval - lead,
           kind: s.kind,
           hp: s.hp,
           x: s.x ?? 0,
@@ -452,7 +466,12 @@ export class StationarySim {
     const lo = this.monsterMinX + stats.radius;
     const hi = this.monsterMaxX - stats.radius;
     this.mx[slot] = Math.max(lo, Math.min(hi, x));
-    this.my[slot] = ARENA.spawnTop + (stats.elite ? 0 : this.rng() * (w ? 0.3 : 1.5));
+    // a monster due before the level began (its walk-in starts early) is already on its way; one
+    // held back by a full pool appears no closer than the old spawn line
+    const lead = (SPAWN_FAR - ARENA.spawnTop) / stats.speed;
+    const late = Math.max(0, Math.min(lead, this.levelTime - s.t));
+    const jitter = stats.elite ? 0 : this.rng() * (w ? 0.3 : 1.5);
+    this.my[slot] = SPAWN_FAR + jitter - stats.speed * late;
     this.mhp[slot] = s.hp;
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];

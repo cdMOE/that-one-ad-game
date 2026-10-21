@@ -12,7 +12,7 @@ import {
   SphereGeometry,
   Vector3,
 } from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { COLORS } from '../../config';
 import type { MonsterKind } from '../../levels/schema';
 
@@ -77,14 +77,16 @@ const ball = (r: number, detail = 1) => new IcosahedronGeometry(r, detail);
 
 /** About 0.9 tall and 0.36 wide, so a phalanx with 0.46 spacing still reads as single soldiers. */
 export function soldierGeometry(): BufferGeometry {
-  const uniform = COLORS.player;
-  const uniformDark = COLORS.playerDark;
-  const helmet = '#1d2f6b';
+  // ad-shooter colours: grey shirt, blue helmet and trousers, so the squad reads against red foes
+  const uniform = '#a3adbd';
+  const uniformDark = '#6f7a8c';
+  const helmet = '#2f86e8';
+  const trousers = '#2f86e8';
   const skin = '#ffd3ad';
   return merge([
     // legs and boots
-    part(box(0.12, 0.3, 0.14), '#243a73', { x: -0.09, y: 0.15 }),
-    part(box(0.12, 0.3, 0.14), '#243a73', { x: 0.09, y: 0.15 }),
+    part(box(0.12, 0.3, 0.14), trousers, { x: -0.09, y: 0.15 }),
+    part(box(0.12, 0.3, 0.14), trousers, { x: 0.09, y: 0.15 }),
     part(box(0.13, 0.07, 0.19), '#0d1024', { x: -0.09, y: 0.035, z: -0.02 }),
     part(box(0.13, 0.07, 0.19), '#0d1024', { x: 0.09, y: 0.035, z: -0.02 }),
     // torso, belt and a backpack, so the soldier reads from behind
@@ -108,7 +110,7 @@ export function soldierGeometry(): BufferGeometry {
       sy: 1.05,
     }),
     part(new CylinderGeometry(0.18, 0.18, 0.025, 8), helmet, { y: 0.705 }),
-    part(box(0.045, 0.03, 0.3), uniform, { y: 0.85 }),
+    part(box(0.045, 0.03, 0.3), '#1f63b8', { y: 0.85 }),
   ]);
 }
 
@@ -130,9 +132,10 @@ interface Look {
 }
 
 const LOOKS: Record<MonsterKind, Look> = {
-  grunt: { body: COLORS.enemy, dark: COLORS.enemyDark, w: 1, h: 0.95, eye: 1 },
-  runner: { body: COLORS.runner, dark: COLORS.runnerDark, w: 0.88, h: 1.1, eye: 1.05 },
-  tank: { body: COLORS.tank, dark: COLORS.tankDark, w: 1.08, h: 0.92, eye: 0.9 },
+  // the horde is red, like the enemies in the ad shooters: it pops against the blue squad
+  grunt: { body: '#ec3b45', dark: '#9e1b27', w: 1, h: 0.95, eye: 1 },
+  runner: { body: '#ff7a2e', dark: '#b2441a', w: 0.88, h: 1.1, eye: 1.05 },
+  tank: { body: '#c22747', dark: '#6e1028', w: 1.08, h: 0.92, eye: 0.9 },
   miniboss: { body: '#7bd84f', dark: '#2f8a2a', w: 1.02, h: 1, eye: 1 },
   boss: { body: COLORS.boss, dark: COLORS.bossDark, w: 1.05, h: 1, eye: 1 },
 };
@@ -285,4 +288,70 @@ export function monsterTop(kind: MonsterKind): number {
   const h = LOOKS[kind].h;
   const crowned = kind === 'miniboss' || kind === 'boss';
   return 2 * h + (crowned ? 0.9 : kind === 'grunt' ? 0.3 : 0);
+}
+
+// ---- lane props -------------------------------------------------------------
+
+/**
+ * A lane block as stacks of old tyres, like the obstacles in the ad shooters: `stacks` piles of
+ * three side by side, filling `width` and `depth` (ground units). Feet on y = 0, `height` tall.
+ */
+export function tireStackGeometry(width: number, depth: number, height: number): BufferGeometry {
+  const stacks = 3;
+  const r = Math.min(depth / 2, width / (stacks * 2));
+  const layers = 3;
+  const h = height / layers;
+  const parts: BufferGeometry[] = [];
+  for (let s = 0; s < stacks; s++) {
+    const x = (s - (stacks - 1) / 2) * r * 2;
+    for (let l = 0; l < layers; l++) {
+      const y = h * (l + 0.5);
+      // a slight twist per layer, so the pile does not look machined
+      const ry = (s * 3 + l) * 0.7;
+      parts.push(
+        part(new CylinderGeometry(r * 0.98, r * 0.98, h * 0.92, 18), '#2b2e36', { x, y, ry }),
+        part(new CylinderGeometry(r * 0.99, r * 0.99, h * 0.18, 18), '#3a3e48', { x, y, ry }),
+      );
+    }
+    // the hole and rim on top of the pile
+    parts.push(
+      part(new CylinderGeometry(r * 0.55, r * 0.55, 0.02, 14), '#121318', { x, y: height + 0.005 }),
+      part(new CylinderGeometry(r * 0.4, r * 0.4, 0.03, 12), '#8b93a1', { x, y: height + 0.01 }),
+    );
+  }
+  return merge(parts);
+}
+
+/** A round pedestal that power-ups float over: a dark base with a glowing ring in `color`. */
+export function pedestalGeometry(color: string): BufferGeometry {
+  return merge([
+    part(new CylinderGeometry(1.05, 1.15, 0.22, 24), '#3a4256', { y: 0.11 }),
+    part(new CylinderGeometry(0.98, 0.98, 0.05, 24), color, { y: 0.245 }),
+    part(new CylinderGeometry(0.7, 0.7, 0.06, 24), '#e9f6ff', { y: 0.27 }),
+  ]);
+}
+
+/** A chunky gun model for weapon pick-ups, about 1.6 long, pointing along +x, centred. */
+export function gunGeometry(): BufferGeometry {
+  return merge([
+    part(box(1.0, 0.26, 0.2), '#6d7a5b', { x: 0 }),
+    part(box(0.55, 0.09, 0.09), '#1c1f26', { x: 0.75 }),
+    part(box(0.18, 0.4, 0.16), '#2c3038', { x: -0.08, y: -0.28, rz: -0.25 }),
+    part(box(0.16, 0.34, 0.15), '#2c3038', { x: 0.24, y: -0.24, rz: 0.15 }),
+    part(box(0.42, 0.2, 0.17), '#56624a', { x: -0.62, y: -0.04 }),
+    part(box(0.36, 0.08, 0.08), '#c9d2df', { x: 0.05, y: 0.18 }),
+  ]);
+}
+
+/**
+ * The hull for a cartoon outline: the model's positions only, welded and with smooth normals,
+ * so pushing every vertex out along its normal gives a closed shell without cracks at the edges.
+ */
+export function outlineGeometry(model: BufferGeometry): BufferGeometry {
+  const shell = new BufferGeometry();
+  shell.setAttribute('position', model.getAttribute('position').clone());
+  const welded = mergeVertices(shell, 1e-3);
+  shell.dispose();
+  welded.computeVertexNormals();
+  return welded;
 }

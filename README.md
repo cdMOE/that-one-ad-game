@@ -96,11 +96,15 @@ possible crowd survives.
 
 `"mode": "stationary"` levels have **two separate lanes**: an **upgrade lane** (left by default,
 `"side": "right"` flips it) and a **monster lane** (the rest of the field). Monsters come as
-**marching ranks**: row after row walks slowly (about 7 seconds across the field) straight down its own
-lane and never enters the upgrade lane. There is no breather, so every second spent on the upgrade
-lane costs you. The squad slides left and right
-(drag a finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet dead straight
-ahead** from its own position; there is no aiming.
+**marching ranks**: row after row walks out of the haze far down the road (`SPAWN_FAR` in `sim.ts`),
+enters the field and then walks slowly (about 7 seconds across it) straight down its own lane, never
+entering the upgrade lane. There is no gate: you see the horde coming long before your bullets reach
+it. There is no breather, so every second spent on the upgrade lane costs you. The squad slides left
+and right (drag a finger, move the mouse, or `A`/`D`) and **every soldier fires one bullet dead
+straight ahead** from its own position; there is no aiming. The squad stands in a narrow formation, at most
+six soldiers wide (`GRID_COLS`), so a full squad standing under a tank, a block or a boss puts every
+bullet into it. The camera sits low behind the squad and follows it sideways, like the ad shooters;
+far away the road fades into fog.
 
 The upgrade lane is a column that slides towards the squad: the **front block** (HP counter, stops
 bullets) holds close to the squad until it is shot to pieces, and the **power-ups behind it are
@@ -132,13 +136,13 @@ bites the squad, wherever the squad is, so you have to sweep between both lanes.
 }
 ```
 
-| Field        | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `weapon`     | `pistol`, `rifle`, `minigun`; each soldier carries one. Squads above 40 still hit harder per bullet.                                                                                                                                                                                                                                                                                                                                                                   |
-| `lane`       | `side` (`left`/`right`) and `elements`, listed front first.                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `elements[]` | `{ "type": "block", "hp", "grow"? }` or `{ "type": "item", "item": ... }`. `grow` = HP gained per second while it is the front block.                                                                                                                                                                                                                                                                                                                                  |
-| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon`                                                                                                                                                                                                                                                                                                                                                                         |
-| `monsters[]` | Streams: `kind` (`grunt`, `runner`, `tank`, `miniboss`, `boss`), `count` (up to 2000), `hp`, `interval` seconds apart, optional `delay` (from level start). `columns` turns the stream into marching ranks: every `interval` seconds a whole row of that many monsters appears side by side. `x` (-1..1) and `spread` (0..1) say where in the monster lane they enter (default: the whole lane); a narrow formation (small `spread`) is easy for one soldier to cover. |
+| Field        | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `weapon`     | `pistol`, `rifle`, `minigun`; each soldier carries one. Squads above 40 still hit harder per bullet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `lane`       | `side` (`left`/`right`) and `elements`, listed front first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `elements[]` | `{ "type": "block", "hp", "grow"? }` or `{ "type": "item", "item": ... }`. `grow` = HP gained per second while it is the front block.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon`                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `monsters[]` | Streams: `kind` (`grunt`, `runner`, `tank`, `miniboss`, `boss`), `count` (up to 2000), `hp`, `interval` seconds apart, optional `delay` (from level start). Times say when a monster enters the field; it sets off from the haze earlier, so it arrives on time. `columns` turns the stream into marching ranks: every `interval` seconds a whole row of that many monsters enters side by side. `x` (-1..1) and `spread` (0..1) say where in the monster lane they enter (default: the whole lane); a narrow formation (small `spread`) is easy for one soldier to cover. |
 
 The level is won as soon as the last monster is dead (or has bitten); blocks and power-ups still on
 the lane do not have to be cleared. It is lost when the squad reaches zero.
@@ -238,7 +242,7 @@ files). The simulation stays headless and 2D; `stationary/scene.ts` only mirrors
 `InstancedMesh`es (one draw call per monster kind, plus soldiers, bullets, particles and blob
 shadows) by writing straight into the instance buffers. Numbers (HP, counters, popups) are painted
 on a transparent 2D canvas above the WebGL canvas. The WebGL canvas fills the whole window, so on a
-wide desktop the sky and the road continue beside the phone-shaped game column. The menu's
+wide desktop the sky, the sea and the bridge continue beside the phone-shaped game column. The menu's
 attract mode is a silent, self-steering shooter level rendered the same way. The runner is still
 pure 2D canvas.
 

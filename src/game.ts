@@ -233,6 +233,9 @@ export class Game {
       active.update(dt);
       if (this.state === 'playing' && this.mode) {
         this.ui.setProgress(this.mode.progress);
+        if (levels[this.levelIndex].mode === 'stationary') {
+          this.ui.setCoins(this.save.coins + this.mode.coinsEarned, this.mode.coinsEarned);
+        }
         if (this.mode.outcome !== 'playing') this.finishLevel(this.mode);
       } else if (this.state === 'menu' && active.outcome !== 'playing') {
         // restart the demo whenever it ends

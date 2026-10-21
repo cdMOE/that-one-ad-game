@@ -81,6 +81,8 @@ const ICON_SOUND_OFF =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const ICON_PAUSE =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
+const ICON_FLAG =
+  '<svg viewBox="0 0 24 28" width="24" height="28"><path d="M5 2v24" stroke="#0f2f66" stroke-width="4" stroke-linecap="round"/><path d="M6 3h14l-4 5 4 5H6z" fill="#fff" stroke="#0f2f66" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 const ICON_BACK =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
@@ -92,6 +94,13 @@ export class Ui {
   private readonly hud: HTMLElement;
   private readonly hudName: HTMLElement;
   private readonly hudBar: HTMLElement;
+  /** Shooter HUD: the progress in per cent, the wallet and what this run has added to it. */
+  private readonly hudPct: HTMLElement;
+  private readonly hudCoins: HTMLElement;
+  private readonly hudGain: HTMLElement;
+  private readonly pauseSound: HTMLButtonElement;
+  private shownCoins = -1;
+  private shownGain = -1;
   private readonly muteBtn: HTMLButtonElement;
   private readonly closeBtn: HTMLButtonElement;
   private readonly pause: HTMLElement;
@@ -101,6 +110,8 @@ export class Ui {
   private readonly resultSub: HTMLElement;
   private readonly resultStars: HTMLElement;
   private readonly hint: HTMLElement;
+  /** Shooter tutorial: a hand swiping between two arrows, like the ad shooters show it. */
+  private readonly hand: HTMLElement;
   private hintTimer = 0;
   private readonly nextBtn: HTMLButtonElement;
   private readonly modeList: HTMLElement;
@@ -178,7 +189,7 @@ export class Ui {
     // HUD
     this.hudName = h('div', { class: 'hud-name' });
     this.hudBar = h('div', { class: 'hud-bar-fill' });
-    this.muteBtn = h('button', { class: 'icon-btn', title: 'Mute / unmute' });
+    this.muteBtn = h('button', { class: 'icon-btn btn-mute', title: 'Mute / unmute' });
     this.muteBtn.addEventListener('click', () => {
       this.setMuted(handlers.onToggleMute());
     });
@@ -189,8 +200,18 @@ export class Ui {
       click(() => handlers.onClose()),
     );
     this.closeBtn = closeBtn;
+    this.hudPct = h('span', { class: 'hud-pct' });
+    this.hudCoins = h('span', { class: 'hud-coins-num' });
+    this.hudGain = h('div', { class: 'hud-gain' });
+    const flag = h('span', { class: 'hud-flag' });
+    flag.innerHTML = ICON_FLAG;
 
-    // pause (shooter): leaving from here keeps the coins of the run
+    // pause (shooter): leaving from here keeps the coins of the run; the sound switch lives here too,
+    // because the shooter HUD has no room for it
+    this.pauseSound = h('button', {
+      class: 'btn btn-ghost btn-sound',
+      onclick: () => this.setMuted(handlers.onToggleMute()),
+    });
     this.pauseSub = h('p', { class: 'result-sub' });
     this.pause = h(
       'section',
@@ -215,6 +236,7 @@ export class Ui {
           text: 'MENU',
           onclick: click(() => handlers.onMenu()),
         }),
+        this.pauseSound,
       ),
     );
     this.hud = h(
@@ -224,8 +246,24 @@ export class Ui {
         'div',
         { class: 'hud-top' },
         closeBtn,
-        h('div', { class: 'hud-mid' }, this.hudName, h('div', { class: 'hud-bar' }, this.hudBar)),
+        h(
+          'div',
+          { class: 'hud-mid' },
+          this.hudName,
+          h(
+            'div',
+            { class: 'hud-barrow' },
+            h('div', { class: 'hud-bar' }, this.hudBar, this.hudPct),
+            flag,
+          ),
+        ),
         this.muteBtn,
+        h(
+          'div',
+          { class: 'hud-wallet' },
+          h('div', { class: 'hud-coins' }, this.hudCoins, h('span', { class: 'hud-coin' })),
+          this.hudGain,
+        ),
       ),
     );
 
@@ -235,6 +273,14 @@ export class Ui {
     this.resultStars = h('div', { class: 'stars' });
     this.hint = h('div', { class: 'hint' });
     this.hint.hidden = true;
+    this.hand = h(
+      'div',
+      { class: 'hint-hand' },
+      h('span', { class: 'hand-arrow left', text: '\u2B05' }),
+      h('span', { class: 'hand', text: '\u{1F446}' }),
+      h('span', { class: 'hand-arrow right', text: '\u27A1' }),
+    );
+    this.hand.hidden = true;
     this.resultCoins = h('p', { class: 'result-coins' });
     this.resultGoalLabel = h('span', { class: 'goal-label' });
     this.resultGoalFill = h('div', { class: 'goal-fill' });
@@ -290,7 +336,15 @@ export class Ui {
     );
 
     this.fpsEl = debug ? h('div', { class: 'fps' }) : null;
-    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.result, this.pause);
+    root.append(
+      this.hud,
+      this.hint,
+      this.hand,
+      this.menu,
+      this.levelScreen,
+      this.result,
+      this.pause,
+    );
     if (this.fpsEl) root.append(this.fpsEl);
     document.title = GAME_TITLE;
     this.hideAll();
@@ -350,6 +404,7 @@ export class Ui {
   }
 
   setMuted(muted: boolean): void {
+    this.pauseSound.textContent = muted ? 'SOUND: OFF' : 'SOUND: ON';
     this.muteBtn.innerHTML = muted ? ICON_SOUND_OFF : ICON_SOUND_ON;
     this.muteBtn.setAttribute('aria-pressed', String(muted));
   }
@@ -492,9 +547,13 @@ export class Ui {
     const pausable = level.mode === 'stationary';
     this.closeBtn.innerHTML = pausable ? ICON_PAUSE : ICON_BACK;
     this.closeBtn.title = pausable ? 'Pause' : 'Back to menu';
+    // the shooter gets the chunky ad-game HUD: per cent, flag and a coin wallet
+    this.hud.classList.toggle('shooter', pausable);
+    this.shownCoins = this.shownGain = -1;
     this.setProgress(0);
     this.hud.hidden = false;
     this.hint.hidden = true;
+    this.hand.hidden = true;
   }
 
   /** Pause screen over a running level; `coins` is what the run has earned so far. */
@@ -519,12 +578,32 @@ export class Ui {
     this.hint.classList.toggle('low', low);
     this.hint.hidden = false;
     this.hint.classList.remove('fade');
+    // the shooter shows the swipe with a hand as well, the way the ad shooters teach it
+    this.hand.hidden = !low;
+    this.hand.classList.remove('fade');
     window.clearTimeout(this.hintTimer);
-    this.hintTimer = window.setTimeout(() => this.hint.classList.add('fade'), ms);
+    this.hintTimer = window.setTimeout(() => {
+      this.hint.classList.add('fade');
+      this.hand.classList.add('fade');
+    }, ms);
+  }
+
+  /** Shooter HUD wallet: everything owned (including this run) and what the run has added. */
+  setCoins(total: number, gain: number): void {
+    if (total !== this.shownCoins) {
+      this.shownCoins = total;
+      this.hudCoins.textContent = formatCount(total);
+    }
+    if (gain !== this.shownGain) {
+      this.shownGain = gain;
+      this.hudGain.textContent = gain > 0 ? `+${formatCount(gain)}` : '';
+    }
   }
 
   setProgress(p: number): void {
-    this.hudBar.style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`;
+    const share = Math.max(0, Math.min(1, p));
+    this.hudBar.style.transform = `scaleX(${share})`;
+    this.hudPct.textContent = `${Math.floor(share * 100)}%`;
   }
 
   showResult(info: ResultInfo): void {
@@ -544,6 +623,7 @@ export class Ui {
     this.renderBars();
     this.hud.hidden = true;
     this.hint.hidden = true;
+    this.hand.hidden = true;
     this.pause.hidden = true;
     this.resultStars.hidden = !won;
     this.resultStars.replaceChildren(
