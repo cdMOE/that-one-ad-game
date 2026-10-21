@@ -382,6 +382,25 @@ body {
   transition: width 1s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s;
 }
 
+/* how far a lost run got: pink fill, a thin marker at the old record */
+.result-progress .goal-track {
+  position: relative;
+}
+
+.progress-fill {
+  background: var(--pink);
+}
+
+.progress-best {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--text);
+  opacity: 0.6;
+}
+
 .menu .btn-ghost {
   color: #fff;
   text-shadow: 0 1px 4px rgba(29, 42, 91, 0.7);
@@ -619,6 +638,29 @@ body {
   flex-grow: 2;
 }
 
+/* ---- pause -------------------------------------------------------------- */
+
+.pause {
+  background: rgba(238, 244, 255, 0.88);
+  backdrop-filter: blur(4px);
+}
+
+.pause-title {
+  margin: 0;
+  font-size: clamp(36px, 12vw, 56px);
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--blue);
+}
+
+.pause-actions {
+  width: min(100%, 280px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 .fps {
   position: absolute;
   left: 8px;
@@ -685,6 +727,13 @@ body {
   text-align: center;
   pointer-events: none;
   transition: opacity 0.6s ease;
+}
+
+/* shooter: low, just above the squad, so it never covers what comes down the field */
+.hint.low {
+  top: auto;
+  bottom: 24%;
+  font-size: 14px;
 }
 
 .hint.fade {

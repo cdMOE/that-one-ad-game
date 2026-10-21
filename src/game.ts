@@ -37,6 +37,8 @@ export class Game {
   private mode: GameMode | null = null;
   private levelIndex = 0;
   private backdrop: GameMode | null = null;
+  /** A paused shooter run: nothing moves until it is resumed or left. */
+  private paused = false;
 
   constructor(private readonly stage: HTMLElement) {
     this.canvas = document.createElement('canvas');
@@ -68,6 +70,8 @@ export class Game {
         onRetry: () => this.startLevel(this.levelIndex),
         onNext: () => this.startLevel(this.nextIndex(this.levelIndex)),
         onMenu: () => this.toMenu(),
+        onClose: () => (this.pausable() ? this.pause() : this.toMenu()),
+        onResume: () => this.resume(),
         onBuy: (kind) => this.buy(kind),
         onReset: () => {
           resetSave(this.save);
@@ -93,6 +97,17 @@ export class Game {
     const unlock = () => this.sfx.unlock();
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
+
+    // a shooter run pauses by itself when the player looks away (app switch, call, other tab)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.pause();
+    });
+    window.addEventListener('blur', () => this.pause());
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' && e.code !== 'KeyP') return;
+      if (this.paused) this.resume();
+      else this.pause();
+    });
 
     new ResizeObserver(() => this.resize()).observe(stage);
     // the 3D layer covers the whole window, which can change without the stage changing
@@ -133,6 +148,7 @@ export class Game {
 
   startLevel(index: number): void {
     if (index < 0 || index >= levels.length) return;
+    this.leaveRun();
     this.levelIndex = index;
     // a level that was already beaten pays less, so replaying it is no way around the wall
     this.ctx.coinFactor = this.save.completed[levels[index].id] ? REPLAY_PAYOUT : 1;
@@ -143,16 +159,57 @@ export class Game {
     const level = levels[index];
     const firstOfMode = levels.findIndex((l) => l.mode === level.mode) === index;
     if (firstOfMode && !this.save.completed[level.id]) {
-      this.ui.showHint(
-        level.mode === 'runner'
-          ? 'Drag left / right to pick the best gate'
-          : 'Slide your squad (drag or mouse). Smash the blocks, catch the power-ups, mow down the horde!',
-        5000,
-      );
+      if (level.mode === 'runner')
+        this.ui.showHint('Drag left / right to pick the best gate', 5000);
+      else
+        this.ui.showHint('Drag to slide. Smash blocks for power-ups, stop the horde!', 4000, true);
     }
   }
 
+  /** Only shooter runs pause; the runner keeps its old behaviour (the X leaves the level). */
+  private pausable(): boolean {
+    return (
+      this.state === 'playing' &&
+      this.mode !== null &&
+      levels[this.levelIndex].mode === 'stationary'
+    );
+  }
+
+  private pause(): void {
+    if (this.paused || !this.pausable() || !this.mode) return;
+    this.paused = true;
+    this.ui.showPause(this.mode.coinsEarned);
+  }
+
+  private resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    this.input.consumeDrag(); // finger travel on the pause screen must not move the squad
+    this.ui.hidePause();
+  }
+
+  /**
+   * Leaving a shooter run before it ends (retry or menu from the pause screen) still banks its
+   * coins and its progress record, as a lost run would.
+   */
+  private leaveRun(): void {
+    this.paused = false;
+    const mode = this.mode;
+    if (this.state !== 'playing' || !mode || levels[this.levelIndex].mode !== 'stationary') return;
+    this.save.coins += mode.coinsEarned;
+    this.recordProgress(levels[this.levelIndex], mode.progress);
+    writeSave(this.save);
+  }
+
+  /** Keeps the furthest a level was ever played; returns the record from before. */
+  private recordProgress(level: Level, reached: number): number {
+    const before = this.save.progress[level.id] ?? 0;
+    if (reached > before) this.save.progress[level.id] = Math.min(1, reached);
+    return before;
+  }
+
   private toMenu(): void {
+    this.leaveRun();
     this.state = 'menu';
     this.mode?.dispose?.();
     this.mode = null;
@@ -170,6 +227,7 @@ export class Game {
   }
 
   private update(dt: number): void {
+    if (this.paused) return;
     const active = this.mode ?? this.backdrop;
     if (active) {
       active.update(dt);
@@ -211,6 +269,8 @@ export class Game {
     this.save.coins += mode.coinsEarned;
     let stars = 0;
     let bonus = 0;
+    const shooter = level.mode === 'stationary';
+    const bestBefore = shooter ? this.recordProgress(level, won ? 1 : mode.progress) : 0;
     if (won) {
       stars =
         mode.stars ??
@@ -229,16 +289,18 @@ export class Game {
     }
     this.ui.setData(levels, this.save, this.params.get('unlock') === 'all');
     writeSave(this.save);
-    this.ui.showResult(
+    this.ui.showResult({
       won,
-      mode.survivors,
-      this.nextIndex(this.levelIndex) >= 0,
+      survivors: mode.survivors,
+      hasNext: this.nextIndex(this.levelIndex) >= 0,
       stars,
-      mode.coinsEarned,
-      level.mode === 'stationary',
+      coins: mode.coinsEarned,
+      upgradesAvailable: shooter,
       bonus,
       walletBefore,
-    );
+      ...(shooter ? { progress: { reached: mode.progress, bestBefore } } : {}),
+      ...(mode.lossReason ? { lossReason: mode.lossReason } : {}),
+    });
   }
 
   private draw(): void {

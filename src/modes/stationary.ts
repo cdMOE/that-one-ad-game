@@ -56,6 +56,8 @@ export class StationaryMode implements GameMode {
   private demo = false;
   private readonly coinMul: number;
   private coinPulse = 0;
+  /** What cost soldiers last: if the run is lost, that is what finished it. */
+  private lastBlow: 'horde' | 'volley' | null = null;
 
   private readonly scene: ShooterScene;
   private viewKey = -1;
@@ -132,12 +134,14 @@ export class StationaryMode implements GameMode {
           camera.shake(hit ? 0.3 : 0.1);
           sfx.boom();
           if (hit && lost > 0) {
+            this.lastBlow = 'volley';
             popups.add(this.sim.squadX, 2.4, `\u2212${lost}`, COLORS.bad, 1.1);
             particles.burst(this.sim.squadX, 0.8, 18, 6, Pc.Bad, 0.5, 0.18);
             this.pillPop = 1;
           }
         },
         bite: (x, y, lost) => {
+          this.lastBlow = 'horde';
           particles.burst(x, y, 10, 5, Pc.Bad, 0.5, 0.16);
           popups.add(this.sim.squadX, 2.4, `−${lost}`, COLORS.bad, 1.1);
           camera.shake(0.12 + Math.min(0.3, lost / 60));
@@ -243,6 +247,13 @@ export class StationaryMode implements GameMode {
    */
   get stars(): 1 | 2 | 3 {
     return starsFor(this.sim.count, this.sim.peak);
+  }
+
+  /** Why a lost run ended, for the result screen. */
+  get lossReason(): string | undefined {
+    if (this.lastBlow === 'volley') return 'A boss volley wiped out your squad.';
+    if (this.lastBlow === 'horde') return 'The horde broke through.';
+    return undefined;
   }
 
   update(dt: number): void {

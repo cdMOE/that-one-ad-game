@@ -18,6 +18,10 @@ export interface UiHandlers {
   onRetry(): void;
   onNext(): void;
   onMenu(): void;
+  /** The round button at the top left of the HUD: pauses a shooter run, leaves a runner run. */
+  onClose(): void;
+  /** Continues a paused run. */
+  onResume(): void;
   /** Returns the new muted state. */
   onToggleMute(): boolean;
   onClick(): void;
@@ -28,6 +32,26 @@ export interface UiHandlers {
 }
 
 type ElChild = Node | string;
+
+/** Everything the result screen shows. */
+export interface ResultInfo {
+  won: boolean;
+  survivors: number;
+  hasNext: boolean;
+  stars: number;
+  /** Coins of the run (before the first-clear bonus). */
+  coins: number;
+  /** Shooter screens carry the upgrade cards and the "next goal" bar. */
+  upgradesAvailable: boolean;
+  /** One-off first-clear bonus. */
+  bonus: number;
+  /** Wallet before the run's coins were added (the goal bar fills from there). */
+  walletBefore: number;
+  /** How far a lost run got (0..1), with the record before this run; shooter only. */
+  progress?: { reached: number; bestBefore: number };
+  /** Why a lost run ended. */
+  lossReason?: string;
+}
 
 const MODE_INFO: Record<LevelMode, { title: string; blurb: string }> = {
   runner: { title: 'RUNNER', blurb: 'Run, pick the right gates, crush the boss' },
@@ -55,6 +79,8 @@ const ICON_SOUND_ON =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const ICON_SOUND_OFF =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ICON_PAUSE =
+  '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
 const ICON_BACK =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
@@ -67,6 +93,9 @@ export class Ui {
   private readonly hudName: HTMLElement;
   private readonly hudBar: HTMLElement;
   private readonly muteBtn: HTMLButtonElement;
+  private readonly closeBtn: HTMLButtonElement;
+  private readonly pause: HTMLElement;
+  private readonly pauseSub: HTMLElement;
   private readonly result: HTMLElement;
   private readonly resultTitle: HTMLElement;
   private readonly resultSub: HTMLElement;
@@ -83,6 +112,10 @@ export class Ui {
   private readonly resultGoal: HTMLElement;
   private readonly resultGoalLabel: HTMLElement;
   private readonly resultGoalFill: HTMLElement;
+  private readonly resultProgress: HTMLElement;
+  private readonly resultProgressLabel: HTMLElement;
+  private readonly resultProgressFill: HTMLElement;
+  private readonly resultProgressBest: HTMLElement;
   private readonly resetBtn: HTMLButtonElement;
   private resetTimer = 0;
   /** Redraw functions of every upgrade bar on screen (they all show the same wallet). */
@@ -153,7 +186,36 @@ export class Ui {
     closeBtn.innerHTML = ICON_BACK;
     closeBtn.addEventListener(
       'click',
-      click(() => handlers.onMenu()),
+      click(() => handlers.onClose()),
+    );
+    this.closeBtn = closeBtn;
+
+    // pause (shooter): leaving from here keeps the coins of the run
+    this.pauseSub = h('p', { class: 'result-sub' });
+    this.pause = h(
+      'section',
+      { class: 'screen pause' },
+      h('h2', { class: 'pause-title', text: 'PAUSED' }),
+      this.pauseSub,
+      h(
+        'div',
+        { class: 'pause-actions' },
+        h('button', {
+          class: 'btn btn-primary',
+          text: 'RESUME',
+          onclick: click(() => handlers.onResume()),
+        }),
+        h('button', {
+          class: 'btn btn-secondary',
+          text: 'RETRY',
+          onclick: click(() => handlers.onRetry()),
+        }),
+        h('button', {
+          class: 'btn btn-ghost',
+          text: 'MENU',
+          onclick: click(() => handlers.onMenu()),
+        }),
+      ),
     );
     this.hud = h(
       'div',
@@ -183,6 +245,17 @@ export class Ui {
       h('div', { class: 'goal-track' }, this.resultGoalFill),
     );
     this.resultGoal.hidden = true;
+    // how far a lost shooter run got, against the record
+    this.resultProgressLabel = h('span', { class: 'goal-label' });
+    this.resultProgressFill = h('div', { class: 'goal-fill progress-fill' });
+    this.resultProgressBest = h('div', { class: 'progress-best' });
+    this.resultProgress = h(
+      'div',
+      { class: 'result-goal result-progress' },
+      this.resultProgressLabel,
+      h('div', { class: 'goal-track' }, this.resultProgressFill, this.resultProgressBest),
+    );
+    this.resultProgress.hidden = true;
     this.nextBtn = h('button', {
       class: 'btn btn-primary',
       text: 'NEXT LEVEL',
@@ -194,6 +267,7 @@ export class Ui {
       this.resultTitle,
       this.resultStars,
       this.resultSub,
+      this.resultProgress,
       this.resultCoins,
       this.resultGoal,
       // actions sit side by side and the upgrade cards follow directly below them
@@ -216,7 +290,7 @@ export class Ui {
     );
 
     this.fpsEl = debug ? h('div', { class: 'fps' }) : null;
-    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.result);
+    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.result, this.pause);
     if (this.fpsEl) root.append(this.fpsEl);
     document.title = GAME_TITLE;
     this.hideAll();
@@ -228,6 +302,7 @@ export class Ui {
     muted: false,
     coins: 0,
     upgrades: noUpgrades(),
+    progress: {},
   };
   private unlockAll = false;
 
@@ -280,7 +355,9 @@ export class Ui {
   }
 
   private hideAll(): void {
-    for (const el of [this.menu, this.levelScreen, this.result, this.hud]) el.hidden = true;
+    for (const el of [this.menu, this.levelScreen, this.result, this.hud, this.pause]) {
+      el.hidden = true;
+    }
   }
 
   showMenu(): void {
@@ -376,8 +453,11 @@ export class Ui {
   openLevels(mode: LevelMode): void {
     this.hideAll();
     this.levelTitle.textContent = MODE_INFO[mode].title;
-    this.levelBar.hidden = mode !== 'stationary';
-    this.levelScreen.classList.toggle('has-bar', mode === 'stationary');
+    // a newcomer with an empty wallet has nothing to buy yet: the cards appear after the first run
+    const fresh = this.save.coins === 0 && UPGRADE_KINDS.every((k) => this.save.upgrades[k] === 0);
+    const bar = mode === 'stationary' && !fresh;
+    this.levelBar.hidden = !bar;
+    this.levelScreen.classList.toggle('has-bar', bar);
     this.renderBars();
     this.levelGrid.replaceChildren();
     this.indicesOf(mode).forEach((i, pos) => {
@@ -408,14 +488,35 @@ export class Ui {
     this.hideAll();
     const pos = this.indicesOf(level.mode).indexOf(index);
     this.hudName.textContent = `${pos + 1}. ${level.name}`;
+    // a shooter run can be paused (and left from the pause screen); a runner run is left directly
+    const pausable = level.mode === 'stationary';
+    this.closeBtn.innerHTML = pausable ? ICON_PAUSE : ICON_BACK;
+    this.closeBtn.title = pausable ? 'Pause' : 'Back to menu';
     this.setProgress(0);
     this.hud.hidden = false;
     this.hint.hidden = true;
   }
 
-  /** Short instruction text over the track that fades out by itself. */
-  showHint(text: string, ms = 3500): void {
+  /** Pause screen over a running level; `coins` is what the run has earned so far. */
+  showPause(coins: number): void {
+    this.pauseSub.textContent =
+      coins > 0
+        ? `+${formatCount(coins)} coins so far. You keep them if you leave.`
+        : 'Take a breath.';
+    this.pause.hidden = false;
+  }
+
+  hidePause(): void {
+    this.pause.hidden = true;
+  }
+
+  /**
+   * Short instruction text that fades out by itself: over the track (runner) or low, just above
+   * the squad, where it does not cover what comes down the field (shooter).
+   */
+  showHint(text: string, ms = 3500, low = false): void {
     this.hint.textContent = text;
+    this.hint.classList.toggle('low', low);
     this.hint.hidden = false;
     this.hint.classList.remove('fade');
     window.clearTimeout(this.hintTimer);
@@ -426,16 +527,8 @@ export class Ui {
     this.hudBar.style.transform = `scaleX(${Math.max(0, Math.min(1, p))})`;
   }
 
-  showResult(
-    won: boolean,
-    survivors: number,
-    hasNext: boolean,
-    stars: number,
-    coins = 0,
-    upgradesAvailable = false,
-    bonus = 0,
-    walletBefore = this.save.coins,
-  ): void {
+  showResult(info: ResultInfo): void {
+    const { won, survivors, stars, coins, upgradesAvailable, bonus } = info;
     const total = coins + bonus;
     this.resultCoins.textContent =
       bonus > 0
@@ -444,12 +537,14 @@ export class Ui {
           ? `+${formatCount(coins)} coins`
           : '';
     this.resultCoins.hidden = total <= 0;
-    this.showGoal(upgradesAvailable, walletBefore);
+    this.showGoal(upgradesAvailable, info.walletBefore);
+    this.showProgress(won ? undefined : info.progress);
     this.resultBar.hidden = !upgradesAvailable;
     this.result.classList.toggle('has-bar', upgradesAvailable);
     this.renderBars();
     this.hud.hidden = true;
     this.hint.hidden = true;
+    this.pause.hidden = true;
     this.resultStars.hidden = !won;
     this.resultStars.replaceChildren(
       ...[1, 2, 3].map((n) =>
@@ -462,10 +557,32 @@ export class Ui {
     this.resultSub.textContent = won
       ? `${survivors} survivor${survivors === 1 ? '' : 's'} made it`
       : upgradesAvailable
-        ? 'Tap a card to upgrade, then try again.'
+        ? `${info.lossReason ?? 'Your squad was wiped out.'} ${this.canBuy() ? 'Upgrade, then try again.' : 'Try again!'}`
         : 'Your crowd was wiped out. Try another path through the gates.';
-    this.nextBtn.hidden = !(won && hasNext);
+    this.nextBtn.hidden = !(won && info.hasNext);
     this.result.hidden = false;
+  }
+
+  /** True when the wallet pays for at least one upgrade. */
+  private canBuy(): boolean {
+    return UPGRADE_KINDS.some((k) => this.save.coins >= upgradeCost(k, this.save.upgrades[k]));
+  }
+
+  /** How far a lost run got, with a marker at the old record and a cheer when it was beaten. */
+  private showProgress(p: ResultInfo['progress']): void {
+    this.resultProgress.hidden = !p;
+    if (!p) return;
+    const pct = (x: number) => `${Math.round(Math.max(0, Math.min(1, x)) * 100)}%`;
+    const record = p.reached > p.bestBefore && p.bestBefore > 0;
+    this.resultProgressLabel.textContent = record
+      ? `New record: ${pct(p.reached)} of the level!`
+      : p.bestBefore > 0
+        ? `Reached ${pct(p.reached)} of the level · best ${pct(p.bestBefore)}`
+        : `Reached ${pct(p.reached)} of the level`;
+    this.resultProgress.classList.toggle('ready', record);
+    this.resultProgressFill.style.width = pct(p.reached);
+    this.resultProgressBest.hidden = p.bestBefore <= 0;
+    this.resultProgressBest.style.left = pct(p.bestBefore);
   }
 
   /**

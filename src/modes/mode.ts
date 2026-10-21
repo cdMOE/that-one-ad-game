@@ -42,6 +42,8 @@ export interface GameMode {
    * compares the survivors with the level's best case (`referenceSurvivors`).
    */
   readonly stars?: 1 | 2 | 3;
+  /** Why a lost run ended, in one short sentence, for modes that can tell. */
+  readonly lossReason?: string;
   update(dt: number): void;
   /** Draws a frame. 2D modes paint the whole canvas; 3D modes render to the GL layer and paint only the overlay. */
   render(ctx: CanvasRenderingContext2D): void;
