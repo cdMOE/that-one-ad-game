@@ -86,6 +86,29 @@ const ICON_FLAG =
 const ICON_BACK =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
+/** One bullet pointing right, for the fire rate picture. */
+const BULLET =
+  '<rect width="11" height="11" rx="1.5" fill="#c98a1c"/><path d="M11 0h7c6 0 10 3 13 5.5C28 8 24 11 18 11h-7z" fill="#f5c04a"/>';
+/** Big pictures on the upgrade cards (64x64, outlined like the rest of the ad look). */
+const UPGRADE_ART: Record<UpgradeKind, string> = {
+  damage:
+    '<svg viewBox="0 0 64 64"><path d="M32 5L37 21L51.8 13.2L44 28L60 33L44 38L51.8 52.8L37 45L32 61L27 45L12.2 52.8L20 38L4 33L20 28L12.2 13.2L27 21Z" fill="#ffd23f" stroke="#1b1b1b" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="33" r="8" fill="#ff7a1a"/></svg>',
+  rate:
+    '<svg viewBox="0 0 64 64"><g stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity="0.8"><path d="M4 18h12M2 34h12M6 50h12"/></g>' +
+    `<g stroke="#1b1b1b" stroke-width="2" stroke-linejoin="round"><g transform="translate(22 11)">${BULLET}</g><g transform="translate(18 27)">${BULLET}</g><g transform="translate(22 43)">${BULLET}</g></g></svg>`,
+  soldiers:
+    '<svg viewBox="0 0 64 64"><g stroke="#1b1b1b" stroke-width="2.5" stroke-linejoin="round"><path d="M12 60c0-13 8-19 18-19s18 6 18 19z" fill="#e3e9f5"/><circle cx="30" cy="31" r="11" fill="#ffd2a6"/><path d="M17 30a13 13 0 0 1 26 0z" fill="#2f7bff"/></g><path d="M50 10v16M42 18h16" stroke="#fff" stroke-width="5" stroke-linecap="round"/></svg>',
+  coins:
+    '<svg viewBox="0 0 64 64"><g stroke="#1b1b1b" stroke-width="2.5" fill="#ffd21f">' +
+    [46, 37, 28]
+      .map(
+        (y) =>
+          `<path d="M8 ${y}v6a18 7 0 0 0 36 0v-6" fill="#e9a300"/><ellipse cx="26" cy="${y}" rx="18" ry="7"/>`,
+      )
+      .join('') +
+    '<circle cx="46" cy="40" r="14"/><circle cx="46" cy="40" r="8" fill="#ffe680" stroke-width="2"/></g></svg>',
+};
+
 /** DOM overlay on top of the game canvas: menu, level select, HUD and result screens. */
 export class Ui {
   private readonly menu: HTMLElement;
@@ -185,8 +208,9 @@ export class Ui {
         }),
         this.levelTitle,
       ),
-      this.levelBar,
       this.levelGrid,
+      // the upgrade cards sit at the bottom of the mode screen, where the thumb is
+      this.levelBar,
     );
 
     // HUD
@@ -456,8 +480,9 @@ export class Ui {
   }
 
   /**
-   * A wallet line and one card per permanent upgrade. Tapping an affordable card buys the next
-   * level on the spot, so upgrading and retrying happen on the same screen.
+   * A wallet line and one big, coloured card per permanent upgrade, ad-game style: a picture,
+   * the level as pips and a chunky price button. Tapping an affordable card buys the next level
+   * on the spot, so upgrading and retrying happen on the same screen.
    */
   private makeUpgradeBar(): HTMLElement {
     const wallet = h('span', { class: 'up-wallet' });
@@ -465,11 +490,16 @@ export class Ui {
     const bar = h(
       'div',
       { class: 'upgrade-bar' },
-      h('div', { class: 'up-head' }, h('span', { class: 'up-label', text: 'UPGRADES' }), wallet),
+      h(
+        'div',
+        { class: 'up-head' },
+        h('span', { class: 'up-label', text: 'UPGRADES' }),
+        h('span', { class: 'up-purse' }, wallet, h('span', { class: 'up-coin' })),
+      ),
       cards,
     );
     this.barRenderers.push(() => {
-      wallet.textContent = `${formatCount(this.save.coins)} coins`;
+      wallet.textContent = formatCount(this.save.coins);
       cards.replaceChildren();
       for (const kind of UPGRADE_KINDS) {
         const info = UPGRADES[kind];
@@ -477,21 +507,39 @@ export class Ui {
         const maxed = isMaxed(kind, level);
         const cost = upgradeCost(kind, level);
         const affordable = !maxed && this.save.coins >= cost;
+        const art = h('span', { class: 'up-art' });
+        art.innerHTML = UPGRADE_ART[kind];
+        art.append(h('span', { class: 'up-badge', text: String(level) }));
+        if (level > 0)
+          art.append(h('span', { class: 'up-effect', text: upgradeEffect(kind, level) }));
+        const pips = h('span', { class: 'up-pips' });
+        for (let i = 0; i < info.maxLevel; i++) {
+          pips.append(h('span', { class: i < level ? 'pip on' : 'pip' }));
+        }
         const card = h(
           'button',
-          { class: `up-card${affordable ? ' can' : ''}${maxed ? ' maxed' : ''}` },
+          {
+            class: `up-card up-${kind}${affordable ? ' can' : ''}${maxed ? ' maxed' : ''}`,
+            title: info.blurb,
+          },
           h('span', { class: 'up-title', text: info.title.toUpperCase() }),
-          h('span', { class: 'up-lv', text: maxed ? 'MAX' : `Lv ${level}` }),
-          h('span', {
-            class: 'up-gain',
-            text: maxed
-              ? upgradeEffect(kind, level)
-              : `${upgradeEffect(kind, level)} \u2192 ${upgradeEffect(kind, level + 1)}`,
-          }),
-          h('span', { class: 'up-cost', text: maxed ? 'MAXED' : formatCount(cost) }),
-          h('span', { class: 'up-fill' }),
+          art,
+          pips,
+          h(
+            'span',
+            { class: 'up-buy' },
+            h('span', { class: 'up-buy-label', text: maxed ? 'MAX' : 'UPGRADE' }),
+            maxed
+              ? ''
+              : h(
+                  'span',
+                  { class: 'up-price' },
+                  h('span', { class: 'up-coin' }),
+                  formatCount(cost),
+                ),
+          ),
         );
-        // a thin bar along the bottom shows how close the wallet is to the price
+        // the grey price button fills with gold as the wallet gets closer to the price
         card.style.setProperty(
           '--fill',
           `${maxed ? 0 : Math.min(100, (this.save.coins / cost) * 100)}%`,
@@ -519,9 +567,8 @@ export class Ui {
   openLevels(mode: LevelMode): void {
     this.hideAll();
     this.levelTitle.textContent = MODE_INFO[mode].title;
-    // a newcomer with an empty wallet has nothing to buy yet: the cards appear after the first run
-    const fresh = this.save.coins === 0 && UPGRADE_KINDS.every((k) => this.save.upgrades[k] === 0);
-    const bar = mode === 'stationary' && !fresh;
+    // the cards show from the very first visit, so a newcomer knows what the coins are for
+    const bar = mode === 'stationary';
     this.levelBar.hidden = !bar;
     this.levelScreen.classList.toggle('has-bar', bar);
     this.renderBars();
