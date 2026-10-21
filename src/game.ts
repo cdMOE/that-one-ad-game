@@ -212,8 +212,9 @@ export class Game {
     let stars = 0;
     let bonus = 0;
     if (won) {
-      const tier = Math.round((this.save.upgrades.damage + this.save.upgrades.rate) / 2);
-      stars = starsFor(mode.survivors, referenceSurvivors(level, tier));
+      stars =
+        mode.stars ??
+        (level.mode === 'runner' ? starsFor(mode.survivors, referenceSurvivors(level)) : 3);
       const prev = this.save.completed[level.id];
       if (!prev && level.mode === 'stationary') {
         // the first win pays a one-off bonus that grows with the level

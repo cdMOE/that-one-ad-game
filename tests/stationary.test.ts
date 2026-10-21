@@ -501,6 +501,20 @@ describe('StationarySim', () => {
     expect(sim.lane.elements[0].hp).toBeGreaterThan(130);
   });
 
+  it('remembers the biggest squad of the run, also after bites (stars compare against it)', () => {
+    const level = withLane(
+      [
+        { type: 'block', hp: 5 },
+        { type: 'item', item: { kind: 'crowd', op: '+', value: 5 } },
+      ],
+      { monsters: [{ kind: 'grunt', count: 3, hp: 1000, interval: 0.5, delay: 4 }] },
+    );
+    const sim = new StationarySim(level, mulberry32(1));
+    run(sim, 60, (s) => (s.targetX = s.lane.x)); // catch the power-up, then let the grunts bite
+    expect(sim.peak).toBe(15);
+    expect(sim.count).toBe(12);
+  });
+
   it('is deterministic for a given seed', () => {
     expect(runBot(base, 42)).toEqual(runBot(base, 42));
   });

@@ -241,6 +241,8 @@ export interface SimOptions {
 
 export class StationarySim {
   count: number;
+  /** Biggest the squad has been in this run (stars compare the survivors with it). */
+  peak: number;
   readonly weapon: WeaponState;
   phase: SimPhase = 'gap';
   time = 0;
@@ -309,6 +311,7 @@ export class StationarySim {
     options: SimOptions = { damageMul: 1, rateMul: 1 },
   ) {
     this.count = level.startCount + (options.startBonus ?? 0);
+    this.peak = this.count;
     this.weapon = newWeaponState(level.weapon);
     this.weapon.damageMul = options.damageMul;
     this.weapon.rateMul = options.rateMul;
@@ -743,8 +746,10 @@ export class StationarySim {
   }
 
   private applyItem(def: ItemDef): void {
-    if (def.kind === 'crowd') this.count = applyGate(this.count, def);
-    else if (def.kind === 'upgrade') applyUpgrade(this.weapon, def.stat, def.value);
+    if (def.kind === 'crowd') {
+      this.count = applyGate(this.count, def);
+      this.peak = Math.max(this.peak, this.count);
+    } else if (def.kind === 'upgrade') applyUpgrade(this.weapon, def.stat, def.value);
     else this.weapon.id = def.weapon;
   }
 

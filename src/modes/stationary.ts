@@ -2,6 +2,7 @@ import { COLORS, FONT } from '../config';
 import { Pc } from '../core/particles';
 import { drawPill } from '../core/render';
 import { formatCount } from '../core/rules';
+import { starsFor } from '../levels/analyze';
 import { startSoldiers, upgradeMultiplier } from '../core/shop';
 import { Swarm } from '../core/swarm';
 import type { ItemDef, StationaryLevel } from '../levels/schema';
@@ -234,6 +235,14 @@ export class StationaryMode implements GameMode {
 
   get coinsEarned(): number {
     return Math.floor(this.sim.coinsRaw * this.coinMul);
+  }
+
+  /**
+   * A clean run earns three stars: they measure how much of the biggest squad of the run is
+   * still standing at the end. Cheap and the same for everyone, whatever they bought.
+   */
+  get stars(): 1 | 2 | 3 {
+    return starsFor(this.sim.count, this.sim.peak);
   }
 
   update(dt: number): void {
