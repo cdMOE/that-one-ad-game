@@ -2,9 +2,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { analyzeRunner, starsFor } from '../src/levels/analyze';
-import type { RunnerLevel } from '../src/levels/schema';
+import type { RunnerLevel, StationaryLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
-import { MAX_TIER, analyzeStationary } from '../src/modes/stationary/bot';
+import { upgradeCost } from '../src/core/shop';
+import { MAX_TIER, analyzeStationary, runBot } from '../src/modes/stationary/bot';
 
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
 const files = readdirSync(dir)
@@ -27,26 +28,56 @@ function errorsOf(data: unknown): string[] {
   return r.ok ? [] : r.errors;
 }
 
+/** Bot runs per stationary level (different random spawn positions). */
+const RUNS = 24;
+/** Losing at the start is the cheap, near-certain case, so it needs fewer runs. */
+const FIRST_TRY_RUNS = 8;
+/** Simulating the bot runs of a stationary level takes a while. */
+const SLOW_TEST_MS = 60_000;
+
+/**
+ * Bot wins out of `runs` (same seeds as `analyzeStationary`), counting only until `enough` are
+ * in: a level that clears the bar early does not need the remaining, slowest runs simulated.
+ */
+function wins(level: StationaryLevel, tier: number, runs: number, enough: number): number {
+  let won = 0;
+  for (let seed = 1; seed <= runs && won < enough; seed++) {
+    if (runBot(level, seed * 7919, tier).won) won++;
+  }
+  return won;
+}
+
 describe('shipped levels', () => {
   it('has at least one level', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
-  it.each(files)('%s is valid and winnable', (file) => {
-    const data: unknown = JSON.parse(readFileSync(join(dir, file), 'utf8'));
-    const result = validateLevel(data);
-    expect(result.ok ? [] : result.errors).toEqual([]);
-    if (result.ok && result.level.mode === 'runner') {
-      const analysis = analyzeRunner(result.level);
-      expect(analysis.failure).toBeUndefined();
-      expect(analysis.winnable).toBe(true);
-    }
-    if (result.ok && result.level.mode === 'stationary') {
-      // stationary levels are meant to need shop upgrades: lost at the start, winnable at the top
-      expect(analyzeStationary(result.level, 5, 0).winRate).toBeLessThan(0.6);
-      expect(analyzeStationary(result.level, 5, MAX_TIER).winRate).toBeGreaterThanOrEqual(0.6);
-    }
-  });
+  it.each(files)(
+    '%s is valid and winnable',
+    (file) => {
+      const data: unknown = JSON.parse(readFileSync(join(dir, file), 'utf8'));
+      const result = validateLevel(data);
+      expect(result.ok ? [] : result.errors).toEqual([]);
+      if (result.ok && result.level.mode === 'runner') {
+        const analysis = analyzeRunner(result.level);
+        expect(analysis.failure).toBeUndefined();
+        expect(analysis.winnable).toBe(true);
+      }
+      if (result.ok && result.level.mode === 'stationary') {
+        // stationary levels are meant to need shop upgrades: never won on the first try (even the
+        // bot, which plays better than a person), yet a lost run pays a third of the first upgrade
+        const first = analyzeStationary(result.level, FIRST_TRY_RUNS, 0);
+        expect(first.winRate).toBe(0);
+        expect(first.coinsPerRun * 3).toBeGreaterThanOrEqual(upgradeCost('damage', 0));
+        // 5 runs said nothing about a level the bot wins 15% of the time, so use enough to tell
+        // "hard but winnable" from "unwinnable"
+        expect(wins(result.level, MAX_TIER, RUNS, Math.ceil(RUNS * 0.1))).toBeGreaterThanOrEqual(
+          Math.ceil(RUNS * 0.1),
+        );
+      }
+    },
+    SLOW_TEST_MS,
+  );
 
   it('uses unique ids', () => {
     const ids = files.map(

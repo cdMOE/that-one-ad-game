@@ -1,9 +1,12 @@
 import { GAME_TAGLINE, GAME_TITLE } from '../config';
+import { formatCount } from '../core/rules';
 import {
+  isMaxed,
+  noUpgrades,
   UPGRADE_KINDS,
   UPGRADES,
   upgradeCost,
-  upgradeMultiplier,
+  upgradeEffect,
   type UpgradeKind,
 } from '../core/shop';
 import type { SaveData } from '../core/storage';
@@ -20,6 +23,8 @@ export interface UiHandlers {
   onClick(): void;
   /** Buys the next level of an upgrade (the game checks the price and saves). */
   onBuy(kind: UpgradeKind): void;
+  /** Throws away all progress, coins and upgrades (the UI has already asked twice). */
+  onReset(): void;
 }
 
 type ElChild = Node | string;
@@ -71,16 +76,17 @@ export class Ui {
   private readonly nextBtn: HTMLButtonElement;
   private readonly modeList: HTMLElement;
   private readonly levelTitle: HTMLElement;
-  private readonly levelShopBtn: HTMLButtonElement;
-  private currentMode: LevelMode = 'runner';
+  private readonly levelBar: HTMLElement;
   private readonly fpsEl: HTMLElement | null;
-  private readonly shop: HTMLElement;
-  private readonly shopCoins: HTMLElement;
-  private readonly shopList: HTMLElement;
+  private readonly resultBar: HTMLElement;
   private readonly resultCoins: HTMLElement;
-  private readonly shopBtn: HTMLButtonElement;
-  private readonly resultShopBtn: HTMLButtonElement;
-  private shopBack: () => void = () => {};
+  private readonly resultGoal: HTMLElement;
+  private readonly resultGoalLabel: HTMLElement;
+  private readonly resultGoalFill: HTMLElement;
+  private readonly resetBtn: HTMLButtonElement;
+  private resetTimer = 0;
+  /** Redraw functions of every upgrade bar on screen (they all show the same wallet). */
+  private readonly barRenderers: Array<() => void> = [];
 
   constructor(
     root: HTMLElement,
@@ -92,25 +98,16 @@ export class Ui {
       fn();
     };
 
-    // shop (permanent upgrades bought with coins)
-    this.shopCoins = h('div', { class: 'shop-coins' });
-    this.shopList = h('div', { class: 'shop-list' });
-    this.shop = h(
-      'section',
-      { class: 'screen shop' },
-      h('h2', { text: 'Upgrades' }),
-      this.shopCoins,
-      this.shopList,
-      h('button', {
-        class: 'btn btn-secondary',
-        text: 'BACK',
-        onclick: click(() => this.shopBack()),
-      }),
-    );
-    this.shopBtn = h('button', {
-      class: 'btn btn-secondary btn-shop',
-      onclick: click(() => this.openShop(() => this.showMenu())),
+    // the permanent upgrades live in a bar of cards on the shooter screens (no menu of their own)
+    this.resultBar = this.makeUpgradeBar();
+    this.levelBar = this.makeUpgradeBar();
+
+    // erasing everything needs two taps; the button goes back to normal after a few seconds
+    this.resetBtn = h('button', {
+      class: 'btn btn-ghost btn-reset',
+      onclick: () => this.pressReset(),
     });
+    this.resetLabel(false);
 
     // main menu
     this.modeList = h('div', { class: 'mode-list' });
@@ -121,28 +118,28 @@ export class Ui {
       h('p', { class: 'tagline', text: GAME_TAGLINE }),
       h('p', { class: 'pick', text: 'Choose a game mode' }),
       this.modeList,
-      this.shopBtn,
+      this.resetBtn,
       h('p', { class: 'fine', text: 'Open source. MIT licensed. No ads. Promise.' }),
     );
 
     // level select
     this.levelGrid = h('div', { class: 'level-grid' });
     this.levelTitle = h('h2');
-    this.levelShopBtn = h('button', {
-      class: 'btn btn-primary btn-small',
-      onclick: click(() => this.openShop(() => this.openLevels(this.currentMode))),
-    });
     this.levelScreen = h(
       'section',
       { class: 'screen levels' },
-      this.levelTitle,
-      this.levelShopBtn,
+      h(
+        'div',
+        { class: 'levels-head' },
+        h('button', {
+          class: 'btn btn-secondary btn-small btn-back',
+          text: '‹ BACK',
+          onclick: click(() => this.showMenu()),
+        }),
+        this.levelTitle,
+      ),
+      this.levelBar,
       this.levelGrid,
-      h('button', {
-        class: 'btn btn-secondary',
-        text: 'BACK',
-        onclick: click(() => this.showMenu()),
-      }),
     );
 
     // HUD
@@ -177,11 +174,15 @@ export class Ui {
     this.hint = h('div', { class: 'hint' });
     this.hint.hidden = true;
     this.resultCoins = h('p', { class: 'result-coins' });
-    this.resultShopBtn = h('button', {
-      class: 'btn btn-primary',
-      text: 'UPGRADES',
-      onclick: click(() => this.openShop(() => (this.result.hidden = false))),
-    });
+    this.resultGoalLabel = h('span', { class: 'goal-label' });
+    this.resultGoalFill = h('div', { class: 'goal-fill' });
+    this.resultGoal = h(
+      'div',
+      { class: 'result-goal' },
+      this.resultGoalLabel,
+      h('div', { class: 'goal-track' }, this.resultGoalFill),
+    );
+    this.resultGoal.hidden = true;
     this.nextBtn = h('button', {
       class: 'btn btn-primary',
       text: 'NEXT LEVEL',
@@ -194,22 +195,28 @@ export class Ui {
       this.resultStars,
       this.resultSub,
       this.resultCoins,
-      this.resultShopBtn,
-      this.nextBtn,
-      h('button', {
-        class: 'btn btn-secondary',
-        text: 'RETRY',
-        onclick: click(() => handlers.onRetry()),
-      }),
-      h('button', {
-        class: 'btn btn-ghost',
-        text: 'MENU',
-        onclick: click(() => handlers.onMenu()),
-      }),
+      this.resultGoal,
+      // actions sit side by side and the upgrade cards follow directly below them
+      h(
+        'div',
+        { class: 'result-actions' },
+        this.nextBtn,
+        h('button', {
+          class: 'btn btn-secondary btn-retry',
+          text: 'RETRY',
+          onclick: click(() => handlers.onRetry()),
+        }),
+        h('button', {
+          class: 'btn btn-ghost btn-menu',
+          text: 'MENU',
+          onclick: click(() => handlers.onMenu()),
+        }),
+      ),
+      this.resultBar,
     );
 
     this.fpsEl = debug ? h('div', { class: 'fps' }) : null;
-    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.shop, this.result);
+    root.append(this.hud, this.hint, this.menu, this.levelScreen, this.result);
     if (this.fpsEl) root.append(this.fpsEl);
     document.title = GAME_TITLE;
     this.hideAll();
@@ -220,7 +227,7 @@ export class Ui {
     completed: {},
     muted: false,
     coins: 0,
-    upgrades: { damage: 0, rate: 0, coins: 0 },
+    upgrades: noUpgrades(),
   };
   private unlockAll = false;
 
@@ -229,6 +236,7 @@ export class Ui {
     this.save = save;
     this.unlockAll = unlockAll;
     this.setMuted(save.muted);
+    this.renderBars();
   }
 
   /** Global indices of the levels of one mode, in order. */
@@ -248,14 +256,31 @@ export class Ui {
     return this.save.completed[this.levels[list[pos - 1]].id] !== undefined;
   }
 
+  private resetLabel(armed: boolean): void {
+    this.resetBtn.textContent = armed ? 'TAP AGAIN: ERASE EVERYTHING' : 'RESET PROGRESS';
+    this.resetBtn.classList.toggle('armed', armed);
+  }
+
+  private pressReset(): void {
+    this.handlers.onClick();
+    if (this.resetBtn.classList.contains('armed')) {
+      window.clearTimeout(this.resetTimer);
+      this.resetLabel(false);
+      this.handlers.onReset();
+      return;
+    }
+    this.resetLabel(true);
+    window.clearTimeout(this.resetTimer);
+    this.resetTimer = window.setTimeout(() => this.resetLabel(false), 4000);
+  }
+
   setMuted(muted: boolean): void {
     this.muteBtn.innerHTML = muted ? ICON_SOUND_OFF : ICON_SOUND_ON;
     this.muteBtn.setAttribute('aria-pressed', String(muted));
   }
 
   private hideAll(): void {
-    for (const el of [this.menu, this.levelScreen, this.shop, this.result, this.hud])
-      el.hidden = true;
+    for (const el of [this.menu, this.levelScreen, this.result, this.hud]) el.hidden = true;
   }
 
   showMenu(): void {
@@ -282,58 +307,78 @@ export class Ui {
         ),
       );
     }
-    this.shopBtn.textContent = `UPGRADES \u00b7 ${this.save.coins} coins`;
+    window.clearTimeout(this.resetTimer);
+    this.resetLabel(false);
     this.menu.hidden = false;
   }
 
-  /** Shop screen; `back` runs when the player leaves it. */
-  openShop(back: () => void): void {
-    this.shopBack = back;
-    this.result.hidden = true;
-    this.menu.hidden = true;
-    this.renderShop();
-    this.shop.hidden = false;
+  /**
+   * A wallet line and one card per permanent upgrade. Tapping an affordable card buys the next
+   * level on the spot, so upgrading and retrying happen on the same screen.
+   */
+  private makeUpgradeBar(): HTMLElement {
+    const wallet = h('span', { class: 'up-wallet' });
+    const cards = h('div', { class: 'up-cards' });
+    const bar = h(
+      'div',
+      { class: 'upgrade-bar' },
+      h('div', { class: 'up-head' }, h('span', { class: 'up-label', text: 'UPGRADES' }), wallet),
+      cards,
+    );
+    this.barRenderers.push(() => {
+      wallet.textContent = `${formatCount(this.save.coins)} coins`;
+      cards.replaceChildren();
+      for (const kind of UPGRADE_KINDS) {
+        const info = UPGRADES[kind];
+        const level = this.save.upgrades[kind];
+        const maxed = isMaxed(kind, level);
+        const cost = upgradeCost(kind, level);
+        const affordable = !maxed && this.save.coins >= cost;
+        const card = h(
+          'button',
+          { class: `up-card${affordable ? ' can' : ''}${maxed ? ' maxed' : ''}` },
+          h('span', { class: 'up-title', text: info.title.toUpperCase() }),
+          h('span', { class: 'up-lv', text: maxed ? 'MAX' : `Lv ${level}` }),
+          h('span', {
+            class: 'up-gain',
+            text: maxed
+              ? upgradeEffect(kind, level)
+              : `${upgradeEffect(kind, level)} \u2192 ${upgradeEffect(kind, level + 1)}`,
+          }),
+          h('span', { class: 'up-cost', text: maxed ? 'MAXED' : formatCount(cost) }),
+          h('span', { class: 'up-fill' }),
+        );
+        // a thin bar along the bottom shows how close the wallet is to the price
+        card.style.setProperty(
+          '--fill',
+          `${maxed ? 0 : Math.min(100, (this.save.coins / cost) * 100)}%`,
+        );
+        card.disabled = !affordable;
+        card.addEventListener('click', () => {
+          this.handlers.onClick();
+          this.handlers.onBuy(kind);
+          this.renderBars();
+          // restart the pop animation on the card that was just bought
+          const bought = cards.children[UPGRADE_KINDS.indexOf(kind)];
+          bought?.classList.add('pop');
+        });
+        cards.append(card);
+      }
+    });
+    return bar;
   }
 
-  /** Redraws the shop (called after a purchase). */
-  renderShop(): void {
-    this.shopCoins.textContent = `${this.save.coins} coins`;
-    this.shopList.replaceChildren();
-    for (const kind of UPGRADE_KINDS) {
-      const info = UPGRADES[kind];
-      const level = this.save.upgrades[kind];
-      const cost = upgradeCost(kind, level);
-      const now = Math.round((upgradeMultiplier(kind, level) - 1) * 100);
-      const next = Math.round((upgradeMultiplier(kind, level + 1) - 1) * 100);
-      const buy = h('button', { class: 'btn btn-primary buy', text: `${cost}` });
-      buy.disabled = this.save.coins < cost;
-      buy.addEventListener('click', () => {
-        this.handlers.onClick();
-        this.handlers.onBuy(kind);
-        this.renderShop();
-      });
-      this.shopList.append(
-        h(
-          'div',
-          { class: 'shop-row' },
-          h(
-            'div',
-            { class: 'shop-info' },
-            h('div', { class: 'shop-title', text: `${info.title}  Lv ${level}` }),
-            h('div', { class: 'shop-blurb', text: `${info.blurb}: +${now}% \u2192 +${next}%` }),
-          ),
-          buy,
-        ),
-      );
-    }
+  /** Redraws every upgrade bar (called after a purchase, a result and a reset). */
+  private renderBars(): void {
+    for (const render of this.barRenderers) render();
   }
 
   openLevels(mode: LevelMode): void {
     this.hideAll();
-    this.currentMode = mode;
     this.levelTitle.textContent = MODE_INFO[mode].title;
-    this.levelShopBtn.hidden = mode !== 'stationary';
-    this.levelShopBtn.textContent = `UPGRADES \u00b7 ${this.save.coins} coins`;
+    this.levelBar.hidden = mode !== 'stationary';
+    this.levelScreen.classList.toggle('has-bar', mode === 'stationary');
+    this.renderBars();
     this.levelGrid.replaceChildren();
     this.indicesOf(mode).forEach((i, pos) => {
       const level = this.levels[i];
@@ -387,11 +432,22 @@ export class Ui {
     hasNext: boolean,
     stars: number,
     coins = 0,
-    shopAvailable = false,
+    upgradesAvailable = false,
+    bonus = 0,
+    walletBefore = this.save.coins,
   ): void {
-    this.resultCoins.textContent = coins > 0 ? `+${coins} coins` : '';
-    this.resultCoins.hidden = coins <= 0;
-    this.resultShopBtn.hidden = !shopAvailable;
+    const total = coins + bonus;
+    this.resultCoins.textContent =
+      bonus > 0
+        ? `+${formatCount(coins)} coins  +${formatCount(bonus)} first clear!`
+        : total > 0
+          ? `+${formatCount(coins)} coins`
+          : '';
+    this.resultCoins.hidden = total <= 0;
+    this.showGoal(upgradesAvailable, walletBefore);
+    this.resultBar.hidden = !upgradesAvailable;
+    this.result.classList.toggle('has-bar', upgradesAvailable);
+    this.renderBars();
     this.hud.hidden = true;
     this.hint.hidden = true;
     this.resultStars.hidden = !won;
@@ -405,11 +461,40 @@ export class Ui {
     this.resultTitle.textContent = won ? 'VICTORY!' : 'DEFEATED';
     this.resultSub.textContent = won
       ? `${survivors} survivor${survivors === 1 ? '' : 's'} made it`
-      : shopAvailable
-        ? 'Spend your coins on upgrades and try again.'
+      : upgradesAvailable
+        ? 'Tap a card to upgrade, then try again.'
         : 'Your crowd was wiped out. Try another path through the gates.';
     this.nextBtn.hidden = !(won && hasNext);
     this.result.hidden = false;
+  }
+
+  /**
+   * "Next goal" bar under the payout: the cheapest upgrade that is still available, filling from
+   * where the wallet was before the run to where it is now. A run that does not buy anything
+   * still visibly moves the bar, and a near miss makes the next run tempting.
+   */
+  private showGoal(show: boolean, walletBefore: number): void {
+    let goal: { kind: UpgradeKind; cost: number } | null = null;
+    for (const kind of UPGRADE_KINDS) {
+      const cost = upgradeCost(kind, this.save.upgrades[kind]);
+      if (Number.isFinite(cost) && (!goal || cost < goal.cost)) goal = { kind, cost };
+    }
+    this.resultGoal.hidden = !show || !goal;
+    if (!show || !goal) return;
+    const pct = (coins: number) => `${Math.min(100, (coins / goal.cost) * 100)}%`;
+    const ready = this.save.coins >= goal.cost;
+    const info = UPGRADES[goal.kind];
+    this.resultGoalLabel.textContent = ready
+      ? `${info.title} is ready! Tap its card`
+      : `${info.title}: ${Math.floor((this.save.coins / goal.cost) * 100)}% to the next level`;
+    this.resultGoal.classList.toggle('ready', ready);
+    // start at the old fill, then let the transition run to the new one
+    const fill = this.resultGoalFill;
+    fill.style.transition = 'none';
+    fill.style.width = pct(walletBefore);
+    void fill.offsetWidth;
+    fill.style.transition = '';
+    fill.style.width = pct(this.save.coins);
   }
 
   hideMenus(): void {

@@ -11,7 +11,7 @@ export const enum Pc {
   Good,
   Bad,
 }
-const PALETTE = [
+export const PALETTE = [
   COLORS.player,
   COLORS.enemy,
   COLORS.boss,
@@ -26,15 +26,15 @@ const PALETTE = [
  * is full the oldest particle is recycled, which is invisible at this scale.
  */
 export class ParticleSystem {
-  private readonly cap: number;
-  private readonly x: Float32Array;
-  private readonly y: Float32Array;
-  private readonly vx: Float32Array;
-  private readonly vy: Float32Array;
-  private readonly life: Float32Array;
-  private readonly maxLife: Float32Array;
-  private readonly size: Float32Array;
-  private readonly color: Uint8Array;
+  readonly cap: number;
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+  readonly vx: Float32Array;
+  readonly vy: Float32Array;
+  readonly life: Float32Array;
+  readonly maxLife: Float32Array;
+  readonly size: Float32Array;
+  readonly color: Uint8Array;
   private head = 0;
 
   constructor(capacity = 700) {
@@ -114,6 +114,17 @@ export class ParticleSystem {
   }
 }
 
+/**
+ * Where a view puts a world position on the canvas: it fills `sx`/`sy` (CSS px) and `scale`
+ * (CSS px per world unit at that spot) when asked to `place` a point.
+ */
+export interface Placer {
+  sx: number;
+  sy: number;
+  scale: number;
+  place(x: number, y: number): void;
+}
+
 const POPUP_CAP = 24;
 
 /** Floating "+10" style numbers, pooled like the particles. */
@@ -125,6 +136,7 @@ export class PopupSystem {
   private readonly text: string[] = new Array<string>(POPUP_CAP).fill('');
   private readonly color: string[] = new Array<string>(POPUP_CAP).fill('#fff');
   private head = 0;
+  private camPlacer: (Placer & { cam: Camera }) | null = null;
   private static readonly LIFE = 0.95;
 
   clear(): void {
@@ -151,6 +163,25 @@ export class PopupSystem {
   }
 
   draw(ctx: CanvasRenderingContext2D, cam: Camera): void {
+    let placer = this.camPlacer;
+    if (!placer || placer.cam !== cam) {
+      placer = this.camPlacer = {
+        cam,
+        sx: 0,
+        sy: 0,
+        scale: 1,
+        place(x, y) {
+          this.sx = this.cam.sx(x);
+          this.sy = this.cam.sy(y);
+        },
+      };
+    }
+    placer.scale = cam.scale;
+    this.drawPlaced(ctx, placer);
+  }
+
+  /** Draws the numbers wherever `placer` puts them (the 2D camera, or a projected 3D one). */
+  drawPlaced(ctx: CanvasRenderingContext2D, placer: Placer): void {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
@@ -163,16 +194,16 @@ export class PopupSystem {
       const scale =
         (0.6 + 0.4 * pop) * this.big[i] * (1 + 0.15 * Math.sin(Math.min(1, age / 0.2) * Math.PI));
       const alpha = Math.min(1, life / PopupSystem.LIFE / 0.4);
-      const px = cam.scale * 0.85 * scale;
+      placer.place(this.x[i], this.y[i]);
+      // whole pixels only: a fresh font size every frame defeats the canvas glyph cache
+      const px = Math.round(placer.scale * 0.85 * scale);
       ctx.globalAlpha = alpha;
       ctx.font = `900 ${px}px ${FONT}`;
       ctx.lineWidth = Math.max(3, px * 0.18);
       ctx.strokeStyle = 'rgba(8,10,28,0.85)';
-      const sx = cam.sx(this.x[i]);
-      const sy = cam.sy(this.y[i]);
-      ctx.strokeText(this.text[i], sx, sy);
+      ctx.strokeText(this.text[i], placer.sx, placer.sy);
       ctx.fillStyle = this.color[i];
-      ctx.fillText(this.text[i], sx, sy);
+      ctx.fillText(this.text[i], placer.sx, placer.sy);
     }
     ctx.globalAlpha = 1;
   }

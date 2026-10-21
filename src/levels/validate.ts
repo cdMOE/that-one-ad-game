@@ -237,7 +237,16 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
   const out: SpawnDef[] = [];
   (r.arr(v, path, { min: 1, max: 80 }) ?? []).forEach((item, i) => {
     const p = `${path}[${i}]`;
-    const o = r.obj(item, p, ['kind', 'count', 'hp', 'interval', 'delay', 'x', 'spread']);
+    const o = r.obj(item, p, [
+      'kind',
+      'count',
+      'hp',
+      'interval',
+      'delay',
+      'x',
+      'spread',
+      'columns',
+    ]);
     if (!o) return;
     const kind = r.oneOf<MonsterKind>(o.kind, `${p}.kind`, MONSTER_KINDS);
     const count = r.num(o.count, `${p}.count`, { min: 1, max: 2000, int: true });
@@ -246,6 +255,10 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
     const delay = o.delay === undefined ? 0 : r.num(o.delay, `${p}.delay`, { min: 0, max: 120 });
     const x = o.x === undefined ? 0 : r.num(o.x, `${p}.x`, { min: -1, max: 1 });
     const spread = o.spread === undefined ? 1 : r.num(o.spread, `${p}.spread`, { min: 0, max: 1 });
+    const columns =
+      o.columns === undefined
+        ? undefined
+        : r.num(o.columns, `${p}.columns`, { min: 1, max: 12, int: true });
     if (
       kind !== undefined &&
       count !== undefined &&
@@ -253,9 +266,10 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
       interval !== undefined &&
       delay !== undefined &&
       x !== undefined &&
-      spread !== undefined
+      spread !== undefined &&
+      (o.columns === undefined || columns !== undefined)
     ) {
-      out.push({ kind, count, hp, interval, delay, x, spread });
+      out.push({ kind, count, hp, interval, delay, x, spread, ...(columns ? { columns } : {}) });
     }
   });
   return out;

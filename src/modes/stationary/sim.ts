@@ -1,4 +1,5 @@
 import { applyGate, clampCount } from '../../core/rules';
+import { COIN_SCALE } from '../../core/shop';
 import { gridSlotX, gridSlotY } from '../../core/swarm';
 import type { ItemDef, MonsterKind, StationaryLevel } from '../../levels/schema';
 import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from './weapons';
@@ -17,7 +18,8 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
  * holds close to the squad until it is shot to pieces, the power-ups behind it are visible
  * from the start and fall one after another, so you have to be underneath them to catch
  * them. The **monster lane** is the rest of the field: monsters pour down it in masses on
- * straight lines and never enter the upgrade lane.
+ * straight lines and never enter the upgrade lane. Levels send them as marching ranks, one row
+ * after another without a breather, so every second spent on the upgrade lane costs you.
  */
 
 export const ARENA = { halfWidth: 6, spawnTop: 16 };
@@ -41,28 +43,81 @@ export const UPGRADE_LANE_WIDTH = 3.6;
 export const UPGRADE_LANE_CENTER = 3.8;
 /** Empty strip between the two lanes. */
 const LANE_GAP = 0.9;
-const BULLET_LIFE = 1.3;
+/** How far a bullet flies: almost to the far end of the field, but not all the way. */
+export const BULLET_RANGE = 14.5;
 /** Coins for smashing a block. */
-const BLOCK_COINS = 20;
+const BLOCK_COINS = 20 * COIN_SCALE;
 /** Bullets are forgiving: the hit circle of a monster is this much bigger than the monster. */
-const HIT_FORGIVENESS = 0.25;
+const HIT_FORGIVENESS = 0.35;
+
+/**
+ * Minibosses and bosses do not walk down to the squad. They stop at `holdY`, never touch it, and
+ * every `interval` seconds fire a volley of `zones` strikes: each zone `halfWidth` to each side
+ * lights up for `telegraph` seconds, then hits. With chance `aimedChance` the first zone is aimed
+ * at where the squad stands, otherwise it lands at random; every further zone is random. A volley
+ * always leaves a gap the squad fits into, so it can be dodged. Whoever is caught by any zone
+ * loses `damage` of the squad (once per volley, however many zones it stands in).
+ */
+export interface EliteStats {
+  holdY: number;
+  interval: number;
+  telegraph: number;
+  halfWidth: number;
+  damage: number;
+  zones: number;
+  aimedChance: number;
+}
 
 export interface MonsterStats {
   speed: number;
   radius: number;
-  /** Squad soldiers lost when it reaches the squad. */
+  /** Squad soldiers lost when it reaches the squad (elites never do). */
   bite: number;
+  elite?: EliteStats;
   /** Coins dropped when it dies (before the coin-bonus upgrade). */
   coins: number;
 }
 
 export const MONSTERS: Record<MonsterKind, MonsterStats> = {
-  grunt: { speed: 3.8, radius: 0.42, bite: 1, coins: 2 },
-  runner: { speed: 6.2, radius: 0.34, bite: 1, coins: 3 },
-  tank: { speed: 2.1, radius: 0.8, bite: 4, coins: 12 },
-  miniboss: { speed: 1.7, radius: 1.15, bite: 10, coins: 60 },
-  boss: { speed: 1.2, radius: 1.7, bite: 25, coins: 300 },
+  grunt: { speed: 1.9, radius: 0.5, bite: 1, coins: 0.25 * COIN_SCALE },
+  runner: { speed: 3.1, radius: 0.42, bite: 1, coins: 0.4 * COIN_SCALE },
+  tank: { speed: 1.3, radius: 0.9, bite: 4, coins: 12 * COIN_SCALE },
+  miniboss: {
+    speed: 1.0,
+    radius: 1.25,
+    bite: 0,
+    coins: 60 * COIN_SCALE,
+    elite: {
+      holdY: 7.5,
+      interval: 5,
+      telegraph: 1.1,
+      halfWidth: 1.1,
+      damage: 0.2,
+      zones: 1,
+      aimedChance: 0.5,
+    },
+  },
+  boss: {
+    speed: 0.8,
+    radius: 1.8,
+    bite: 0,
+    coins: 300 * COIN_SCALE,
+    elite: {
+      holdY: 7,
+      interval: 3.6,
+      telegraph: 1,
+      halfWidth: 1.3,
+      damage: 0.3,
+      zones: 2,
+      aimedChance: 0.6,
+    },
+  },
 };
+/** Most zones one volley can have; sizes the per-monster target storage. */
+export const MAX_ZONES = 3;
+/** Extra room, beyond the squad's own width, that a volley leaves free so it can be dodged. */
+const SAFE_MARGIN = 0.6;
+
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'miniboss', 'boss'];
 const MONSTER_KIND_INDEX: Record<MonsterKind, number> = {
   grunt: 0,
@@ -71,6 +126,18 @@ const MONSTER_KIND_INDEX: Record<MonsterKind, number> = {
   miniboss: 3,
   boss: 4,
 };
+
+/**
+ * Monster slots only elites may use. A crowd that piles up behind a boss can fill the pool, and
+ * the next boss must still be able to walk in on schedule.
+ */
+const ELITE_RESERVE = 8;
+/** Ordinary monsters collide as discs this much smaller than their hit circle, so ranks stay loose. */
+export const BODY_SCALE = 0.8;
+/** How much of an overlap between two ordinary monsters is undone per step. */
+const BODY_STIFFNESS = 0.4;
+/** An elite blocks the crowd as a disc this much smaller than its hit circle, so a tank still fits past it. */
+export const ELITE_BODY_SCALE = 0.85;
 
 export const MAX_MONSTERS = 450;
 export const MAX_BULLETS = 900;
@@ -100,7 +167,27 @@ export interface LaneState {
   elements: LaneElement[];
 }
 
+/** An elite strike that is lit up and about to land. `t` runs 0 (just announced) to 1 (lands). */
+export interface Attack {
+  /** Centre of the strike and how far it reaches to each side. */
+  x: number;
+  half: number;
+  /** The part of it that lies on the monster field: the upgrade lane is always safe. */
+  lo: number;
+  hi: number;
+  t: number;
+  /** y of the monster that fires it. */
+  y: number;
+}
+
 export interface SimHooks {
+  /** An elite announced a strike zone at x (once per zone of a volley). */
+  telegraph?(x: number, half: number): void;
+  /**
+   * A strike zone landed; `hit` says whether the squad stands in it. `lost` is what the volley cost
+   * and is reported on the first zone that caught the squad only (0 on the others).
+   */
+  strike?(x: number, half: number, hit: boolean, lost: number): void;
   /** A soldier fired; (x, y) is the muzzle position. Called once per soldier shot. */
   shot?(x: number, y: number): void;
   hit?(x: number, y: number): void;
@@ -121,6 +208,8 @@ interface Spawn {
   hp: number;
   x: number;
   spread: number;
+  /** Set for formations: which column of its row this monster marches in. */
+  slot?: { col: number; columns: number };
 }
 
 /** Closest approach of a bullet's segment to a circle; returns the segment parameter or -1. */
@@ -146,6 +235,8 @@ function segmentCircle(
 export interface SimOptions {
   damageMul: number;
   rateMul: number;
+  /** Extra soldiers the squad starts with (the soldiers upgrade). */
+  startBonus?: number;
 }
 
 export class StationarySim {
@@ -161,6 +252,8 @@ export class StationarySim {
   targetX = 0;
   squadX = 0;
   squadVx = 0;
+  /** When true the squad sits exactly on `targetX` instead of gliding there (mouse aiming). */
+  snapSquad = false;
 
   readonly lane: LaneState;
   /** x range of the monster lane (monsters spawn and walk inside it only). */
@@ -174,6 +267,14 @@ export class StationarySim {
   readonly mmax = new Float32Array(MAX_MONSTERS);
   readonly mkind = new Uint8Array(MAX_MONSTERS);
   readonly malive = new Uint8Array(MAX_MONSTERS);
+  /** Elite state: 0 walking in, 1 holding (waiting to strike), 2 strike announced. */
+  readonly mstate = new Uint8Array(MAX_MONSTERS);
+  private readonly mtimer = new Float32Array(MAX_MONSTERS);
+  /** Centres of the announced zones, `MAX_ZONES` slots per monster. */
+  private readonly mtarget = new Float32Array(MAX_MONSTERS * MAX_ZONES);
+  private readonly mzones = new Uint8Array(MAX_MONSTERS);
+  /** Strikes that are lit up right now (rebuilt every step). */
+  readonly attacks: Attack[] = [];
   // bullets (ring buffer)
   readonly bx = new Float32Array(MAX_BULLETS);
   readonly by = new Float32Array(MAX_BULLETS);
@@ -192,6 +293,12 @@ export class StationarySim {
   private levelTime = 0;
   private readonly queue: Spawn[] = [];
   private queueIndex = 0;
+  /**
+   * Elites run on their own clock: a full monster pool holds back the ordinary queue, but never
+   * a boss. They are not tied to each other either; every one comes at its time.
+   */
+  private readonly eliteQueue: Spawn[] = [];
+  private eliteIndex = 0;
   private readonly total: number;
   private done = 0;
 
@@ -201,7 +308,7 @@ export class StationarySim {
     readonly hooks: SimHooks = {},
     options: SimOptions = { damageMul: 1, rateMul: 1 },
   ) {
-    this.count = level.startCount;
+    this.count = level.startCount + (options.startBonus ?? 0);
     this.weapon = newWeaponState(level.weapon);
     this.weapon.damageMul = options.damageMul;
     this.weapon.rateMul = options.rateMul;
@@ -209,16 +316,19 @@ export class StationarySim {
 
     for (const s of level.monsters) {
       for (let i = 0; i < s.count; i++) {
-        this.queue.push({
-          t: (s.delay ?? 0) + i * s.interval,
+        const columns = s.columns;
+        (MONSTERS[s.kind].elite ? this.eliteQueue : this.queue).push({
+          t: (s.delay ?? 0) + (columns ? Math.floor(i / columns) : i) * s.interval,
           kind: s.kind,
           hp: s.hp,
           x: s.x ?? 0,
           spread: s.spread ?? 1,
+          ...(columns ? { slot: { col: i % columns, columns } } : {}),
         });
       }
     }
     this.queue.sort((a, b) => a.t - b.t);
+    this.eliteQueue.sort((a, b) => a.t - b.t);
 
     const left = (level.lane.side ?? 'left') === 'left';
     const laneX = left ? -UPGRADE_LANE_CENTER : UPGRADE_LANE_CENTER;
@@ -239,7 +349,7 @@ export class StationarySim {
         flash: 0,
       })),
     };
-    this.total = Math.max(1, this.queue.length + this.lane.elements.length);
+    this.total = Math.max(1, this.queue.length + this.eliteQueue.length);
   }
 
   get progress(): number {
@@ -294,6 +404,11 @@ export class StationarySim {
     const limit = ARENA.halfWidth - this.halfWidth();
     const want = Math.max(-limit, Math.min(limit, this.targetX));
     const dx = want - this.squadX;
+    if (this.snapSquad) {
+      this.squadX = want;
+      this.squadVx = dt > 0 ? Math.max(-SQUAD_MAX_SPEED, Math.min(SQUAD_MAX_SPEED, dx / dt)) : 0;
+      return;
+    }
     const step = Math.max(
       -SQUAD_MAX_SPEED * dt,
       Math.min(SQUAD_MAX_SPEED * dt, dx * Math.min(1, 16 * dt)),
@@ -312,25 +427,33 @@ export class StationarySim {
   /** Returns false when the monster pool is full (the spawn then waits for a free slot). */
   private spawn(s: Spawn): boolean {
     let slot = -1;
-    for (let i = 0; i < MAX_MONSTERS; i++) {
+    const stats = MONSTERS[s.kind];
+    const room = stats.elite ? MAX_MONSTERS : MAX_MONSTERS - ELITE_RESERVE;
+    for (let i = 0; i < room; i++) {
       if (!this.malive[i]) {
         slot = i;
         break;
       }
     }
     if (slot < 0) return false;
-    const stats = MONSTERS[s.kind];
     const half = (this.monsterMaxX - this.monsterMinX) / 2;
     const mid = (this.monsterMinX + this.monsterMaxX) / 2;
-    const x = mid + (s.x + (this.rng() * 2 - 1) * s.spread) * half;
+    // a formation marches in columns (a little ragged); a plain stream is scattered at random
+    const w = s.slot;
+    const across = w
+      ? ((w.col + 0.5) / w.columns) * 2 - 1 + (this.rng() - 0.5) * 0.12
+      : this.rng() * 2 - 1;
+    // an elite always comes down the middle: the crowd then has the same room on both sides
+    const x = stats.elite ? mid : mid + (s.x + across * s.spread) * half;
     // keep even the biggest monsters fully inside their own lane
     const lo = this.monsterMinX + stats.radius;
     const hi = this.monsterMaxX - stats.radius;
     this.mx[slot] = Math.max(lo, Math.min(hi, x));
-    this.my[slot] = ARENA.spawnTop + this.rng() * 1.5;
+    this.my[slot] = ARENA.spawnTop + (stats.elite ? 0 : this.rng() * (w ? 0.3 : 1.5));
     this.mhp[slot] = s.hp;
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
+    this.mstate[slot] = 0;
     this.malive[slot] = 1;
     return true;
   }
@@ -341,12 +464,23 @@ export class StationarySim {
       if (!this.spawn(this.queue[this.queueIndex])) break;
       this.queueIndex++;
     }
+    while (
+      this.eliteIndex < this.eliteQueue.length &&
+      this.eliteQueue[this.eliteIndex].t <= this.levelTime
+    ) {
+      if (!this.spawn(this.eliteQueue[this.eliteIndex])) break;
+      this.eliteIndex++;
+    }
 
     // monsters march straight down their own lane; whatever reaches the bottom bites
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!this.malive[i]) continue;
       const stats = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]];
       const y = this.my[i];
+      if (stats.elite) {
+        if (this.updateElite(i, stats.elite, stats.speed, dt)) return;
+        continue;
+      }
       if (y <= 0.5 + stats.radius * 0.6) {
         this.malive[i] = 0;
         this.done++;
@@ -360,17 +494,218 @@ export class StationarySim {
       }
       this.my[i] = y - stats.speed * dt;
     }
+    this.resolveBodies();
+
+    this.attacks.length = 0;
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      const stats = this.malive[i] ? MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]] : null;
+      if (stats?.elite && this.mstate[i] === 2) {
+        const t = 1 - Math.max(0, this.mtimer[i]) / stats.elite.telegraph;
+        const half = stats.elite.halfWidth;
+        for (let z = 0; z < this.mzones[i]; z++) {
+          const x = this.mtarget[i * MAX_ZONES + z];
+          const lo = Math.max(x - half, this.monsterMinX);
+          const hi = Math.min(x + half, this.monsterMaxX);
+          this.attacks.push({ x, half, lo, hi, t, y: this.my[i] });
+        }
+      }
+    }
 
     this.updateLane(dt);
     this.fire(dt);
 
-    if (
-      this.queueIndex >= this.queue.length &&
-      this.monstersAlive === 0 &&
-      this.lane.elements.length === 0
-    ) {
-      this.end(true);
+    // the level is won as soon as the last monster is gone; unbroken blocks and power-ups still
+    // on the lane do not have to be cleared
+    const spawned =
+      this.queueIndex >= this.queue.length && this.eliteIndex >= this.eliteQueue.length;
+    if (spawned && this.monstersAlive === 0) this.end(true);
+  }
+
+  /**
+   * Keeps bodies from sharing space. Ordinary monsters shove each other apart a little every step
+   * (a crowd, not a ghost parade); elites are immovable: whatever walks into one is pushed out
+   * along the line from its centre, so a horde slides around a boss and splits into two streams.
+   */
+  private resolveBodies(): void {
+    const minX = this.monsterMinX;
+    const maxX = this.monsterMaxX;
+    const kinds = MONSTER_KIND_BY_INDEX;
+    const elites: number[] = [];
+
+    // ordinary monsters against each other, using the slabs built at the start of this step
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      if (!this.malive[i]) continue;
+      const si = MONSTERS[kinds[this.mkind[i]]];
+      if (si.elite) {
+        elites.push(i);
+        continue;
+      }
+      const ri = si.radius * BODY_SCALE;
+      const b = this.bucketOf(this.my[i]);
+      const lo = this.bucketStart[Math.max(0, b - 2)];
+      const hi = this.bucketStart[Math.min(BUCKETS - 1, b + 2) + 1];
+      for (let k = lo; k < hi; k++) {
+        const j = this.bucketItems[k];
+        if (j <= i || !this.malive[j]) continue;
+        const sj = MONSTERS[kinds[this.mkind[j]]];
+        if (sj.elite) continue;
+        const reach = ri + sj.radius * BODY_SCALE;
+        let dx = this.mx[j] - this.mx[i];
+        const dy = this.my[j] - this.my[i];
+        if (Math.abs(dx) >= reach || Math.abs(dy) >= reach) continue;
+        let d2 = dx * dx + dy * dy;
+        if (d2 >= reach * reach) continue;
+        if (d2 < 1e-6) {
+          dx = (i & 1 ? 1 : -1) * 0.01; // exactly on top of each other: pick a side
+          d2 = dx * dx + dy * dy;
+        }
+        const d = Math.sqrt(d2);
+        const push = (reach - d) * BODY_STIFFNESS;
+        const wi = sj.radius * sj.radius;
+        const wj = si.radius * si.radius;
+        const share = wi / (wi + wj); // the lighter one gives way more
+        const nx = dx / d;
+        const ny = dy / d;
+        this.mx[i] -= nx * push * share;
+        this.my[i] -= ny * push * share;
+        this.mx[j] += nx * push * (1 - share);
+        this.my[j] += ny * push * (1 - share);
+      }
     }
+
+    // and everything else is pushed out of the elites
+    for (let m = 0; m < MAX_MONSTERS; m++) {
+      if (!this.malive[m]) continue;
+      const sm = MONSTERS[kinds[this.mkind[m]]];
+      if (sm.elite) continue;
+      for (const e of elites) {
+        const reach =
+          MONSTERS[kinds[this.mkind[e]]].radius * ELITE_BODY_SCALE + sm.radius * BODY_SCALE;
+        let dx = this.mx[m] - this.mx[e];
+        const dy = this.my[m] - this.my[e];
+        if (Math.abs(dx) >= reach || Math.abs(dy) >= reach) continue;
+        if (dx * dx + dy * dy >= reach * reach) continue;
+        if (Math.abs(dx) < 0.02) dx = (m & 1 ? 1 : -1) * 0.02; // dead centre: slide to one side
+        const d = Math.sqrt(dx * dx + dy * dy);
+        this.mx[m] = this.mx[e] + (dx / d) * reach;
+        this.my[m] = this.my[e] + (dy / d) * reach;
+      }
+      this.mx[m] = Math.max(minX + sm.radius, Math.min(maxX - sm.radius, this.mx[m]));
+    }
+  }
+
+  /**
+   * Where an elite stops: its own hold line, or right behind an elite that is already in front of
+   * it. They all come down the middle, so they queue up in a column and leave both sides of the
+   * lane free for the crowd.
+   */
+  private holdLine(i: number, e: EliteStats): number {
+    let hold = e.holdY;
+    const ri = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].radius;
+    for (let j = 0; j < MAX_MONSTERS; j++) {
+      if (j === i || !this.malive[j]) continue;
+      const other = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[j]]];
+      if (!other.elite) continue;
+      const inFront = this.my[j] < this.my[i] || (this.my[j] === this.my[i] && j < i);
+      if (inFront) hold = Math.max(hold, this.my[j] + ri + other.radius);
+    }
+    return hold;
+  }
+
+  /**
+   * One elite's step: walk in to the hold line, wait, announce a volley (see `aimVolley`), then
+   * let it land. Returns true when the volley wiped out the squad.
+   */
+  private updateElite(i: number, e: EliteStats, speed: number, dt: number): boolean {
+    // also while holding: when the elite in front falls, the next one steps up
+    const hold = this.holdLine(i, e);
+    this.my[i] = Math.max(hold, this.my[i] - speed * dt);
+    if (this.mstate[i] === 0) {
+      if (this.my[i] <= hold) {
+        this.mstate[i] = 1;
+        this.mtimer[i] = e.interval * 0.6;
+      }
+      return false;
+    }
+    this.mtimer[i] -= dt;
+    if (this.mtimer[i] > 0) return false;
+    if (this.mstate[i] === 1) {
+      this.mstate[i] = 2;
+      this.mtimer[i] = e.telegraph;
+      this.aimVolley(i, e);
+      for (let z = 0; z < this.mzones[i]; z++) {
+        this.hooks.telegraph?.(this.mtarget[i * MAX_ZONES + z], e.halfWidth);
+      }
+      return false;
+    }
+    // only the monster field is struck: a squad standing in the upgrade lane is out of reach
+    const reach = this.halfWidth();
+    const zones = this.mzones[i];
+    const caught: boolean[] = [];
+    let hit = false;
+    for (let z = 0; z < zones; z++) {
+      const x = this.mtarget[i * MAX_ZONES + z];
+      const lo = Math.max(x - e.halfWidth, this.monsterMinX);
+      const hi = Math.min(x + e.halfWidth, this.monsterMaxX);
+      const inside = this.squadX + reach >= lo && this.squadX - reach <= hi;
+      caught.push(inside);
+      hit ||= inside;
+    }
+    const lost = hit ? Math.max(1, Math.ceil(this.count * e.damage)) : 0;
+    this.mstate[i] = 1;
+    this.mtimer[i] = e.interval;
+    if (hit) this.count = clampCount(this.count - lost);
+    let reported = false;
+    for (let z = 0; z < zones; z++) {
+      const first = caught[z] && !reported;
+      reported ||= caught[z];
+      this.hooks.strike?.(
+        this.mtarget[i * MAX_ZONES + z],
+        e.halfWidth,
+        caught[z],
+        first ? lost : 0,
+      );
+    }
+    if (this.count <= 0) {
+      this.end(false);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Picks the zones of a volley. The first one is aimed at the squad with chance `aimedChance`,
+   * otherwise (and for all further zones) it lands at random on the monster field. A zone that
+   * would leave no gap the squad fits into is dropped, so a volley can always be dodged.
+   */
+  private aimVolley(i: number, e: EliteStats): void {
+    const minX = this.monsterMinX;
+    const maxX = this.monsterMaxX;
+    const aimed = this.rng() < e.aimedChance;
+    const need = 2 * this.halfWidth() + SAFE_MARGIN;
+    const zones: number[] = [];
+    const leavesRoom = (extra: number): boolean => {
+      const spans = [...zones, extra]
+        .map((x) => [Math.max(x - e.halfWidth, minX), Math.min(x + e.halfWidth, maxX)])
+        .sort((a, b) => a[0] - b[0]);
+      // the upgrade lane is never struck, so the free room counts all the way to the arena wall
+      let cursor = -ARENA.halfWidth;
+      for (const [lo, hi] of spans) {
+        if (lo - cursor >= need) return true;
+        cursor = Math.max(cursor, hi);
+      }
+      return ARENA.halfWidth - cursor >= need;
+    };
+    for (let z = 0; z < Math.min(e.zones, MAX_ZONES); z++) {
+      // the very first zone is allowed to hit the squad whatever the room, a lone strike can be dodged
+      const x =
+        z === 0 && aimed
+          ? Math.max(minX, Math.min(maxX, this.squadX))
+          : minX + this.rng() * (maxX - minX);
+      if (z === 0 || leavesRoom(x)) zones.push(x);
+    }
+    this.mzones[i] = zones.length;
+    for (let z = 0; z < zones.length; z++) this.mtarget[i * MAX_ZONES + z] = zones[z];
   }
 
   /**
@@ -386,9 +721,10 @@ export class StationarySim {
         e.hp += e.grow * dt;
         e.maxHp = Math.max(e.maxHp, e.hp);
       }
-      let floor = -Infinity;
-      if (k > 0) floor = els[k - 1].y + LANE_SPACING;
-      else if (e.type === 'block') floor = LANE_HOLD_Y;
+      // a block never comes closer than the hold line, even while a power-up in front of it
+      // is still falling, so it cannot jump back up once it becomes the front element
+      let floor = e.type === 'block' ? LANE_HOLD_Y : -Infinity;
+      if (k > 0) floor = Math.max(floor, els[k - 1].y + LANE_SPACING);
       e.y = Math.max(floor, e.y - LANE_SPEED * dt);
     }
     // collect or lose the front power-up
@@ -396,13 +732,11 @@ export class StationarySim {
     if (front && front.type === 'item' && front.item) {
       if (front.y <= 1 && Math.abs(lane.x - this.squadX) <= this.halfWidth() + lane.width / 2) {
         els.shift();
-        this.done++;
         const before = this.count;
         this.applyItem(front.item);
         this.hooks.itemCollected?.(lane.x, front.y, front.item, this.count - before);
       } else if (front.y < -1.5) {
         els.shift();
-        this.done++;
         this.hooks.itemLost?.(lane.x, front.item);
       }
     }
@@ -419,8 +753,9 @@ export class StationarySim {
     const w = effectiveWeapon(this.weapon);
     const n = this.shooters;
     const pellets = Math.max(1, w.pellets);
-    // bigger squads than we can draw hit harder per bullet, so the counter always matters
-    const perBullet = (w.damage * (this.count / n)) / pellets;
+    // every pellet carries the full damage, so a base weapon one-shots the swarm; bigger squads
+    // than we can draw hit harder per bullet, so the counter always matters
+    const perBullet = w.damage * (this.count / n);
     for (let i = 0; i < n; i++) {
       this.fireAcc[i] += w.rate * dt;
       if (this.fireAcc[i] < 1) continue;
@@ -437,7 +772,7 @@ export class StationarySim {
         this.bvx[b] = Math.cos(a) * w.speed;
         this.bvy[b] = Math.sin(a) * w.speed;
         this.bdmg[b] = perBullet;
-        this.blife[b] = BULLET_LIFE;
+        this.blife[b] = BULLET_RANGE / w.speed;
       }
       this.hooks.shot?.(x, y);
     }
@@ -525,7 +860,6 @@ export class StationarySim {
       this.hooks.blockHit?.(this.bx[i], block.y - BLOCK_HEIGHT / 2);
       if (block.hp <= 0) {
         lane.elements.splice(lane.elements.indexOf(block), 1);
-        this.done++;
         this.coinsRaw += BLOCK_COINS;
         this.hooks.coin?.(lane.x, block.y, BLOCK_COINS);
         this.hooks.blockBreak?.(lane.x, block.y);

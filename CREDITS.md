@@ -6,7 +6,8 @@ Everything in this repository is original work, released under the [MIT License]
 
 ## Graphics
 
-All visuals are drawn in code with canvas shapes and CSS. No external image assets are used.
+All visuals are drawn in code: canvas shapes and CSS, and procedural low-poly models rendered
+with Three.js. No external image or model assets are used.
 
 ## Audio
 
@@ -28,5 +29,6 @@ author, source URL and license:
 
 ## Dev tooling
 
-Built with [Vite](https://vite.dev), [TypeScript](https://www.typescriptlang.org),
+3D rendering by [Three.js](https://threejs.org) (MIT). Built with [Vite](https://vite.dev),
+[TypeScript](https://www.typescriptlang.org),
 [Vitest](https://vitest.dev), [ESLint](https://eslint.org) and [Prettier](https://prettier.io).

@@ -3,64 +3,134 @@
  * validator and the tests all agree on prices and effects.
  */
 
-export const UPGRADE_KINDS = ['damage', 'rate', 'coins'] as const;
+/**
+ * Coins are inflated on purpose: every payout and every price is this many times bigger than
+ * the "base" numbers, so a run feels like a shower of gold while buying power stays the same.
+ */
+export const COIN_SCALE = 20;
+
+/** Share of the coin payout a level pays once it has been beaten. */
+export const REPLAY_PAYOUT = 0.5;
+
+/**
+ * One-off coins for beating a level for the first time. `order` is the position of the level among
+ * the shooter levels (0 = first). The bonus grows with the level so income keeps up with prices.
+ */
+export function firstClearBonus(order: number): number {
+  return Math.round(150 * COIN_SCALE * Math.pow(1.5, Math.max(0, order)));
+}
+
+export const UPGRADE_KINDS = ['damage', 'rate', 'soldiers', 'coins'] as const;
 export type UpgradeKind = (typeof UPGRADE_KINDS)[number];
 
 export type UpgradeLevels = Record<UpgradeKind, number>;
 
-export const MAX_UPGRADE_LEVEL = 30;
-
-interface UpgradeInfo {
+/**
+ * Every permanent upgrade has a cap, so the strongest possible squad is a known quantity.
+ *
+ * Prices are the dial for how long the campaign takes: `npm run simulate:campaign` shows the
+ * runs per level. The rule of thumb is that the next upgrade is one or two runs away, so every
+ * run buys something or visibly fills the bar towards it.
+ */
+export interface UpgradeInfo {
   title: string;
   /** Price of level 1. */
   baseCost: number;
   /** Every level costs this many times more than the one before. */
   costGrowth: number;
-  /** Bonus per level, as a fraction (0.12 = +12%). */
+  /** Highest level that can be bought. */
+  maxLevel: number;
+  /** Bonus per level: a fraction for `percent` upgrades (0.2 = +20%), a head count for `count`. */
   perLevel: number;
+  unit: 'percent' | 'count';
   blurb: string;
 }
 
 export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   damage: {
     title: 'Damage',
-    baseCost: 30,
-    costGrowth: 1.5,
-    perLevel: 0.12,
+    baseCost: 60 * COIN_SCALE,
+    costGrowth: 1.45,
+    maxLevel: 10,
+    perLevel: 0.2,
+    unit: 'percent',
     blurb: 'more damage per bullet',
   },
   rate: {
     title: 'Fire rate',
-    baseCost: 30,
-    costGrowth: 1.5,
-    perLevel: 0.08,
+    baseCost: 60 * COIN_SCALE,
+    costGrowth: 1.45,
+    maxLevel: 10,
+    perLevel: 0.1,
+    unit: 'percent',
     blurb: 'shots per second',
   },
+  soldiers: {
+    title: 'Soldiers',
+    baseCost: 150 * COIN_SCALE,
+    costGrowth: 2.1,
+    maxLevel: 5,
+    perLevel: 1,
+    unit: 'count',
+    blurb: 'extra soldiers at the start',
+  },
   coins: {
-    title: 'Coin bonus',
-    baseCost: 45,
-    costGrowth: 1.55,
-    perLevel: 0.2,
+    title: 'Coins',
+    baseCost: 80 * COIN_SCALE,
+    costGrowth: 1.6,
+    maxLevel: 5,
+    perLevel: 0.25,
+    unit: 'percent',
     blurb: 'coins per kill',
   },
 };
 
 export function noUpgrades(): UpgradeLevels {
-  return { damage: 0, rate: 0, coins: 0 };
+  return { damage: 0, rate: 0, soldiers: 0, coins: 0 };
 }
 
-/** Price of the next level when `level` has already been bought. */
+export function isMaxed(kind: UpgradeKind, level: number): boolean {
+  return level >= UPGRADES[kind].maxLevel;
+}
+
+/** Price of the next level when `level` has already been bought (Infinity once maxed out). */
 export function upgradeCost(kind: UpgradeKind, level: number): number {
+  if (isMaxed(kind, level)) return Infinity;
   const u = UPGRADES[kind];
   return Math.round(u.baseCost * Math.pow(u.costGrowth, level));
 }
 
-/** Multiplier for a stat at the given level (1 = no bonus). */
+/** Multiplier for a percent upgrade at the given level (1 = no bonus). */
 export function upgradeMultiplier(kind: UpgradeKind, level: number): number {
   return 1 + UPGRADES[kind].perLevel * level;
 }
 
-/** Uniform upgrade tier used by the level validator: the same level in damage and rate. */
+/** Extra soldiers the squad starts with. */
+export function startSoldiers(level: number): number {
+  return Math.round(UPGRADES.soldiers.perLevel * level);
+}
+
+/** Short text for what a level of an upgrade gives, e.g. `+40%` or `+2`. */
+export function upgradeEffect(kind: UpgradeKind, level: number): string {
+  const u = UPGRADES[kind];
+  return u.unit === 'count'
+    ? `+${Math.round(u.perLevel * level)}`
+    : `+${Math.round(u.perLevel * level * 100)}%`;
+}
+
+/** The highest tier the level validator tests: every upgrade at its cap. */
+export const MAX_TIER = 10;
+
+/**
+ * Uniform upgrade tier used by the level validator: damage and fire rate at `tier`, and the
+ * other upgrades in proportion, so tier `MAX_TIER` is the fully upgraded squad.
+ */
 export function tierUpgrades(tier: number): UpgradeLevels {
-  return { damage: tier, rate: tier, coins: 0 };
+  const t = Math.max(0, Math.min(MAX_TIER, tier));
+  return {
+    damage: Math.round((t * UPGRADES.damage.maxLevel) / MAX_TIER),
+    rate: Math.round((t * UPGRADES.rate.maxLevel) / MAX_TIER),
+    soldiers: Math.round((t * UPGRADES.soldiers.maxLevel) / MAX_TIER),
+    coins: 0,
+  };
 }

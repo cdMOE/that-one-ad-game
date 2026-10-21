@@ -9,7 +9,7 @@
     "elements": [
       {
         "type": "block",
-        "hp": 18
+        "hp": 12
       },
       {
         "type": "item",
@@ -29,7 +29,7 @@
       },
       {
         "type": "block",
-        "hp": 27
+        "hp": 114
       },
       {
         "type": "item",
@@ -41,7 +41,7 @@
       },
       {
         "type": "block",
-        "hp": 40
+        "hp": 828
       },
       {
         "type": "item",
@@ -61,18 +61,19 @@
       },
       {
         "type": "block",
-        "hp": 61
+        "hp": 2766
       },
       {
         "type": "item",
         "item": {
-          "kind": "weapon",
-          "weapon": "shotgun"
+          "kind": "upgrade",
+          "stat": "rate",
+          "value": 0.5
         }
       },
       {
         "type": "block",
-        "hp": 91
+        "hp": 6540
       },
       {
         "type": "item",
@@ -100,7 +101,7 @@
       },
       {
         "type": "block",
-        "hp": 137
+        "hp": 12763
       },
       {
         "type": "item",
@@ -112,7 +113,7 @@
       },
       {
         "type": "block",
-        "hp": 205
+        "hp": 22045
       },
       {
         "type": "item",
@@ -124,7 +125,7 @@
       },
       {
         "type": "block",
-        "hp": 308
+        "hp": 35000
       },
       {
         "type": "item",
@@ -147,118 +148,537 @@
   "monsters": [
     {
       "kind": "grunt",
+      "count": 10,
+      "hp": 1,
+      "interval": 1.6,
+      "delay": 2,
+      "columns": 2,
+      "spread": 0.34,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 10,
+      "hp": 1,
+      "interval": 1.57,
+      "delay": 10,
+      "columns": 2,
+      "spread": 0.34,
+      "x": -0.59
+    },
+    {
+      "kind": "runner",
+      "count": 6,
+      "hp": 1,
+      "interval": 3.13,
+      "delay": 12,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0.29
+    },
+    {
+      "kind": "grunt",
+      "count": 15,
+      "hp": 1,
+      "interval": 1.5,
+      "delay": 18,
+      "columns": 3,
+      "spread": 0.51,
+      "x": 0.44
+    },
+    {
+      "kind": "grunt",
+      "count": 15,
+      "hp": 1,
+      "interval": 1.5,
+      "delay": 18.3,
+      "columns": 3,
+      "spread": 0.51,
+      "x": -0.44
+    },
+    {
+      "kind": "grunt",
+      "count": 15,
+      "hp": 1,
+      "interval": 1.5,
+      "delay": 18.59,
+      "columns": 3,
+      "spread": 0.51,
+      "x": 0.44
+    },
+    {
+      "kind": "grunt",
+      "count": 15,
+      "hp": 1,
+      "interval": 1.5,
+      "delay": 18.89,
+      "columns": 3,
+      "spread": 0.51,
+      "x": -0.44
+    },
+    {
+      "kind": "runner",
+      "count": 6,
+      "hp": 1,
+      "interval": 3,
+      "delay": 20,
+      "columns": 3,
+      "spread": 0.6,
+      "x": -0.22
+    },
+    {
+      "kind": "grunt",
+      "count": 20,
+      "hp": 1,
+      "interval": 1.42,
+      "delay": 26,
+      "columns": 4,
+      "spread": 0.69,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 20,
+      "hp": 1,
+      "interval": 1.42,
+      "delay": 26.27,
+      "columns": 4,
+      "spread": 0.69,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 20,
+      "hp": 1,
+      "interval": 1.42,
+      "delay": 26.54,
+      "columns": 4,
+      "spread": 0.69,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 20,
+      "hp": 1,
+      "interval": 1.42,
+      "delay": 26.8,
+      "columns": 4,
+      "spread": 0.69,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 6,
+      "hp": 1,
+      "interval": 2.84,
+      "delay": 28,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 30,
+      "hp": 1,
+      "interval": 1.32,
+      "delay": 34,
+      "columns": 5,
+      "spread": 0.86,
+      "x": -0.13
+    },
+    {
+      "kind": "grunt",
+      "count": 30,
+      "hp": 1,
+      "interval": 1.32,
+      "delay": 34.24,
+      "columns": 5,
+      "spread": 0.86,
+      "x": 0.13
+    },
+    {
+      "kind": "grunt",
+      "count": 30,
+      "hp": 1,
+      "interval": 1.32,
+      "delay": 34.48,
+      "columns": 5,
+      "spread": 0.86,
+      "x": -0.13
+    },
+    {
+      "kind": "grunt",
+      "count": 30,
+      "hp": 1,
+      "interval": 1.32,
+      "delay": 34.73,
+      "columns": 5,
+      "spread": 0.86,
+      "x": 0.13
+    },
+    {
+      "kind": "runner",
       "count": 9,
-      "hp": 3,
-      "interval": 0.707,
-      "delay": 2
+      "hp": 1,
+      "interval": 2.64,
+      "delay": 36,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0.07
     },
     {
       "kind": "grunt",
-      "count": 27,
-      "hp": 3,
-      "interval": 0.259,
-      "delay": 10
+      "count": 36,
+      "hp": 1,
+      "interval": 1.21,
+      "delay": 42,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
     },
     {
       "kind": "grunt",
-      "count": 40,
-      "hp": 3,
-      "interval": 0.173,
-      "delay": 18
+      "count": 36,
+      "hp": 1,
+      "interval": 1.21,
+      "delay": 42.22,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 36,
+      "hp": 1,
+      "interval": 1.21,
+      "delay": 42.44,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 36,
+      "hp": 1,
+      "interval": 1.21,
+      "delay": 42.65,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 9,
+      "hp": 1,
+      "interval": 2.42,
+      "delay": 44,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
+    },
+    {
+      "kind": "tank",
+      "count": 2,
+      "hp": 330,
+      "interval": 3,
+      "delay": 43,
+      "x": 0.3,
+      "spread": 0.6
+    },
+    {
+      "kind": "grunt",
+      "count": 42,
+      "hp": 1,
+      "interval": 1.09,
+      "delay": 50,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 42,
+      "hp": 1,
+      "interval": 1.09,
+      "delay": 50.2,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 42,
+      "hp": 1,
+      "interval": 1.09,
+      "delay": 50.4,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 42,
+      "hp": 1,
+      "interval": 1.09,
+      "delay": 50.59,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 9,
+      "hp": 1,
+      "interval": 2.18,
+      "delay": 52,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 48,
+      "hp": 1,
+      "interval": 0.96,
+      "delay": 58,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 48,
+      "hp": 1,
+      "interval": 0.96,
+      "delay": 58.18,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 48,
+      "hp": 1,
+      "interval": 0.96,
+      "delay": 58.35,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 48,
+      "hp": 1,
+      "interval": 0.96,
+      "delay": 58.53,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
     },
     {
       "kind": "runner",
       "count": 12,
-      "hp": 2,
-      "interval": 0.576,
-      "delay": 19
+      "hp": 1,
+      "interval": 1.91,
+      "delay": 60,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
     },
     {
-      "kind": "miniboss",
-      "count": 1,
-      "hp": 57,
-      "interval": 2.0,
-      "delay": 22,
-      "x": -0.2,
-      "spread": 0.5
+      "kind": "tank",
+      "count": 3,
+      "hp": 360,
+      "interval": 3,
+      "delay": 59,
+      "x": 0.3,
+      "spread": 0.6
     },
     {
       "kind": "grunt",
-      "count": 60,
-      "hp": 4,
-      "interval": 0.115,
-      "delay": 26
+      "count": 54,
+      "hp": 1,
+      "interval": 0.81,
+      "delay": 66,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 54,
+      "hp": 1,
+      "interval": 0.81,
+      "delay": 66.16,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 54,
+      "hp": 1,
+      "interval": 0.81,
+      "delay": 66.32,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 54,
+      "hp": 1,
+      "interval": 0.81,
+      "delay": 66.48,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 12,
+      "hp": 1,
+      "interval": 1.63,
+      "delay": 68,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 72,
+      "hp": 1,
+      "interval": 0.66,
+      "delay": 74,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 72,
+      "hp": 1,
+      "interval": 0.66,
+      "delay": 74.14,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 72,
+      "hp": 1,
+      "interval": 0.66,
+      "delay": 74.28,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 72,
+      "hp": 1,
+      "interval": 0.66,
+      "delay": 74.43,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
     },
     {
       "kind": "runner",
       "count": 18,
-      "hp": 2,
-      "interval": 0.384,
-      "delay": 27
+      "hp": 1,
+      "interval": 1.32,
+      "delay": 76,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
     },
     {
       "kind": "tank",
-      "count": 2,
-      "hp": 31,
-      "interval": 3.0,
-      "delay": 28,
+      "count": 4,
+      "hp": 390,
+      "interval": 3,
+      "delay": 75,
       "x": 0.3,
       "spread": 0.6
     },
     {
       "kind": "grunt",
-      "count": 91,
-      "hp": 4,
-      "interval": 0.077,
-      "delay": 34
+      "count": 96,
+      "hp": 1,
+      "interval": 0.5,
+      "delay": 82,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 96,
+      "hp": 1,
+      "interval": 0.5,
+      "delay": 82.13,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 96,
+      "hp": 1,
+      "interval": 0.5,
+      "delay": 82.25,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 96,
+      "hp": 1,
+      "interval": 0.5,
+      "delay": 82.38,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
     },
     {
       "kind": "runner",
-      "count": 27,
-      "hp": 2,
-      "interval": 0.256,
-      "delay": 35
-    },
-    {
-      "kind": "tank",
-      "count": 2,
-      "hp": 31,
-      "interval": 3.0,
-      "delay": 36,
-      "x": 0.3,
-      "spread": 0.6
+      "count": 24,
+      "hp": 1,
+      "interval": 1,
+      "delay": 84,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
     },
     {
       "kind": "miniboss",
-      "count": 2,
-      "hp": 86,
-      "interval": 2.0,
-      "delay": 38,
-      "x": -0.2,
-      "spread": 0.5
+      "count": 1,
+      "hp": 4050,
+      "interval": 1,
+      "delay": 23,
+      "x": -0.4,
+      "spread": 0.3
     },
     {
-      "kind": "grunt",
-      "count": 136,
-      "hp": 5,
-      "interval": 0.051,
-      "delay": 42
+      "kind": "miniboss",
+      "count": 1,
+      "hp": 6075,
+      "interval": 1,
+      "delay": 50.6,
+      "x": 0.4,
+      "spread": 0.3
     },
     {
-      "kind": "runner",
-      "count": 41,
-      "hp": 3,
-      "interval": 0.171,
-      "delay": 43
-    },
-    {
-      "kind": "tank",
-      "count": 2,
-      "hp": 42,
-      "interval": 3.0,
-      "delay": 44,
-      "x": 0.3,
-      "spread": 0.6
+      "kind": "miniboss",
+      "count": 1,
+      "hp": 8100,
+      "interval": 1,
+      "delay": 78.2,
+      "x": 0,
+      "spread": 0.3
     }
   ]
 }

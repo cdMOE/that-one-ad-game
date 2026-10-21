@@ -9,7 +9,7 @@ export interface WeaponStats {
   name: string;
   /** Shots per second per soldier. */
   rate: number;
-  /** Damage of one soldier's shot (shared by its pellets). */
+  /** Damage of one bullet (every pellet of a shot carries it in full). */
   damage: number;
   pellets: number;
   /** Total fan angle (radians) the pellets are spread over. */
@@ -21,18 +21,10 @@ export interface WeaponStats {
 export const WEAPONS: Record<WeaponId, WeaponStats> = {
   pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, speed: 20 },
   rifle: { name: 'Rifle', rate: 4.5, damage: 1, pellets: 1, spread: 0, speed: 24 },
-  shotgun: {
-    name: 'Shotgun',
-    rate: 1.4,
-    damage: 2.8,
-    pellets: 4,
-    spread: 0.45,
-    speed: 20,
-  },
   minigun: {
     name: 'Minigun',
-    rate: 9,
-    damage: 0.8,
+    rate: 8,
+    damage: 1,
     pellets: 1,
     spread: 0,
     speed: 26,

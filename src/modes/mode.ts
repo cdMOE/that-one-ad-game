@@ -1,6 +1,7 @@
 import type { Sfx } from '../audio/sfx';
 import type { UpgradeLevels } from '../core/shop';
 import type { Camera } from '../core/camera';
+import type { GlLayer } from '../core/gl';
 import type { Input } from '../core/input';
 import type { ParticleSystem, PopupSystem } from '../core/particles';
 
@@ -13,8 +14,12 @@ export interface GameContext {
   readonly popups: PopupSystem;
   readonly sfx: Sfx;
   readonly input: Input;
+  /** The WebGL layer behind the 2D canvas, for modes that draw in 3D. */
+  readonly gl: GlLayer;
   /** The player's permanent upgrades (bought in the shop). */
   readonly upgrades: UpgradeLevels;
+  /** Share of the normal coin payout this run pays (1, or less when the level is replayed). */
+  coinFactor: number;
 }
 
 /**
@@ -33,5 +38,8 @@ export interface GameMode {
   /** Coins earned in this run (kept even when the run is lost). */
   readonly coinsEarned: number;
   update(dt: number): void;
+  /** Draws a frame. 2D modes paint the whole canvas; 3D modes render to the GL layer and paint only the overlay. */
   render(ctx: CanvasRenderingContext2D): void;
+  /** Called once when the mode is replaced; 3D modes free their GPU resources here. */
+  dispose?(): void;
 }

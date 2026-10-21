@@ -1,7 +1,13 @@
 import { mulberry32 } from '../../core/rng';
-import { tierUpgrades, upgradeMultiplier } from '../../core/shop';
+import {
+  MAX_TIER,
+  startSoldiers,
+  tierUpgrades,
+  upgradeMultiplier,
+  type UpgradeLevels,
+} from '../../core/shop';
 import type { StationaryLevel } from '../../levels/schema';
-import { MAX_MONSTERS, StationarySim } from './sim';
+import { MAX_MONSTERS, MONSTERS, MONSTER_KIND_BY_INDEX, StationarySim } from './sim';
 
 export interface BotResult {
   won: boolean;
@@ -11,6 +17,8 @@ export interface BotResult {
   lowest: number;
   /** Coins earned (before the coin-bonus upgrade). */
   coins: number;
+  /** Lane blocks smashed before the run ended. */
+  blocks: number;
 }
 
 /**
@@ -18,7 +26,42 @@ export interface BotResult {
  * densest column of monsters whenever they are close; otherwise it goes to the upgrade
  * lane to shoot the front block or catch the falling power-up.
  */
+/** The bot re-aims every this many steps (1 = every ~33 ms); higher is slower than a mouse hand. */
+const AIM_EVERY = 1;
+
+/** How far into an announced strike the bot notices it (a person needs a moment as well). */
+const REACTION = 0.25;
+
+/** Where to stand to be out of every lit-up strike zone, or null when it is not in danger. */
+function dodgeTarget(sim: StationarySim): number | null {
+  const reach = sim.halfWidth() + 0.3;
+  const limit = 6 - sim.halfWidth();
+  const zones = sim.attacks.filter((a) => a.t >= REACTION);
+  const blocked = (x: number) => zones.some((a) => x + reach >= a.lo && x - reach <= a.hi);
+  if (!blocked(sim.squadX)) return null;
+  // the nearest spot just beside a zone edge that no other zone covers
+  const options = zones
+    .flatMap((a) => [a.lo - reach - 0.05, a.hi + reach + 0.05])
+    .filter((x) => x >= -limit && x <= limit && !blocked(x));
+  if (options.length === 0) return null;
+  return options.reduce((best, x) =>
+    Math.abs(x - sim.squadX) < Math.abs(best - sim.squadX) ? x : best,
+  );
+}
+
+/** Index of the elite closest to the squad, or -1 when none is on the field. */
+function nearestElite(sim: StationarySim): number {
+  let best = -1;
+  for (let i = 0; i < MAX_MONSTERS; i++) {
+    if (!sim.malive[i] || !MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].elite) continue;
+    if (best < 0 || sim.my[i] < sim.my[best]) best = i;
+  }
+  return best;
+}
+
 function botTarget(sim: StationarySim): number {
+  const dodge = dodgeTarget(sim);
+  if (dodge !== null) return dodge;
   const reach = sim.halfWidth() + 0.5;
   let nearestY = Infinity;
   let danger = 0;
@@ -45,7 +88,9 @@ function botTarget(sim: StationarySim): number {
   const front = sim.lane.elements[0];
   if (front?.type === 'item' && nearestY > 2.5) return sim.lane.x;
   if (!front || danger >= 3 || nearestY < 3) return bestX;
-  return sim.lane.x;
+  // quiet moment: a boss standing in the field is worth more than the next block
+  const elite = nearestElite(sim);
+  return elite >= 0 ? sim.mx[elite] : sim.lane.x;
 }
 
 /**
@@ -56,26 +101,34 @@ function botTarget(sim: StationarySim): number {
 export function runBot(
   level: StationaryLevel,
   seed: number,
-  tier = 0,
+  loadout: number | UpgradeLevels = 0,
   maxSeconds = 300,
+  /** Called after every step (for debugging a run). */
+  trace?: (sim: StationarySim) => void,
 ): BotResult {
-  const up = tierUpgrades(tier);
+  // a plain number is a validator tier; otherwise the exact upgrade levels the player owns
+  const up = typeof loadout === 'number' ? tierUpgrades(loadout) : loadout;
+  let blocks = 0;
   const sim = new StationarySim(
     level,
     mulberry32(seed),
-    {},
+    { blockBreak: () => blocks++ },
     {
       damageMul: upgradeMultiplier('damage', up.damage),
       rateMul: upgradeMultiplier('rate', up.rate),
+      startBonus: startSoldiers(up.soldiers),
     },
   );
+  // like a mouse the squad sits exactly on the target; the human part is how often it re-aims
+  sim.snapSquad = true;
   const dt = 1 / 30;
   const steps = Math.ceil(maxSeconds / dt);
   let lowest = sim.count;
   for (let step = 0; step < steps; step++) {
     if (sim.phase === 'won' || sim.phase === 'lost') break;
-    sim.targetX = botTarget(sim);
+    if (step % AIM_EVERY === 0) sim.targetX = botTarget(sim);
     sim.update(dt);
+    trace?.(sim);
     lowest = Math.min(lowest, sim.count);
   }
   return {
@@ -84,6 +137,7 @@ export function runBot(
     seconds: sim.time,
     lowest,
     coins: sim.coinsRaw,
+    blocks,
   };
 }
 
@@ -98,7 +152,11 @@ export interface StationaryAnalysis {
   coinsPerRun: number;
 }
 
-export function analyzeStationary(level: StationaryLevel, runs = 5, tier = 0): StationaryAnalysis {
+export function analyzeStationary(
+  level: StationaryLevel,
+  runs = 5,
+  tier: number | UpgradeLevels = 0,
+): StationaryAnalysis {
   let wins = 0;
   let coins = 0;
   let best = 0;
@@ -120,7 +178,7 @@ export function analyzeStationary(level: StationaryLevel, runs = 5, tier = 0): S
   };
 }
 
-export const MAX_TIER = 16;
+export { MAX_TIER };
 
 /**
  * Lowest uniform damage+fire-rate upgrade tier at which the bot wins at least 60% of its

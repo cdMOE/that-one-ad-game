@@ -1,4 +1,4 @@
-import { noUpgrades, UPGRADE_KINDS, type UpgradeLevels } from './shop';
+import { COIN_SCALE, noUpgrades, UPGRADE_KINDS, UPGRADES, type UpgradeLevels } from './shop';
 
 const KEY = 'that-one-ad-game:v2';
 
@@ -34,6 +34,7 @@ export function loadSave(): SaveData {
       completed?: Record<string, unknown>;
       muted?: unknown;
       coins?: unknown;
+      coinScale?: unknown;
       upgrades?: Record<string, unknown>;
     };
     const completed: Record<string, LevelResult> = {};
@@ -43,10 +44,17 @@ export function loadSave(): SaveData {
     const upgrades = noUpgrades();
     for (const kind of UPGRADE_KINDS) {
       const v = parsed.upgrades?.[kind];
-      if (typeof v === 'number' && v >= 0) upgrades[kind] = Math.floor(v);
+      if (typeof v === 'number' && v >= 0) {
+        upgrades[kind] = Math.min(UPGRADES[kind].maxLevel, Math.floor(v));
+      }
     }
+    // saves from before the coin inflation (or a different scale) are converted, not lost
+    const savedScale =
+      typeof parsed.coinScale === 'number' && parsed.coinScale > 0 ? parsed.coinScale : 1;
     const coins =
-      typeof parsed.coins === 'number' && parsed.coins > 0 ? Math.floor(parsed.coins) : 0;
+      typeof parsed.coins === 'number' && parsed.coins > 0
+        ? Math.floor((parsed.coins * COIN_SCALE) / savedScale)
+        : 0;
     return { completed, muted: parsed.muted === true, coins, upgrades };
   } catch {
     return fresh;
@@ -55,8 +63,17 @@ export function loadSave(): SaveData {
 
 export function writeSave(data: SaveData): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(KEY, JSON.stringify({ ...data, coinScale: COIN_SCALE }));
   } catch {
     // ignore: progress just will not persist
   }
+}
+
+/** Throws away all progress (levels, coins, upgrades) in place; the sound setting stays. */
+export function resetSave(save: SaveData): void {
+  save.completed = {};
+  save.coins = 0;
+  // the upgrades object is shared with the running game, so it is cleared instead of replaced
+  for (const kind of UPGRADE_KINDS) save.upgrades[kind] = 0;
+  writeSave(save);
 }

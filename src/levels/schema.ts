@@ -61,7 +61,7 @@ export interface RunnerLevel extends LevelBase {
 
 // ---- stationary (shooter) mode ------------------------------------------
 
-export const WEAPON_IDS = ['pistol', 'rifle', 'shotgun', 'minigun'] as const;
+export const WEAPON_IDS = ['pistol', 'rifle', 'minigun'] as const;
 export type WeaponId = (typeof WEAPON_IDS)[number];
 
 export const MONSTER_KINDS = ['grunt', 'runner', 'tank', 'miniboss', 'boss'] as const;
@@ -73,16 +73,22 @@ export interface SpawnDef {
   count: number;
   /** Hit points of each monster. */
   hp: number;
-  /** Seconds between two monsters. */
+  /** Seconds between two monsters (or between two rows when `columns` is set). */
   interval: number;
   /** Seconds after the level starts before the first one appears. */
   delay?: number;
   /**
    * Where in the monster lane they enter, -1 (left edge) .. 1 (right edge). Default 0: the middle.
+   * Ignored for minibosses and bosses: they always come down the middle.
    */
   x?: number;
   /** Random scatter around `x`, 0 (one column) .. 1 (the whole lane). Default 1. */
   spread?: number;
+  /**
+   * Monsters per row. When set, the stream marches in as ranks: every `interval` seconds a
+   * whole row of this many monsters appears side by side, instead of one monster at a time.
+   */
+  columns?: number;
 }
 
 export const UPGRADE_STATS = ['rate', 'damage', 'pellets'] as const;
