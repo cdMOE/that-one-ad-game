@@ -687,7 +687,8 @@ export class Ui {
   private showProgress(p: ResultInfo['progress']): void {
     this.resultProgress.hidden = !p;
     if (!p) return;
-    const pct = (x: number) => `${Math.round(Math.max(0, Math.min(1, x)) * 100)}%`;
+    // rounded down like the HUD, so a run lost at the very end never reads 100%
+    const pct = (x: number) => `${Math.floor(Math.max(0, Math.min(1, x)) * 100)}%`;
     const record = p.reached > p.bestBefore && p.bestBefore > 0;
     this.resultProgressLabel.textContent = record
       ? `New record: ${pct(p.reached)} of the level!`

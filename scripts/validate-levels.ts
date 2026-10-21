@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { analyzeRunner } from '../src/levels/analyze';
 import {
   MAX_TIER,
+  TUTORIAL,
   VALIDATION_RUNS,
   WIN_RATE_TARGET,
   analyzeStationary,
@@ -19,7 +20,7 @@ const files = readdirSync(dir)
 
 let failed = false;
 const ids = new Set<string>();
-/** Position among the shooter levels: the first one is the tutorial and needs no upgrades. */
+/** Position among the shooter levels: the first one is the tutorial (see `TUTORIAL`). */
 let shooterOrder = 0;
 
 for (const file of files) {
@@ -66,19 +67,29 @@ for (const file of files) {
       continue;
     }
     const base = analyzeStationary(level, VALIDATION_RUNS, 0);
-    if (order === 0 && tier > 0) {
-      console.error(
-        `FAIL ${file}: the first shooter level must be won without upgrades (bot wins ${pct(base.winRate)})`,
-      );
-      failed = true;
-      continue;
+    if (order === 0) {
+      // the tutorial: lost without upgrades, part of the way in, and won with a few
+      const [lo, hi] = TUTORIAL.firstRun;
+      const problem =
+        base.winRate > 0
+          ? `is won without upgrades (bot wins ${pct(base.winRate)})`
+          : base.medianProgress < lo || base.medianProgress > hi
+            ? `ends its first run at ${pct(base.medianProgress)} (should be ${pct(lo)}-${pct(hi)})`
+            : tier > TUTORIAL.maxTier
+              ? `needs upgrade tier ${tier} (at most ${TUTORIAL.maxTier})`
+              : null;
+      if (problem) {
+        console.error(`FAIL ${file}: the first shooter level ${problem}`);
+        failed = true;
+        continue;
+      }
     }
     const warn =
       order > 0 && base.winRate > 0
         ? '  WARNING: too easy, should need upgrades (bot wins without any)'
         : '';
     console.log(
-      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${pct(analysis.winRate)}), ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
+      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${pct(analysis.winRate)}), first run ends at ${pct(base.medianProgress)}, ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
     );
   }
 }

@@ -19,6 +19,8 @@ export interface BotResult {
   coins: number;
   /** Lane blocks smashed before the run ended. */
   blocks: number;
+  /** How far the run got (the progress bar the player sees: 1 = won). */
+  progress: number;
 }
 
 /**
@@ -142,6 +144,7 @@ export function runBot(
     lowest,
     coins: sim.coinsRaw,
     blocks,
+    progress: sim.progress,
   };
 }
 
@@ -154,6 +157,8 @@ export interface StationaryAnalysis {
   tightness: number;
   /** Average coins per run (won or lost), before the coin-bonus upgrade. */
   coinsPerRun: number;
+  /** Median of how far the runs got (1 = won). */
+  medianProgress: number;
 }
 
 export function analyzeStationary(
@@ -165,9 +170,11 @@ export function analyzeStationary(
   let coins = 0;
   let best = 0;
   let tight = Infinity;
+  const progress: number[] = [];
   for (let seed = 1; seed <= runs; seed++) {
     const r = runBot(level, seed * 7919, tier);
     coins += r.coins;
+    progress.push(r.progress);
     if (r.won) {
       wins++;
       best = Math.max(best, r.survivors);
@@ -179,6 +186,7 @@ export function analyzeStationary(
     bestSurvivors: best,
     tightness: wins > 0 ? tight / level.startCount : 0,
     coinsPerRun: coins / runs,
+    medianProgress: progress.sort((a, b) => a - b)[Math.floor(runs / 2)] ?? 0,
   };
 }
 
@@ -192,6 +200,14 @@ export { MAX_TIER };
 export const WIN_RATE_TARGET = 0.6;
 /** Bot runs per tier. Five runs said little about a level the bot wins half the time. */
 export const VALIDATION_RUNS = 20;
+
+/**
+ * The first shooter level teaches the loop of the game: lose, keep the coins, buy upgrades, get
+ * further, win. Without upgrades the bot loses every run somewhere in `firstRun` (share of the
+ * level, median), and it wins the level by `maxTier`. The unit tests also check that the first
+ * run pays for the first damage and fire-rate upgrade, so the second run is visibly stronger.
+ */
+export const TUTORIAL = { firstRun: [0.25, 0.5], maxTier: 3 } as const;
 
 /**
  * Lowest uniform upgrade tier at which the bot reaches `WIN_RATE_TARGET`, or -1 if even the

@@ -218,7 +218,7 @@
     {
       "kind": "grunt",
       "count": 20,
-      "hp": 1,
+      "hp": 4,
       "interval": 1.41,
       "delay": 37,
       "columns": 5,
@@ -228,7 +228,7 @@
     {
       "kind": "grunt",
       "count": 20,
-      "hp": 1,
+      "hp": 4,
       "interval": 1.41,
       "delay": 37.5,
       "columns": 5,
@@ -248,7 +248,7 @@
     {
       "kind": "grunt",
       "count": 30,
-      "hp": 1,
+      "hp": 4,
       "interval": 1.26,
       "delay": 45,
       "columns": 6,
@@ -258,7 +258,7 @@
     {
       "kind": "grunt",
       "count": 30,
-      "hp": 1,
+      "hp": 4,
       "interval": 1.26,
       "delay": 45.45,
       "columns": 6,
@@ -277,9 +277,9 @@
     },
     {
       "kind": "tank",
-      "count": 2,
-      "hp": 38,
-      "interval": 3,
+      "count": 3,
+      "hp": 140,
+      "interval": 1.5,
       "delay": 46,
       "x": 0.3,
       "spread": 0.6
@@ -287,7 +287,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 1,
+      "hp": 7,
       "interval": 1.09,
       "delay": 53,
       "columns": 6,
@@ -297,7 +297,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 1,
+      "hp": 7,
       "interval": 1.09,
       "delay": 53.39,
       "columns": 6,
@@ -317,7 +317,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 1,
+      "hp": 7,
       "interval": 0.91,
       "delay": 61,
       "columns": 6,
@@ -327,7 +327,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 1,
+      "hp": 7,
       "interval": 0.91,
       "delay": 61.34,
       "columns": 6,
@@ -347,8 +347,8 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 47,
-      "interval": 3,
+      "hp": 300,
+      "interval": 1.5,
       "delay": 62,
       "x": 0.3,
       "spread": 0.6
@@ -356,7 +356,7 @@
     {
       "kind": "grunt",
       "count": 54,
-      "hp": 1,
+      "hp": 10,
       "interval": 0.71,
       "delay": 69,
       "columns": 6,
@@ -366,7 +366,7 @@
     {
       "kind": "grunt",
       "count": 54,
-      "hp": 1,
+      "hp": 10,
       "interval": 0.71,
       "delay": 69.3,
       "columns": 6,
@@ -386,7 +386,7 @@
     {
       "kind": "grunt",
       "count": 78,
-      "hp": 1,
+      "hp": 10,
       "interval": 0.5,
       "delay": 77,
       "columns": 6,
@@ -396,7 +396,7 @@
     {
       "kind": "grunt",
       "count": 78,
-      "hp": 1,
+      "hp": 10,
       "interval": 0.5,
       "delay": 77.25,
       "columns": 6,
@@ -415,10 +415,10 @@
     },
     {
       "kind": "tank",
-      "count": 4,
-      "hp": 51,
-      "interval": 3,
-      "delay": 78,
+      "count": 5,
+      "hp": 700,
+      "interval": 1.2,
+      "delay": 70,
       "x": 0.3,
       "spread": 0.6
     },

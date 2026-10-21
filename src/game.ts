@@ -181,7 +181,8 @@ export class Game {
     this.ui.showHud(levels[index], index);
     const level = levels[index];
     const firstOfMode = levels.findIndex((l) => l.mode === level.mode) === index;
-    if (firstOfMode && !this.save.completed[level.id]) {
+    // only for a newcomer: a shooter run that got anywhere leaves a progress record behind
+    if (firstOfMode && !this.save.completed[level.id] && !this.save.progress[level.id]) {
       if (level.mode === 'runner')
         this.ui.showHint('Drag left / right to pick the best gate', 5000);
       else

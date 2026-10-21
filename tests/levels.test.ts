@@ -7,6 +7,7 @@ import { validateLevel } from '../src/levels/validate';
 import { upgradeCost } from '../src/core/shop';
 import {
   MAX_TIER,
+  TUTORIAL,
   VALIDATION_RUNS,
   WIN_RATE_TARGET,
   analyzeStationary,
@@ -76,8 +77,18 @@ describe('shipped levels', () => {
       if (result.ok && result.level.mode === 'stationary') {
         const level = result.level;
         if (shooterFiles.indexOf(file) === 0) {
-          // the tutorial: a newcomer has to be able to win it on the first try, without upgrades
-          expect(wins(level, 0, VALIDATION_RUNS, ENOUGH_WINS)).toBeGreaterThanOrEqual(ENOUGH_WINS);
+          // the tutorial: the first run is lost part of the way in and pays for a few upgrades,
+          // and with those few the level is won
+          const first = analyzeStationary(level, FIRST_TRY_RUNS, 0);
+          expect(first.winRate).toBe(0);
+          expect(first.medianProgress).toBeGreaterThanOrEqual(TUTORIAL.firstRun[0]);
+          expect(first.medianProgress).toBeLessThanOrEqual(TUTORIAL.firstRun[1]);
+          expect(first.coinsPerRun).toBeGreaterThanOrEqual(
+            upgradeCost('damage', 0) + upgradeCost('rate', 0),
+          );
+          expect(
+            wins(level, TUTORIAL.maxTier, VALIDATION_RUNS, ENOUGH_WINS),
+          ).toBeGreaterThanOrEqual(ENOUGH_WINS);
         } else {
           // every later level needs shop upgrades (even the bot, which plays better than a
           // person, never wins it on the first try), yet a lost run pays a third of an upgrade

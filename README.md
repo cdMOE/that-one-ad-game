@@ -161,9 +161,11 @@ nothing visibly moves you forward. The first win of a level pays a one-off bonus
 A level that was already beaten pays half, so replaying it is no way around the wall.
 `npm run simulate:campaign` prints the runs per level and the longest stretch without a purchase.
 
-**The first shooter level is the tutorial**: it can be won on the first try, without upgrades, and
-its win (plus the first-clear bonus) buys the first few upgrades. Every later level can **not** be won
-on the first run: you lose, bank the coins, buy upgrades and try again. They are meant to take a
+**The first shooter level teaches the loop** in about three runs: the first run is lost roughly a
+third of the way in (at a tough horde with a group of tanks), but pays for the first few upgrades;
+with them the second run gets about three quarters of the way (to a wall of heavy tanks), and the
+third run wins. Every run visibly gets further, so the shop is learned by using it. Every later level
+can **not** be won on the first run either: you lose, bank the coins, buy upgrades and try again. They are meant to take a
 number of runs each. Monsters die to one bullet and come in the thousands; the wall comes from lane
 blocks that get thicker the deeper they sit (where weapon damage matters) and from the elites. A lost
 run shows how far it got, against the level's record, and what finished it (the horde or a boss
@@ -198,13 +200,16 @@ grunts can never hold a boss back.
 `npm run validate:levels` plays every stationary level with a bot (20 runs per upgrade tier, tier 10 =
 everything at its cap) and reports the **upgrade tier the level needs**: the lowest tier at which the
 bot wins 60% of its runs (`WIN_RATE_TARGET` and `VALIDATION_RUNS` in `bot.ts`). It rejects levels
-that do not reach that bar with a fully upgraded squad, and a first level that does not reach it
-without upgrades. The unit tests check the same bar with the same seeds, and in addition that every
-level after the first is never won without upgrades and that its first run pays at least a third of
-the first upgrade.
+that do not reach that bar with a fully upgraded squad. The first level has its own rule
+(`TUTORIAL` in `bot.ts`): without upgrades the bot loses every run, with a median progress between
+25% and 50%, and it wins at tier 3 at the latest. The unit tests check the same bars with the same
+seeds, and in addition that the first level's first run pays for the first damage and fire-rate
+upgrade, that every later level is never won without upgrades, and that its first run pays at least
+a third of the first upgrade.
 
 `npm run simulate:campaign` plays all shooter levels in order with one shared wallet (buying the
-cheapest upgrade after every run) and prints how many runs each level took. The bot is better than
+cheapest upgrade after every run) and prints how many runs each level took and how far each run got
+(`runs: 34% > 81% > won`). The bot is better than
 most people (it snaps to its target and reacts fast), so expect a person to need more runs.
 
 Check your level before opening a pull request:

@@ -38,9 +38,11 @@ for (const [order, level] of levels.entries()) {
   let won = false;
   let earned = 0;
   let dry = 0;
+  const path: string[] = [];
   while (!won && runs < maxRuns) {
     const r = runBot(level, seed++ * 7919, up);
     runs++;
+    path.push(r.won ? 'won' : `${Math.floor(r.progress * 100)}%`);
     coins += r.coins;
     earned += r.coins;
     won = r.won;
@@ -65,8 +67,10 @@ for (const [order, level] of levels.entries()) {
     }
   }
   const have = BUYABLE.map((k) => `${k} ${up[k]}`).join(', ');
+  // how far each run got: the first few and the last one
+  const shown = path.length > 6 ? [...path.slice(0, 5), '...', path[path.length - 1]] : path;
   console.log(
-    `${level.name.padEnd(16)} ${won ? `won after ${runs} runs` : `NOT won in ${runs} runs`}   ~${Math.round(earned / runs)} coins/run, ${dry} runs max without a purchase   (${have})`,
+    `${level.name.padEnd(16)} ${won ? `won after ${runs} runs` : `NOT won in ${runs} runs`}   ~${Math.round(earned / runs)} coins/run, ${dry} runs max without a purchase   (${have})\n${''.padEnd(17)}runs: ${shown.join(' > ')}`,
   );
 }
 console.log(`longest stretch of runs without a purchase: ${longestDry}`);
