@@ -62,8 +62,8 @@
       },
       {
         "type": "block",
-        "hp": 3538,
-        "grow": 8
+        "hp": 2123,
+        "grow": 4.8
       },
       {
         "type": "item",
@@ -74,8 +74,8 @@
       },
       {
         "type": "block",
-        "hp": 8358,
-        "grow": 10
+        "hp": 5015,
+        "grow": 6
       },
       {
         "type": "item",
@@ -103,8 +103,8 @@
       },
       {
         "type": "block",
-        "hp": 16306,
-        "grow": 12
+        "hp": 9784,
+        "grow": 7.2
       },
       {
         "type": "item",
@@ -116,8 +116,8 @@
       },
       {
         "type": "block",
-        "hp": 28162,
-        "grow": 14
+        "hp": 16897,
+        "grow": 8.4
       },
       {
         "type": "item",
@@ -129,8 +129,8 @@
       },
       {
         "type": "block",
-        "hp": 44709,
-        "grow": 16
+        "hp": 26825,
+        "grow": 9.6
       },
       {
         "type": "item",
@@ -150,8 +150,8 @@
       },
       {
         "type": "block",
-        "hp": 66727,
-        "grow": 18
+        "hp": 40036,
+        "grow": 10.8
       },
       {
         "type": "item",
@@ -163,8 +163,8 @@
       },
       {
         "type": "block",
-        "hp": 95000,
-        "grow": 20
+        "hp": 57000,
+        "grow": 12
       },
       {
         "type": "item",

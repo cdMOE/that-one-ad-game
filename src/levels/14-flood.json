@@ -61,7 +61,7 @@
       },
       {
         "type": "block",
-        "hp": 2970
+        "hp": 1040
       },
       {
         "type": "item",
@@ -73,7 +73,7 @@
       },
       {
         "type": "block",
-        "hp": 7016
+        "hp": 2456
       },
       {
         "type": "item",
@@ -101,7 +101,7 @@
       },
       {
         "type": "block",
-        "hp": 13685
+        "hp": 4790
       },
       {
         "type": "item",
@@ -113,7 +113,7 @@
       },
       {
         "type": "block",
-        "hp": 23635
+        "hp": 8272
       },
       {
         "type": "item",
@@ -125,7 +125,7 @@
       },
       {
         "type": "block",
-        "hp": 37522
+        "hp": 13133
       },
       {
         "type": "item",
@@ -145,7 +145,7 @@
       },
       {
         "type": "block",
-        "hp": 56000
+        "hp": 19600
       },
       {
         "type": "item",
@@ -160,9 +160,9 @@
   "monsters": [
     {
       "kind": "grunt",
-      "count": 10,
+      "count": 8,
       "hp": 1,
-      "interval": 1.4,
+      "interval": 1.75,
       "delay": 2,
       "columns": 2,
       "spread": 0.34,
@@ -170,9 +170,9 @@
     },
     {
       "kind": "grunt",
-      "count": 10,
+      "count": 8,
       "hp": 1,
-      "interval": 1.38,
+      "interval": 1.73,
       "delay": 10,
       "columns": 2,
       "spread": 0.34,
@@ -190,9 +190,9 @@
     },
     {
       "kind": "grunt",
-      "count": 15,
+      "count": 12,
       "hp": 1,
-      "interval": 1.34,
+      "interval": 1.68,
       "delay": 18,
       "columns": 3,
       "spread": 0.51,
@@ -200,9 +200,9 @@
     },
     {
       "kind": "grunt",
-      "count": 15,
+      "count": 12,
       "hp": 1,
-      "interval": 1.34,
+      "interval": 1.68,
       "delay": 18.27,
       "columns": 3,
       "spread": 0.51,
@@ -210,9 +210,9 @@
     },
     {
       "kind": "grunt",
-      "count": 15,
+      "count": 12,
       "hp": 1,
-      "interval": 1.34,
+      "interval": 1.68,
       "delay": 18.55,
       "columns": 3,
       "spread": 0.51,
@@ -220,9 +220,9 @@
     },
     {
       "kind": "grunt",
-      "count": 15,
+      "count": 12,
       "hp": 1,
-      "interval": 1.34,
+      "interval": 1.68,
       "delay": 18.82,
       "columns": 3,
       "spread": 0.51,
@@ -240,9 +240,9 @@
     },
     {
       "kind": "grunt",
-      "count": 24,
+      "count": 20,
       "hp": 1,
-      "interval": 1.29,
+      "interval": 1.55,
       "delay": 26,
       "columns": 4,
       "spread": 0.69,
@@ -250,9 +250,9 @@
     },
     {
       "kind": "grunt",
-      "count": 24,
+      "count": 20,
       "hp": 1,
-      "interval": 1.29,
+      "interval": 1.55,
       "delay": 26.25,
       "columns": 4,
       "spread": 0.69,
@@ -260,9 +260,9 @@
     },
     {
       "kind": "grunt",
-      "count": 24,
+      "count": 20,
       "hp": 1,
-      "interval": 1.29,
+      "interval": 1.55,
       "delay": 26.5,
       "columns": 4,
       "spread": 0.69,
@@ -270,9 +270,9 @@
     },
     {
       "kind": "grunt",
-      "count": 24,
+      "count": 20,
       "hp": 1,
-      "interval": 1.29,
+      "interval": 1.55,
       "delay": 26.76,
       "columns": 4,
       "spread": 0.69,
@@ -291,7 +291,7 @@
     {
       "kind": "tank",
       "count": 2,
-      "hp": 418,
+      "hp": 376,
       "interval": 3,
       "delay": 27,
       "x": 0.3,
@@ -299,9 +299,9 @@
     },
     {
       "kind": "grunt",
-      "count": 30,
+      "count": 25,
       "hp": 1,
-      "interval": 1.23,
+      "interval": 1.48,
       "delay": 34,
       "columns": 5,
       "spread": 0.86,
@@ -309,9 +309,9 @@
     },
     {
       "kind": "grunt",
-      "count": 30,
+      "count": 25,
       "hp": 1,
-      "interval": 1.23,
+      "interval": 1.48,
       "delay": 34.23,
       "columns": 5,
       "spread": 0.86,
@@ -319,9 +319,9 @@
     },
     {
       "kind": "grunt",
-      "count": 30,
+      "count": 25,
       "hp": 1,
-      "interval": 1.23,
+      "interval": 1.48,
       "delay": 34.47,
       "columns": 5,
       "spread": 0.86,
@@ -329,9 +329,9 @@
     },
     {
       "kind": "grunt",
-      "count": 30,
+      "count": 25,
       "hp": 1,
-      "interval": 1.23,
+      "interval": 1.48,
       "delay": 34.7,
       "columns": 5,
       "spread": 0.86,
@@ -349,9 +349,9 @@
     },
     {
       "kind": "grunt",
-      "count": 36,
+      "count": 30,
       "hp": 1,
-      "interval": 1.16,
+      "interval": 1.39,
       "delay": 42,
       "columns": 6,
       "spread": 1,
@@ -359,9 +359,9 @@
     },
     {
       "kind": "grunt",
-      "count": 36,
+      "count": 30,
       "hp": 1,
-      "interval": 1.16,
+      "interval": 1.39,
       "delay": 42.22,
       "columns": 6,
       "spread": 1,
@@ -369,9 +369,9 @@
     },
     {
       "kind": "grunt",
-      "count": 36,
+      "count": 30,
       "hp": 1,
-      "interval": 1.16,
+      "interval": 1.39,
       "delay": 42.44,
       "columns": 6,
       "spread": 1,
@@ -379,9 +379,9 @@
     },
     {
       "kind": "grunt",
-      "count": 36,
+      "count": 30,
       "hp": 1,
-      "interval": 1.16,
+      "interval": 1.39,
       "delay": 42.65,
       "columns": 6,
       "spread": 1,
@@ -400,7 +400,7 @@
     {
       "kind": "tank",
       "count": 2,
-      "hp": 494,
+      "hp": 445,
       "interval": 3,
       "delay": 43,
       "x": 0.3,
@@ -408,9 +408,9 @@
     },
     {
       "kind": "grunt",
-      "count": 42,
+      "count": 36,
       "hp": 1,
-      "interval": 1.08,
+      "interval": 1.26,
       "delay": 50,
       "columns": 6,
       "spread": 1,
@@ -418,9 +418,9 @@
     },
     {
       "kind": "grunt",
-      "count": 42,
+      "count": 36,
       "hp": 1,
-      "interval": 1.08,
+      "interval": 1.26,
       "delay": 50.2,
       "columns": 6,
       "spread": 1,
@@ -428,9 +428,9 @@
     },
     {
       "kind": "grunt",
-      "count": 42,
+      "count": 36,
       "hp": 1,
-      "interval": 1.08,
+      "interval": 1.26,
       "delay": 50.41,
       "columns": 6,
       "spread": 1,
@@ -438,9 +438,9 @@
     },
     {
       "kind": "grunt",
-      "count": 42,
+      "count": 36,
       "hp": 1,
-      "interval": 1.08,
+      "interval": 1.26,
       "delay": 50.61,
       "columns": 6,
       "spread": 1,
@@ -458,9 +458,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 1,
+      "interval": 1.14,
       "delay": 58,
       "columns": 6,
       "spread": 1,
@@ -468,9 +468,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 1,
+      "interval": 1.14,
       "delay": 58.19,
       "columns": 6,
       "spread": 1,
@@ -478,9 +478,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 1,
+      "interval": 1.14,
       "delay": 58.38,
       "columns": 6,
       "spread": 1,
@@ -488,9 +488,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 1,
+      "interval": 1.14,
       "delay": 58.56,
       "columns": 6,
       "spread": 1,
@@ -498,9 +498,9 @@
     },
     {
       "kind": "runner",
-      "count": 16,
+      "count": 12,
       "hp": 1,
-      "interval": 2,
+      "interval": 2.67,
       "delay": 60,
       "columns": 4,
       "spread": 0.6,
@@ -509,7 +509,7 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 532,
+      "hp": 479,
       "interval": 3,
       "delay": 59,
       "x": 0.3,
@@ -517,9 +517,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 0.91,
+      "interval": 1.04,
       "delay": 66,
       "columns": 6,
       "spread": 1,
@@ -527,9 +527,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 0.91,
+      "interval": 1.04,
       "delay": 66.17,
       "columns": 6,
       "spread": 1,
@@ -537,9 +537,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 0.91,
+      "interval": 1.04,
       "delay": 66.34,
       "columns": 6,
       "spread": 1,
@@ -547,9 +547,9 @@
     },
     {
       "kind": "grunt",
-      "count": 48,
+      "count": 42,
       "hp": 1,
-      "interval": 0.91,
+      "interval": 1.04,
       "delay": 66.52,
       "columns": 6,
       "spread": 1,
@@ -557,9 +557,9 @@
     },
     {
       "kind": "runner",
-      "count": 16,
+      "count": 12,
       "hp": 1,
-      "interval": 1.82,
+      "interval": 2.43,
       "delay": 68,
       "columns": 4,
       "spread": 0.6,
@@ -567,9 +567,9 @@
     },
     {
       "kind": "grunt",
-      "count": 54,
+      "count": 48,
       "hp": 1,
-      "interval": 0.82,
+      "interval": 0.92,
       "delay": 74,
       "columns": 6,
       "spread": 1,
@@ -577,9 +577,9 @@
     },
     {
       "kind": "grunt",
-      "count": 54,
+      "count": 48,
       "hp": 1,
-      "interval": 0.82,
+      "interval": 0.92,
       "delay": 74.16,
       "columns": 6,
       "spread": 1,
@@ -587,9 +587,9 @@
     },
     {
       "kind": "grunt",
-      "count": 54,
+      "count": 48,
       "hp": 1,
-      "interval": 0.82,
+      "interval": 0.92,
       "delay": 74.32,
       "columns": 6,
       "spread": 1,
@@ -597,9 +597,9 @@
     },
     {
       "kind": "grunt",
-      "count": 54,
+      "count": 48,
       "hp": 1,
-      "interval": 0.82,
+      "interval": 0.92,
       "delay": 74.48,
       "columns": 6,
       "spread": 1,
@@ -607,9 +607,9 @@
     },
     {
       "kind": "runner",
-      "count": 16,
+      "count": 12,
       "hp": 1,
-      "interval": 1.63,
+      "interval": 2.17,
       "delay": 76,
       "columns": 4,
       "spread": 0.6,
@@ -618,7 +618,7 @@
     {
       "kind": "tank",
       "count": 4,
-      "hp": 608,
+      "hp": 547,
       "interval": 3,
       "delay": 75,
       "x": 0.3,
@@ -626,9 +626,9 @@
     },
     {
       "kind": "grunt",
-      "count": 66,
+      "count": 54,
       "hp": 1,
-      "interval": 0.72,
+      "interval": 0.88,
       "delay": 82,
       "columns": 6,
       "spread": 1,
@@ -636,9 +636,9 @@
     },
     {
       "kind": "grunt",
-      "count": 66,
+      "count": 54,
       "hp": 1,
-      "interval": 0.72,
+      "interval": 0.88,
       "delay": 82.15,
       "columns": 6,
       "spread": 1,
@@ -646,10 +646,40 @@
     },
     {
       "kind": "grunt",
+      "count": 54,
+      "hp": 1,
+      "interval": 0.88,
+      "delay": 82.3,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 54,
+      "hp": 1,
+      "interval": 0.88,
+      "delay": 82.44,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 16,
+      "hp": 1,
+      "interval": 1.79,
+      "delay": 84,
+      "columns": 4,
+      "spread": 0.6,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
       "count": 66,
       "hp": 1,
       "interval": 0.72,
-      "delay": 82.3,
+      "delay": 90,
       "columns": 6,
       "spread": 1,
       "x": 0
@@ -659,7 +689,27 @@
       "count": 66,
       "hp": 1,
       "interval": 0.72,
-      "delay": 82.44,
+      "delay": 90.14,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 66,
+      "hp": 1,
+      "interval": 0.72,
+      "delay": 90.28,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 66,
+      "hp": 1,
+      "interval": 0.72,
+      "delay": 90.41,
       "columns": 6,
       "spread": 1,
       "x": 0
@@ -668,57 +718,7 @@
       "kind": "runner",
       "count": 20,
       "hp": 1,
-      "interval": 1.43,
-      "delay": 84,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 78,
-      "hp": 1,
-      "interval": 0.61,
-      "delay": 90,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 78,
-      "hp": 1,
-      "interval": 0.61,
-      "delay": 90.14,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 78,
-      "hp": 1,
-      "interval": 0.61,
-      "delay": 90.28,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 78,
-      "hp": 1,
-      "interval": 0.61,
-      "delay": 90.41,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 24,
-      "hp": 1,
-      "interval": 1.22,
+      "interval": 1.46,
       "delay": 92,
       "columns": 4,
       "spread": 0.6,
@@ -727,7 +727,7 @@
     {
       "kind": "tank",
       "count": 4,
-      "hp": 646,
+      "hp": 581,
       "interval": 3,
       "delay": 91,
       "x": 0.3,
@@ -735,9 +735,9 @@
     },
     {
       "kind": "grunt",
-      "count": 96,
+      "count": 84,
       "hp": 1,
-      "interval": 0.5,
+      "interval": 0.57,
       "delay": 98,
       "columns": 6,
       "spread": 1,
@@ -745,9 +745,9 @@
     },
     {
       "kind": "grunt",
-      "count": 96,
+      "count": 84,
       "hp": 1,
-      "interval": 0.5,
+      "interval": 0.57,
       "delay": 98.13,
       "columns": 6,
       "spread": 1,
@@ -755,9 +755,9 @@
     },
     {
       "kind": "grunt",
-      "count": 96,
+      "count": 84,
       "hp": 1,
-      "interval": 0.5,
+      "interval": 0.57,
       "delay": 98.25,
       "columns": 6,
       "spread": 1,
@@ -765,9 +765,9 @@
     },
     {
       "kind": "grunt",
-      "count": 96,
+      "count": 84,
       "hp": 1,
-      "interval": 0.5,
+      "interval": 0.57,
       "delay": 98.38,
       "columns": 6,
       "spread": 1,
@@ -775,9 +775,9 @@
     },
     {
       "kind": "runner",
-      "count": 32,
+      "count": 28,
       "hp": 1,
-      "interval": 1,
+      "interval": 1.14,
       "delay": 100,
       "columns": 4,
       "spread": 0.6,
@@ -786,7 +786,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 5130,
+      "hp": 4617,
       "interval": 1,
       "delay": 27,
       "x": -0.4,
@@ -795,7 +795,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 6840,
+      "hp": 6156,
       "interval": 1,
       "delay": 48.6,
       "x": 0.4,
@@ -804,7 +804,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 8550,
+      "hp": 7695,
       "interval": 1,
       "delay": 70.2,
       "x": 0,
@@ -813,7 +813,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 10260,
+      "hp": 9234,
       "interval": 1,
       "delay": 91.8,
       "x": -0.2,

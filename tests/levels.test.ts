@@ -5,7 +5,13 @@ import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel, StationaryLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
 import { upgradeCost } from '../src/core/shop';
-import { MAX_TIER, analyzeStationary, runBot } from '../src/modes/stationary/bot';
+import {
+  MAX_TIER,
+  VALIDATION_RUNS,
+  WIN_RATE_TARGET,
+  analyzeStationary,
+  runBot,
+} from '../src/modes/stationary/bot';
 
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
 const files = readdirSync(dir)
@@ -28,10 +34,14 @@ function errorsOf(data: unknown): string[] {
   return r.ok ? [] : r.errors;
 }
 
-/** Bot runs per stationary level (different random spawn positions). */
-const RUNS = 24;
 /** Losing at the start is the cheap, near-certain case, so it needs fewer runs. */
 const FIRST_TRY_RUNS = 8;
+/** Bot wins needed out of `VALIDATION_RUNS`: the same bar `npm run validate:levels` sets. */
+const ENOUGH_WINS = Math.ceil(VALIDATION_RUNS * WIN_RATE_TARGET);
+/** Shooter level files in campaign order; the first one is the tutorial. */
+const shooterFiles = files.filter(
+  (f) => JSON.parse(readFileSync(join(dir, f), 'utf8')).mode === 'stationary',
+);
 /** Simulating the bot runs of a stationary level takes a while. */
 const SLOW_TEST_MS = 60_000;
 
@@ -64,15 +74,20 @@ describe('shipped levels', () => {
         expect(analysis.winnable).toBe(true);
       }
       if (result.ok && result.level.mode === 'stationary') {
-        // stationary levels are meant to need shop upgrades: never won on the first try (even the
-        // bot, which plays better than a person), yet a lost run pays a third of the first upgrade
-        const first = analyzeStationary(result.level, FIRST_TRY_RUNS, 0);
-        expect(first.winRate).toBe(0);
-        expect(first.coinsPerRun * 3).toBeGreaterThanOrEqual(upgradeCost('damage', 0));
-        // 5 runs said nothing about a level the bot wins 15% of the time, so use enough to tell
-        // "hard but winnable" from "unwinnable"
-        expect(wins(result.level, MAX_TIER, RUNS, Math.ceil(RUNS * 0.1))).toBeGreaterThanOrEqual(
-          Math.ceil(RUNS * 0.1),
+        const level = result.level;
+        if (shooterFiles.indexOf(file) === 0) {
+          // the tutorial: a newcomer has to be able to win it on the first try, without upgrades
+          expect(wins(level, 0, VALIDATION_RUNS, ENOUGH_WINS)).toBeGreaterThanOrEqual(ENOUGH_WINS);
+        } else {
+          // every later level needs shop upgrades (even the bot, which plays better than a
+          // person, never wins it on the first try), yet a lost run pays a third of an upgrade
+          const first = analyzeStationary(level, FIRST_TRY_RUNS, 0);
+          expect(first.winRate).toBe(0);
+          expect(first.coinsPerRun * 3).toBeGreaterThanOrEqual(upgradeCost('damage', 0));
+        }
+        // and a fully upgraded squad wins it as often as the level validator demands
+        expect(wins(level, MAX_TIER, VALIDATION_RUNS, ENOUGH_WINS)).toBeGreaterThanOrEqual(
+          ENOUGH_WINS,
         );
       }
     },

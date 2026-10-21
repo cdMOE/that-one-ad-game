@@ -181,18 +181,37 @@ export function analyzeStationary(
 export { MAX_TIER };
 
 /**
- * Lowest uniform damage+fire-rate upgrade tier at which the bot wins at least 60% of its
- * runs, or -1 if even the maximum tier is not enough. Levels are meant to need upgrades,
- * so this is the "how far into the shop do I have to be" number.
+ * The one bar every stationary level is measured against, by `npm run validate:levels` and by
+ * the unit tests alike: a level "can be won" at a tier when the bot wins this share of
+ * `VALIDATION_RUNS` runs there.
+ */
+export const WIN_RATE_TARGET = 0.6;
+/** Bot runs per tier. Five runs said little about a level the bot wins half the time. */
+export const VALIDATION_RUNS = 20;
+
+/**
+ * Lowest uniform upgrade tier at which the bot reaches `WIN_RATE_TARGET`, or -1 if even the
+ * maximum tier is not enough. This is the "how far into the shop do I have to be" number.
+ * The win rate grows with the tier, so the tiers are bisected instead of tried one by one.
  */
 export function minimumTier(
   level: StationaryLevel,
-  runs = 5,
+  runs = VALIDATION_RUNS,
 ): { tier: number; analysis: StationaryAnalysis } {
-  let last = analyzeStationary(level, runs, 0);
-  for (let tier = 0; tier <= MAX_TIER; tier++) {
-    last = analyzeStationary(level, runs, tier);
-    if (last.winRate >= 0.6) return { tier, analysis: last };
+  const top = analyzeStationary(level, runs, MAX_TIER);
+  if (top.winRate < WIN_RATE_TARGET) return { tier: -1, analysis: top };
+  let lo = 0;
+  let hi = MAX_TIER;
+  let best = top;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const a = analyzeStationary(level, runs, mid);
+    if (a.winRate >= WIN_RATE_TARGET) {
+      hi = mid;
+      best = a;
+    } else {
+      lo = mid + 1;
+    }
   }
-  return { tier: -1, analysis: last };
+  return { tier: hi, analysis: best };
 }

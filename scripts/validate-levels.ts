@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyzeRunner } from '../src/levels/analyze';
-import { MAX_TIER, analyzeStationary, minimumTier } from '../src/modes/stationary/bot';
+import {
+  MAX_TIER,
+  VALIDATION_RUNS,
+  WIN_RATE_TARGET,
+  analyzeStationary,
+  minimumTier,
+} from '../src/modes/stationary/bot';
 import { validateLevel } from '../src/levels/validate';
 
 // Validates every level file the way the game does, and checks that a perfect
@@ -13,6 +19,8 @@ const files = readdirSync(dir)
 
 let failed = false;
 const ids = new Set<string>();
+/** Position among the shooter levels: the first one is the tutorial and needs no upgrades. */
+let shooterOrder = 0;
 
 for (const file of files) {
   let data: unknown;
@@ -47,17 +55,30 @@ for (const file of files) {
     }
     console.log(`ok   ${file}  [${level.mode}] best case: ${analysis.bestFinalCount} survivors`);
   } else {
+    const order = shooterOrder++;
     const { tier, analysis } = minimumTier(level);
+    const pct = (r: number) => `${Math.round(r * 100)}%`;
     if (tier < 0) {
-      console.error(`FAIL ${file}: the bot cannot win even with tier ${MAX_TIER} upgrades`);
+      console.error(
+        `FAIL ${file}: the bot wins only ${pct(analysis.winRate)} of ${VALIDATION_RUNS} runs with tier ${MAX_TIER} upgrades (needs ${pct(WIN_RATE_TARGET)})`,
+      );
       failed = true;
       continue;
     }
-    const base = analyzeStationary(level, 5, 0);
+    const base = analyzeStationary(level, VALIDATION_RUNS, 0);
+    if (order === 0 && tier > 0) {
+      console.error(
+        `FAIL ${file}: the first shooter level must be won without upgrades (bot wins ${pct(base.winRate)})`,
+      );
+      failed = true;
+      continue;
+    }
     const warn =
-      base.winRate >= 0.6 ? '  WARNING: too easy, should need upgrades (bot wins without any)' : '';
+      order > 0 && base.winRate > 0
+        ? '  WARNING: too easy, should need upgrades (bot wins without any)'
+        : '';
     console.log(
-      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${Math.round(analysis.winRate * 100)}%), ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
+      `ok   ${file}  [${level.mode}] needs upgrade tier ${tier} (bot wins ${pct(analysis.winRate)}), ~${Math.round(base.coinsPerRun)} coins per run${warn}`,
     );
   }
 }
