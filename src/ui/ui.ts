@@ -113,6 +113,9 @@ export class Ui {
   /** Shooter tutorial: a hand swiping between two arrows, like the ad shooters show it. */
   private readonly hand: HTMLElement;
   private hintTimer = 0;
+  /** When the hint fades (`performance.now()`), and what is left of it while the game is paused. */
+  private hintDue = 0;
+  private hintLeft = 0;
   private readonly nextBtn: HTMLButtonElement;
   private readonly modeList: HTMLElement;
   private readonly levelTitle: HTMLElement;
@@ -413,6 +416,14 @@ export class Ui {
     for (const el of [this.menu, this.levelScreen, this.result, this.hud, this.pause]) {
       el.hidden = true;
     }
+    this.hideHint();
+  }
+
+  private hideHint(): void {
+    window.clearTimeout(this.hintTimer);
+    this.hintLeft = 0;
+    this.hint.hidden = true;
+    this.hand.hidden = true;
   }
 
   showMenu(): void {
@@ -563,10 +574,21 @@ export class Ui {
         ? `+${formatCount(coins)} coins so far. You keep them if you leave.`
         : 'Take a breath.';
     this.pause.hidden = false;
+    // the tutorial hint waits with the game instead of running out behind the pause screen
+    if (!this.hint.hidden && !this.hint.classList.contains('fade')) {
+      window.clearTimeout(this.hintTimer);
+      this.hintLeft = Math.max(0, this.hintDue - performance.now());
+      this.hand.classList.add('paused');
+    }
   }
 
   hidePause(): void {
     this.pause.hidden = true;
+    if (this.hintLeft > 0) {
+      this.armHint(this.hintLeft);
+      this.hintLeft = 0;
+      this.hand.classList.remove('paused');
+    }
   }
 
   /**
@@ -576,12 +598,25 @@ export class Ui {
   showHint(text: string, ms = 3500, low = false): void {
     this.hint.textContent = text;
     this.hint.classList.toggle('low', low);
+    this.hint.classList.remove('notice');
     this.hint.hidden = false;
     this.hint.classList.remove('fade');
     // the shooter shows the swipe with a hand as well, the way the ad shooters teach it
     this.hand.hidden = !low;
-    this.hand.classList.remove('fade');
+    this.hand.classList.remove('fade', 'paused');
+    this.hintLeft = 0;
+    this.armHint(ms);
+  }
+
+  /** The hint as a notice on top of the menu screens, e.g. when the shooter cannot run here. */
+  showNotice(text: string, ms = 6000): void {
+    this.showHint(text, ms);
+    this.hint.classList.add('notice');
+  }
+
+  private armHint(ms: number): void {
     window.clearTimeout(this.hintTimer);
+    this.hintDue = performance.now() + ms;
     this.hintTimer = window.setTimeout(() => {
       this.hint.classList.add('fade');
       this.hand.classList.add('fade');

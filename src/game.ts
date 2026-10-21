@@ -16,6 +16,9 @@ import { Ui } from './ui/ui';
 
 type State = 'menu' | 'playing' | 'result';
 
+const NO_3D =
+  "This browser can't show the 3D shooter. Turn on hardware acceleration or try another browser.";
+
 /** Game shell: owns the canvas, the loop, shared services and the screen flow. */
 export class Game {
   private readonly canvas: HTMLCanvasElement;
@@ -103,6 +106,10 @@ export class Game {
       if (document.hidden) this.pause();
     });
     window.addEventListener('blur', () => this.pause());
+    // a lost GL context freezes the picture: hold the run until the browser hands it back
+    this.gl.onContextChange = (lost) => {
+      if (lost) this.pause();
+    };
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'Escape' && e.code !== 'KeyP') return;
       if (this.paused) this.resume();
@@ -138,8 +145,11 @@ export class Game {
   }
 
   private newMode(level: Level): GameMode {
+    // forget them at once, so a mode that fails to build leaves nothing disposed behind
     this.mode?.dispose?.();
+    this.mode = null;
     this.backdrop?.dispose?.();
+    this.backdrop = null;
     this.particles.clear();
     this.popups.clear();
     this.camera.dist = 0;
@@ -148,11 +158,24 @@ export class Game {
 
   startLevel(index: number): void {
     if (index < 0 || index >= levels.length) return;
+    if (levels[index].mode === 'stationary' && !this.gl.supported) {
+      this.ui.showNotice(NO_3D);
+      return;
+    }
     this.leaveRun();
     this.levelIndex = index;
     // a level that was already beaten pays less, so replaying it is no way around the wall
     this.ctx.coinFactor = this.save.completed[levels[index].id] ? REPLAY_PAYOUT : 1;
-    this.mode = this.newMode(levels[index]);
+    try {
+      this.mode = this.newMode(levels[index]);
+    } catch (e) {
+      // the 3D renderer could not be created after all: back to the menu with a word why
+      if (this.gl.supported) throw e;
+      console.error(e);
+      this.toMenu();
+      this.ui.showNotice(NO_3D);
+      return;
+    }
     this.backdrop = null;
     this.state = 'playing';
     this.ui.showHud(levels[index], index);
@@ -217,10 +240,20 @@ export class Game {
     this.backdrop = this.newDemo();
   }
 
-  /** Attract mode: a shooter level plays itself behind the menu, so the menu shows what the game looks like. */
+  /**
+   * Attract mode: a shooter level plays itself behind the menu, so the menu shows what the game
+   * looks like. Without 3D the 2D runner plays instead.
+   */
   private newDemo(): GameMode {
-    const level = levels.find((l) => l.mode === 'stationary') ?? levels[0];
-    const demo = this.newMode(level);
+    const shooter = levels.find((l) => l.mode === 'stationary');
+    let demo: GameMode;
+    try {
+      demo = this.newMode(shooter && this.gl.supported ? shooter : levels[0]);
+    } catch (e) {
+      if (this.gl.supported) throw e;
+      console.error(e);
+      demo = this.newMode(levels[0]);
+    }
     if (demo instanceof StationaryMode) demo.startDemo();
     else if (demo instanceof RunnerMode) demo.autopilot = true;
     return demo;

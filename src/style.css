@@ -856,6 +856,14 @@ body {
   transition: opacity 0.6s ease;
 }
 
+/* over the menu screens, low enough to leave their buttons free */
+.hint.notice {
+  z-index: 5;
+  top: auto;
+  bottom: 6%;
+  background: #fff4d6;
+}
+
 /* shooter: low, just above the squad, so it never covers what comes down the field */
 .hint.low {
   top: auto;
@@ -877,6 +885,10 @@ body {
 
 .hint-hand.fade {
   opacity: 0;
+}
+
+.hint-hand.paused .hand {
+  animation-play-state: paused;
 }
 
 .hand-arrow {

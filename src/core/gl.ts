@@ -18,21 +18,55 @@ export class GlLayer {
   offsetX = 0;
   offsetY = 0;
   private dpr = 1;
+  /** null until the first `supported` check. */
+  private usable: boolean | null = null;
+  /**
+   * Called when the browser takes the GL context away (GPU reset, too many tabs, an app switch on
+   * iOS) and when it gives it back. Three.js restores its state by itself once it is back.
+   */
+  onContextChange: ((lost: boolean) => void) | null = null;
 
   constructor(stage: HTMLElement, overlay: HTMLElement) {
     this.canvas.className = 'gl-canvas';
     this.canvas.hidden = true;
     stage.insertBefore(this.canvas, overlay);
+    this.canvas.addEventListener('webglcontextlost', () => this.onContextChange?.(true));
+    this.canvas.addEventListener('webglcontextrestored', () => this.onContextChange?.(false));
   }
 
-  /** Shows the layer and returns the renderer (created on first call). */
+  /**
+   * Whether 3D can run here at all: Three.js needs WebGL 2, which old browsers, some locked-down
+   * machines and disabled hardware acceleration do not offer. Probed once with a throwaway canvas.
+   */
+  get supported(): boolean {
+    if (this.usable === null) {
+      try {
+        const probe = document.createElement('canvas').getContext('webgl2');
+        this.usable = probe !== null;
+        probe?.getExtension('WEBGL_lose_context')?.loseContext(); // give the context back at once
+      } catch {
+        this.usable = false;
+      }
+    }
+    return this.usable;
+  }
+
+  /**
+   * Shows the layer and returns the renderer (created on first call). Throws when the renderer
+   * cannot be created after all; `supported` is false from then on.
+   */
   acquire(): WebGLRenderer {
     if (!this.renderer) {
-      this.renderer = new WebGLRenderer({
-        canvas: this.canvas,
-        antialias: true,
-        powerPreference: 'high-performance',
-      });
+      try {
+        this.renderer = new WebGLRenderer({
+          canvas: this.canvas,
+          antialias: true,
+          powerPreference: 'high-performance',
+        });
+      } catch (e) {
+        this.usable = false;
+        throw e;
+      }
       this.renderer.setClearColor(COLORS.bg);
       this.applySize();
     }
