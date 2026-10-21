@@ -371,11 +371,17 @@ export class StationaryMode implements GameMode {
   }
 
   private drawSquadCounter(g: CanvasRenderingContext2D): void {
-    if (this.shownCount <= 0) return;
-    const sim = this.sim;
+    const p = this.player;
+    if (this.shownCount <= 0 || p.n <= 0) return;
     const sc = this.scene;
-    const rows = Math.ceil(sim.shooters / sim.cols);
-    sc.placeAt(sim.squadX, -(rows - 1) * SOLDIER_SPACING - 1.1, 0.1);
+    // pinned to the soldiers as drawn (centre, behind the back row), so it moves with them
+    let sumX = 0;
+    let backY = Infinity;
+    for (let i = 0; i < p.n; i++) {
+      sumX += p.x[i];
+      if (p.y[i] < backY) backY = p.y[i];
+    }
+    sc.placeAt(sumX / p.n, backY - 1.1, 0.1);
     const fontPx = Math.round(Math.max(14, sc.scale * 0.8) * 1.05 * (1 + 0.3 * this.pillPop));
     drawPill(g, formatCount(this.shownCount), sc.sx, sc.sy, SQUAD_BLUE, fontPx);
   }

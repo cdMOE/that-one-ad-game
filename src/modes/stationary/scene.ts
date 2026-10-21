@@ -193,8 +193,10 @@ function canvasTexture(
 
 interface ElementView {
   group: Group;
-  /** Blocks: the tyre pile, whose material flashes white when hit. */
+  /** Blocks: the tyre pile, which squashes and glows warm when hit. */
   body?: Mesh;
+  /** Blocks: their own copy of the tyre material, so the hit glow stays on the pile that was hit. */
+  bodyMat?: MeshLambertMaterial;
   item?: ItemDef;
   /** Power-ups: what floats and turns over the pedestal (the gun, or a glowing column). */
   float?: Object3D;
@@ -250,7 +252,6 @@ export class ShooterScene implements Placer {
   private readonly glow: Mesh;
   private readonly zones: ZoneView[] = [];
   private readonly flashPlanes: Array<{ mesh: Mesh; mat: MeshBasicMaterial }> = [];
-  private readonly flashMaterial: MeshLambertMaterial;
   private readonly tireMat: MeshLambertMaterial;
   private readonly tmp = new Vector3();
 
@@ -362,9 +363,6 @@ export class ShooterScene implements Placer {
 
     // lane contents
     this.tireMat = own(new MeshLambertMaterial({ vertexColors: true, flatShading: true }));
-    this.flashMaterial = own(
-      new MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8 }),
-    );
     this.buildLane(own);
     this.glow = new Mesh(
       own(new CircleGeometry(1.45, 24).rotateX(-Math.PI / 2)),
@@ -626,9 +624,13 @@ export class ShooterScene implements Placer {
     for (const e of sim.lane.elements) {
       const group = new Group();
       if (e.type === 'block') {
-        const body = new Mesh(tireGeo, this.tireMat);
+        // a clone shares the tyre shader, so a hit never swaps programs (no compile hitch)
+        const bodyMat = own(this.tireMat.clone());
+        bodyMat.emissive.setHex(0xff8a3d);
+        bodyMat.emissiveIntensity = 0;
+        const body = new Mesh(tireGeo, bodyMat);
         group.add(body);
-        this.elements.set(e, { group, body });
+        this.elements.set(e, { group, body, bodyMat });
       } else if (e.item) {
         const kind = e.item.kind;
         group.add(new Mesh(pedestals[kind], pedestalMat));
@@ -921,10 +923,11 @@ export class ShooterScene implements Placer {
       if (!view) return;
       const g = view.group;
       g.visible = true;
-      if (view.body && e.type === 'block') {
-        view.body.material = e.flash > 0.4 ? this.flashMaterial : this.tireMat;
-        g.position.set(sim.lane.x, 0, -e.y);
-        g.scale.set(1, 1 - 0.08 * e.flash, 1);
+      if (view.bodyMat && e.type === 'block') {
+        // a warm glow and a little knock back per hit; under steady fire it pulses, never strobes
+        view.bodyMat.emissiveIntensity = 0.35 * e.flash;
+        g.position.set(sim.lane.x, 0, -e.y - 0.06 * e.flash);
+        g.scale.set(1 + 0.03 * e.flash, 1 - 0.08 * e.flash, 1);
       } else {
         const front = k === 0;
         g.position.set(sim.lane.x, 0, -e.y);
