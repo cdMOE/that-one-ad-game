@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "description": "That One Ad Game: an open-source crowd runner with a data-driven, multi-mode engine.",
   "scripts": {
     "dev": "vite",

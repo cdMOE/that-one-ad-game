@@ -13,7 +13,8 @@ import type { StationaryLevel } from '../src/levels/schema';
 
 // Plays the shooter levels in order with ONE shared wallet and permanent upgrades, like a player
 // working through the campaign: lose, bank the coins, buy the cheapest upgrade, retry. Prints how
-// many runs each level took. The bot is better than most people, so a person needs fewer runs.
+// many runs each level took. The bot is better than most people (it snaps to its target and
+// reacts fast), so a person needs more runs than it prints.
 // Run with: npm run simulate:campaign [maxRunsPerLevel]
 const maxRuns = Number(process.argv[2] ?? 400);
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
@@ -45,6 +46,7 @@ for (const [order, level] of levels.entries()) {
     won = r.won;
     if (won) coins += firstClearBonus(order);
     sinceBuy++;
+    let bought = false;
     // spend: always the cheapest upgrade that is still available
     for (;;) {
       const options = BUYABLE.map((k) => ({ k, cost: upgradeCost(k, up[k]) }))
@@ -53,9 +55,13 @@ for (const [order, level] of levels.entries()) {
       if (options.length === 0) break;
       coins -= options[0].cost;
       up[options[0].k]++;
-      longestDry = Math.max(longestDry, sinceBuy);
+      bought = true;
+    }
+    // a run that buys nothing (also because everything is maxed out) extends the dry stretch
+    if (bought) sinceBuy = 0;
+    else {
       dry = Math.max(dry, sinceBuy);
-      sinceBuy = 0;
+      longestDry = Math.max(longestDry, sinceBuy);
     }
   }
   const have = BUYABLE.map((k) => `${k} ${up[k]}`).join(', ');

@@ -20,8 +20,9 @@ npm run lint && npm run format:check && npm run validate:levels && npm test && n
 1. Copy an existing file in `src/levels/` and give it a new name that sorts where you want it,
    for example `04-my-level.json`. Use a **unique `id`**.
 2. Edit it. The format is described in the [README](README.md#creating-a-level).
-3. Run `npm run validate:levels`. It must pass: the file has to be valid and winnable by a
-   perfect player.
+3. Run `npm run validate:levels`. It must pass: the file has to be valid and winnable (by a
+   perfect player for runner levels; by the bot in 60% of its runs with a fully upgraded squad for
+   shooter levels, see the README).
 4. Play it (`npm run dev`, add `?unlock=all` to the URL). Check that the right choice is not
    completely obvious and that a bad choice actually hurts.
 

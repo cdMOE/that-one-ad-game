@@ -47,7 +47,11 @@ export class Input {
       this.downAt = performance.now();
       this.downX = this.pointerX;
       this.downY = this.pointerY;
-      target.setPointerCapture(e.pointerId);
+      try {
+        target.setPointerCapture(e.pointerId);
+      } catch {
+        // the pointer is already gone (or synthetic): the drag still works without capture
+      }
     });
     on(target, 'pointermove', (e) => {
       // a mouse can steer just by hovering

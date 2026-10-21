@@ -144,7 +144,7 @@ The level is won as soon as the last monster is dead (or has bitten); blocks and
 the lane do not have to be cleared. It is lost when the squad reaches zero.
 
 **Coins and upgrades.** Every kill (and every smashed block) drops coins, and coins are kept even
-when a run is lost. Coins are inflated on purpose (see `COIN_SCALE` in `src/core/shop.ts`: payouts
+when a run is lost or left early from the pause screen. Coins are inflated on purpose (see `COIN_SCALE` in `src/core/shop.ts`: payouts
 and prices are scaled together, so it only feels richer). Four upgrade cards (damage, fire rate,
 extra start soldiers, coin bonus) sit at the bottom of the shooter level select and result screens:
 tap a card to buy, then tap RETRY. **Every upgrade has a cap** (10 levels for damage and fire rate,
@@ -157,10 +157,21 @@ nothing visibly moves you forward. The first win of a level pays a one-off bonus
 A level that was already beaten pays half, so replaying it is no way around the wall.
 `npm run simulate:campaign` prints the runs per level and the longest stretch without a purchase.
 
-Stationary levels can **not** be won on the first run: you lose, bank the coins, buy upgrades and
-try again. They are meant to take a number of runs each. Monsters die to one bullet and come in the
-thousands; the wall comes from lane blocks that get thicker the deeper they sit (where weapon damage
-matters) and from the elites.
+**The first shooter level is the tutorial**: it can be won on the first try, without upgrades, and
+its win (plus the first-clear bonus) buys the first few upgrades. Every later level can **not** be won
+on the first run: you lose, bank the coins, buy upgrades and try again. They are meant to take a
+number of runs each. Monsters die to one bullet and come in the thousands; the wall comes from lane
+blocks that get thicker the deeper they sit (where weapon damage matters) and from the elites. A lost
+run shows how far it got, against the level's record, and what finished it (the horde or a boss
+volley).
+
+**Stars** measure how much of the biggest squad of the run is still standing at the end (80% or more:
+three stars, 45% or more: two, otherwise one), so a run without bites and volleys earns three stars
+whatever upgrades you own.
+
+**Pause.** The button at the top left (or `Esc` / `P`) pauses a shooter run, and it pauses by itself
+when the tab or app goes to the background. From the pause screen you can resume, retry or go to the
+menu; leaving keeps the coins of the run.
 
 **Minibosses and bosses are elites.** Every elite comes at its own `delay`, whatever else is on the
 field: there is no queue, no breather, and two bosses can be out at once. They walk in to a hold
@@ -180,14 +191,17 @@ path. An elite that has others in front of it steps up when they fall. Ordinary 
 crowd looks like a crowd. A few monster slots are reserved for elites (`ELITE_RESERVE`), so a jam of
 grunts can never hold a boss back.
 
-`npm run validate:levels` plays every stationary level with a bot (5 runs per upgrade tier, tier 10 =
-everything at its cap) and reports the **upgrade tier the level needs**. It rejects levels the bot
-cannot win with a fully upgraded squad and warns about levels it wins without any upgrades (the unit
-tests fail for those, and for levels whose first run pays less than a third of the first upgrade).
+`npm run validate:levels` plays every stationary level with a bot (20 runs per upgrade tier, tier 10 =
+everything at its cap) and reports the **upgrade tier the level needs**: the lowest tier at which the
+bot wins 60% of its runs (`WIN_RATE_TARGET` and `VALIDATION_RUNS` in `bot.ts`). It rejects levels
+that do not reach that bar with a fully upgraded squad, and a first level that does not reach it
+without upgrades. The unit tests check the same bar with the same seeds, and in addition that every
+level after the first is never won without upgrades and that its first run pays at least a third of
+the first upgrade.
 
 `npm run simulate:campaign` plays all shooter levels in order with one shared wallet (buying the
 cheapest upgrade after every run) and prints how many runs each level took. The bot is better than
-most people, so expect a person to need about half as many runs.
+most people (it snaps to its target and reacts fast), so expect a person to need more runs.
 
 Check your level before opening a pull request:
 
@@ -196,7 +210,7 @@ npm run validate:levels
 ```
 
 It prints readable errors (`gates[2].options[0].op: expected one of ...`) and checks that the level
-can be won (a perfect-player walk for runner levels, a bot for stationary levels).
+can be won (a perfect-player walk for runner levels, a bot for stationary levels, see above).
 
 ## Project structure
 
