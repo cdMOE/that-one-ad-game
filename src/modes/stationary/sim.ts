@@ -1,7 +1,13 @@
 import { applyGate, clampCount } from '../../core/rules';
 import { COIN_SCALE } from '../../core/shop';
 import { gridSlotX, gridSlotY } from '../../core/swarm';
-import type { ItemDef, MonsterKind, StationaryLevel, SummonDef } from '../../levels/schema';
+import type {
+  ItemDef,
+  MonsterKind,
+  StationaryLevel,
+  SummonDef,
+  WeaponId,
+} from '../../levels/schema';
 import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from './weapons';
 
 /**
@@ -355,6 +361,38 @@ export interface SimOptions {
   startBonus?: number;
 }
 
+/**
+ * What happened in a run, kept by the sim itself so a person's run (the run log) and a bot's run
+ * can be laid side by side. Times are real seconds from the start of the run.
+ */
+export interface RunTrace {
+  /** When each lane block broke. */
+  blocks: number[];
+  /** Every power-up caught: when, what (`+2`, `x2`, `rifle`, ...) and the squad right after. */
+  items: Array<{ t: number; item: string; count: number }>;
+  /**
+   * Every miniboss and boss reaching its hold line: when, the squad then, the lane blocks still
+   * standing and the weapon in hand; `down` is when it died.
+   */
+  elites: Array<{
+    kind: MonsterKind;
+    t: number;
+    count: number;
+    blocksLeft: number;
+    weapon: WeaponId;
+    down?: number;
+  }>;
+  /** Soldiers lost to monsters that got through, and to elite volleys. */
+  bitten: number;
+  struck: number;
+}
+
+function itemName(def: ItemDef): string {
+  if (def.kind === 'weapon') return def.weapon;
+  if (def.kind === 'crowd') return `${def.op}${def.value}`;
+  return `${def.stat}+${def.value}`;
+}
+
 export class StationarySim {
   count: number;
   /** Biggest the squad has been in this run (stars compare the survivors with it). */
@@ -401,6 +439,9 @@ export class StationarySim {
    * progress bar (calling a wave must not push the bar back), but it has to die for the win.
    */
   private readonly mcalled = new Uint8Array(MAX_MONSTERS);
+  /** Index of an elite's entry in `trace.elites` once it has reached its hold line, else -1. */
+  private readonly mtrace = new Int16Array(MAX_MONSTERS).fill(-1);
+  readonly trace: RunTrace = { blocks: [], items: [], elites: [], bitten: 0, struck: 0 };
   /**
    * When a run is lost with an elite on the field: health left (0..1) of the one in front, the
    * wall the run did not get past. How close it came, for the result screen; null otherwise.
@@ -512,6 +553,11 @@ export class StationarySim {
    * How far the run got (0..1): ordinary monsters count one each, an elite by the health it has
    * lost (its `progressShare`), so a boss fight moves the bar as the boss goes down.
    */
+  /** Real seconds since the run began, to a tenth (for `trace`). */
+  private traceTime(): number {
+    return Math.round((this.time / GAME_SPEED) * 10) / 10;
+  }
+
   get progress(): number {
     if (this.phase === 'won') return 1;
     return Math.min(1, (1 - this.eliteShare) * (this.done / this.total) + this.eliteDone);
@@ -618,6 +664,7 @@ export class StationarySim {
     this.msummons[slot] = null;
     this.mwave[slot] = 0;
     this.mcalled[slot] = 0;
+    this.mtrace[slot] = -1;
     this.malive[slot] = 1;
   }
 
@@ -695,6 +742,7 @@ export class StationarySim {
         this.malive[i] = 0;
         if (!this.mcalled[i]) this.done++;
         this.count = clampCount(this.count - stats.bite);
+        this.trace.bitten += stats.bite;
         this.hooks.bite?.(this.mx[i], Math.max(0, y), stats.bite);
         if (this.count <= 0) {
           this.end(false);
@@ -861,6 +909,14 @@ export class StationarySim {
       if (this.my[i] <= hold) {
         this.mstate[i] = 1;
         this.mtimer[i] = e.interval * 0.6;
+        this.mtrace[i] = this.trace.elites.length;
+        this.trace.elites.push({
+          kind: MONSTER_KIND_BY_INDEX[this.mkind[i]],
+          t: this.traceTime(),
+          count: this.count,
+          blocksLeft: this.lane.elements.filter((el) => el.type === 'block').length,
+          weapon: this.weapon.id,
+        });
       }
       return false;
     }
@@ -906,6 +962,7 @@ export class StationarySim {
     this.mstate[i] = 1;
     this.mtimer[i] = e.interval * Math.pow(RAGE_PACE, this.mrage[i]);
     if (hit) this.count = clampCount(this.count - lost);
+    this.trace.struck += hit ? lost : 0;
     let reported = false;
     for (let z = 0; z < zones; z++) {
       const first = caught[z] && !reported;
@@ -986,6 +1043,11 @@ export class StationarySim {
         els.shift();
         const before = this.count;
         this.applyItem(front.item);
+        this.trace.items.push({
+          t: this.traceTime(),
+          item: itemName(front.item),
+          count: this.count,
+        });
         this.hooks.itemCollected?.(lane.x, front.y, front.item, this.count - before);
       } else if (front.y < -1.5) {
         els.shift();
@@ -1116,6 +1178,7 @@ export class StationarySim {
         lane.elements.splice(lane.elements.indexOf(block), 1);
         this.coinsRaw += BLOCK_COINS;
         this.hooks.coin?.(lane.x, block.y, BLOCK_COINS);
+        this.trace.blocks.push(this.traceTime());
         this.hooks.blockBreak?.(lane.x, block.y);
       }
       return true;
@@ -1134,6 +1197,8 @@ export class StationarySim {
         this.kills++;
         this.coinsRaw += MONSTERS[kind].coins;
         this.hooks.coin?.(this.mx[monster], this.my[monster], MONSTERS[kind].coins);
+        if (this.mtrace[monster] >= 0)
+          this.trace.elites[this.mtrace[monster]].down = this.traceTime();
         this.hooks.kill?.(this.mx[monster], this.my[monster], kind, MONSTERS[kind].radius);
       } else {
         this.hooks.hit?.(this.mx[monster], this.my[monster], dmg, kind);

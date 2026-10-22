@@ -31,6 +31,9 @@ export interface UiHandlers {
   onPreview(index: number | null): void;
   /** Throws away all progress, coins and upgrades (the UI has already asked twice). */
   onReset(): void;
+  /** Shooter runs in the run log, and saving it as a file (the menu shows both with `?debug`). */
+  runLogSize?(): number;
+  onExportLog?(): void;
 }
 
 type ElChild = Node | string;
@@ -166,6 +169,7 @@ export class Ui {
   private readonly playBtn: HTMLButtonElement;
   private playIndex = 0;
   private readonly fpsEl: HTMLElement | null;
+  private readonly exportBtn: HTMLButtonElement | null;
   private readonly resultBar: HTMLElement;
   private readonly resultCoins: HTMLElement;
   private readonly resultBonus: HTMLElement;
@@ -200,6 +204,13 @@ export class Ui {
       onclick: () => this.pressReset(),
     });
     this.resetLabel(false);
+    // a playtest aid: the run log as a file, to lay real runs next to the bot's
+    this.exportBtn = debug
+      ? h('button', {
+          class: 'btn btn-ghost btn-reset',
+          onclick: () => handlers.onExportLog?.(),
+        })
+      : null;
 
     // main menu
     this.modeList = h('div', { class: 'mode-list' });
@@ -213,6 +224,7 @@ export class Ui {
       h('p', { class: 'fine', text: 'Open source. MIT licensed. No ads. Promise.' }),
       // erasing everything stays out of the way, below the fine print
       this.resetBtn,
+      ...(this.exportBtn ? [this.exportBtn] : []),
     );
 
     // level select
@@ -518,6 +530,9 @@ export class Ui {
     }
     window.clearTimeout(this.resetTimer);
     this.resetLabel(false);
+    if (this.exportBtn) {
+      this.exportBtn.textContent = `EXPORT RUN LOG (${this.handlers.runLogSize?.() ?? 0} runs)`;
+    }
     this.menu.hidden = false;
   }
 

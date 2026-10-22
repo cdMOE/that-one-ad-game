@@ -211,6 +211,36 @@ describe('StationarySim', () => {
     expect(sim.count).toBe(0);
   });
 
+  it('keeps a trace of the run: blocks, power-ups, elites and soldiers lost', () => {
+    const level = withLane(
+      [
+        { type: 'block', hp: 3 },
+        { type: 'item', item: { kind: 'crowd', op: '+', value: 4 } },
+        { type: 'block', hp: 1000000 },
+      ],
+      {
+        startCount: 40,
+        monsters: [
+          { kind: 'grunt', count: 3, hp: 1, interval: 0.5 },
+          { kind: 'miniboss', count: 1, hp: 300, interval: 1, delay: 3 },
+        ],
+      },
+    );
+    const sim = new StationarySim(level, mulberry32(1));
+    run(sim, 60, (s) => {
+      // under the lane until the miniboss stands, so it is not shot down on its way in
+      if (s.trace.elites.length === 0) s.targetX = s.lane.x;
+      else towardsNearest(s);
+    });
+    expect(sim.phase).toBe('won');
+    expect(sim.trace.blocks).toHaveLength(1);
+    expect(sim.trace.items).toEqual([{ t: expect.any(Number), item: '+4', count: 44 }]);
+    expect(sim.trace.elites).toHaveLength(1);
+    const mini = sim.trace.elites[0];
+    expect(mini).toMatchObject({ kind: 'miniboss', blocksLeft: 1, weapon: base.weapon });
+    expect(mini.down).toBeGreaterThan(mini.t);
+  });
+
   it('an elite calls its horde as its health drops past each mark', () => {
     const horde = { kind: 'grunt' as const, hp: 1, count: 6, columns: 6, at: [0.75, 0.5, 0.25] };
     const level = withLane([{ type: 'block', hp: 1000000 }], {

@@ -5,6 +5,7 @@ import {
   levelCoinFactor,
   upgradeCost,
   type UpgradeKind,
+  type UpgradeLevels,
 } from './core/shop';
 import { Camera } from './core/camera';
 import { GlLayer } from './core/gl';
@@ -18,6 +19,7 @@ import { levels, type Level } from './levels';
 import { createMode, type GameContext, type GameMode } from './modes';
 import { RunnerMode } from './modes/runner';
 import { StationaryMode } from './modes/stationary';
+import { downloadRunLog, logPurchase, logReset, logRun, runCount } from './modes/stationary/runlog';
 import { Ui } from './ui/ui';
 
 type State = 'menu' | 'playing' | 'result';
@@ -53,6 +55,8 @@ export class Game {
   private levelIndex = 0;
   /** The record this shooter run is racing (0..1); 0 when there is none or it was just beaten. */
   private runRecord = 0;
+  /** What a shooter run began with, for the run log; null when no shooter run is on. */
+  private runStart: { upgrades: UpgradeLevels; wallet: number } | null = null;
   private backdrop: GameMode | null = null;
   /** The level standing ready behind the shooter screen (null: the menu demo plays instead). */
   private previewIndex: number | null = null;
@@ -95,6 +99,7 @@ export class Game {
         onPreview: (i) => this.preview(i),
         onReset: () => {
           resetSave(this.save);
+          logReset();
           this.ui.setData(levels, this.save, this.params.get('unlock') === 'all');
           this.ui.showMenu();
         },
@@ -108,6 +113,8 @@ export class Game {
           this.sfx.unlock();
           this.sfx.click();
         },
+        runLogSize: () => runCount(),
+        onExportLog: () => downloadRunLog(),
       },
       this.debug,
     );
@@ -202,6 +209,10 @@ export class Game {
     const level = levels[index];
     const record = level.mode === 'stationary' ? (this.save.progress[level.id] ?? 0) : 0;
     this.runRecord = record < 1 ? record : 0;
+    this.runStart =
+      level.mode === 'stationary'
+        ? { upgrades: { ...this.save.upgrades }, wallet: this.save.coins }
+        : null;
     this.ui.showHud(level, index, record);
     const firstOfMode = levels.findIndex((l) => l.mode === level.mode) === index;
     // only for a newcomer: a shooter run that got anywhere leaves a progress record behind
@@ -243,6 +254,7 @@ export class Game {
     this.paused = false;
     const mode = this.mode;
     if (this.state !== 'playing' || !mode || levels[this.levelIndex].mode !== 'stationary') return;
+    this.logShooterRun(mode, 'left');
     this.save.coins += mode.coinsEarned;
     this.recordProgress(levels[this.levelIndex], mode.progress);
     writeSave(this.save);
@@ -341,6 +353,7 @@ export class Game {
     this.save.coins -= cost;
     this.save.upgrades[kind]++;
     writeSave(this.save);
+    logPurchase(kind);
     this.sfx.upgrade(this.save.upgrades[kind]);
     // a bought soldier steps into the waiting squad at once
     if (kind === 'soldiers' && this.previewIndex !== null) {
@@ -350,8 +363,26 @@ export class Game {
     }
   }
 
+  /** Adds the shooter run that just ended to the run log (see `runlog.ts`). */
+  private logShooterRun(mode: GameMode, result: 'won' | 'lost' | 'left'): void {
+    const start = this.runStart;
+    this.runStart = null;
+    if (!start || !(mode instanceof StationaryMode)) return;
+    logRun({
+      at: new Date().toISOString(),
+      level: levels[this.levelIndex].id,
+      upgrades: start.upgrades,
+      wallet: start.wallet,
+      result,
+      reached: Math.round(mode.progress * 1000) / 1000,
+      earned: mode.coinsEarned,
+      ...mode.facts,
+    });
+  }
+
   private finishLevel(mode: GameMode): void {
     const won = mode.outcome === 'won';
+    this.logShooterRun(mode, won ? 'won' : 'lost');
     this.state = 'result';
     const level = levels[this.levelIndex];
     // coins are kept even when the run is lost: that is what makes retrying worthwhile

@@ -19,8 +19,10 @@ import {
   SOLDIER_SPACING,
   StationarySim,
   BLOCK_HEIGHT,
+  GAME_SPEED,
   laneJackpot,
   type LaneElement,
+  type RunTrace,
 } from './stationary/sim';
 import { WEAPONS, itemLabel } from './stationary/weapons';
 
@@ -310,6 +312,22 @@ export class StationaryMode implements GameMode {
 
   get survivors(): number {
     return this.sim.count;
+  }
+
+  /** How this run went, for the run log (see `runlog.ts`). */
+  get facts(): {
+    seconds: number;
+    squad: { end: number; peak: number };
+    wallLeft: number | null;
+    trace: RunTrace;
+  } {
+    const sim = this.sim;
+    return {
+      seconds: Math.round((sim.time / GAME_SPEED) * 10) / 10,
+      squad: { end: sim.count, peak: sim.peak },
+      wallLeft: sim.wallLeft,
+      trace: sim.trace,
+    };
   }
 
   get coinsEarned(): number {
