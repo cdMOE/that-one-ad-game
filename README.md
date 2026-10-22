@@ -171,8 +171,12 @@ the way in (at a tough horde with a group of tanks), but pays for the first few 
 the second run gets clearly further (to a wall of heavy tanks), and the third run wins. Its lane is
 long enough that the winning run still has blocks to smash until the end. Every run visibly gets further, so the shop is learned by using it. Every later level
 can **not** be won on the first run either: you lose, bank the coins, buy upgrades and try again. They are meant to take a
-number of runs each. Monsters die to one bullet and come in the thousands; the wall comes from lane
-blocks that get thicker the deeper they sit (where weapon damage matters) and from the elites. A lost
+number of runs each, rising in waves (see `CAMPAIGN` below): Heavy Crates is a breather after the
+tutorial (tanks, a boss that calls tanks), Growing Pains the first real wall (a miniboss early, one
+with a runner horde halfway, a horde that toughens late), The Flood a power fantasy (twice the
+horde, each one softer, two x2 gates), and Big Boss the chapter boss. Every level starts with the
+pistol; the wall comes from lane blocks that get thicker the deeper they sit and from the elites,
+more than from the horde, so a run that loses still shows a block or a boss bar a little lower. A lost
 run shows how far it got, against the level's record, and what finished it (the horde or a boss
 volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the line
 turns gold and NEW RECORD! pops. The bar counts ordinary monsters one each and elites by the health

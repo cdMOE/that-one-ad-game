@@ -5,11 +5,11 @@
   "startCount": 1,
   "weapon": "pistol",
   "lane": {
-    "side": "left",
+    "side": "right",
     "elements": [
       {
         "type": "block",
-        "hp": 14
+        "hp": 10
       },
       {
         "type": "item",
@@ -21,15 +21,19 @@
       },
       {
         "type": "block",
-        "hp": 120
+        "hp": 80
       },
       {
         "type": "item",
         "item": {
           "kind": "crowd",
-          "op": "x",
+          "op": "+",
           "value": 2
         }
+      },
+      {
+        "type": "block",
+        "hp": 310
       },
       {
         "type": "item",
@@ -39,8 +43,40 @@
         }
       },
       {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 3
+        }
+      },
+      {
         "type": "block",
-        "hp": 1350
+        "hp": 5200
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 5
+        }
+      },
+      {
+        "type": "block",
+        "hp": 9400
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 5
+        }
+      },
+      {
+        "type": "block",
+        "hp": 18000
       },
       {
         "type": "item",
@@ -54,24 +90,36 @@
         "item": {
           "kind": "crowd",
           "op": "+",
-          "value": 3
+          "value": 5
         }
       },
       {
         "type": "block",
-        "hp": 9000
+        "hp": 29000
       },
       {
         "type": "item",
         "item": {
           "kind": "crowd",
           "op": "+",
-          "value": 5
+          "value": 7
         }
       },
       {
         "type": "block",
-        "hp": 24000
+        "hp": 44000
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 7
+        }
+      },
+      {
+        "type": "block",
+        "hp": 73000
       },
       {
         "type": "item",
@@ -83,7 +131,7 @@
       },
       {
         "type": "block",
-        "hp": 50000
+        "hp": 310000
       },
       {
         "type": "item",
@@ -98,605 +146,341 @@
   "monsters": [
     {
       "kind": "grunt",
-      "count": 10,
-      "hp": 1,
-      "interval": 1.5,
-      "delay": 2,
+      "count": 6,
+      "hp": 4,
+      "interval": 1.8,
+      "delay": 5,
       "columns": 2,
       "spread": 0.34,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 10,
-      "hp": 1,
-      "interval": 1.47,
-      "delay": 10,
+      "count": 6,
+      "hp": 4,
+      "interval": 1.75,
+      "delay": 13,
       "columns": 2,
       "spread": 0.34,
       "x": -0.59
     },
     {
       "kind": "runner",
-      "count": 8,
-      "hp": 1,
-      "interval": 2.95,
-      "delay": 12,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0.29
+      "count": 6,
+      "hp": 4,
+      "interval": 3.5,
+      "delay": 15,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "grunt",
-      "count": 15,
-      "hp": 1,
-      "interval": 1.42,
-      "delay": 18,
+      "count": 9,
+      "hp": 4,
+      "interval": 1.66,
+      "delay": 21,
       "columns": 3,
       "spread": 0.51,
       "x": 0.44
     },
     {
       "kind": "grunt",
-      "count": 15,
-      "hp": 1,
-      "interval": 1.42,
-      "delay": 18.29,
-      "columns": 3,
-      "spread": 0.51,
-      "x": -0.44
-    },
-    {
-      "kind": "grunt",
-      "count": 15,
-      "hp": 1,
-      "interval": 1.42,
-      "delay": 18.57,
-      "columns": 3,
-      "spread": 0.51,
-      "x": 0.44
-    },
-    {
-      "kind": "grunt",
-      "count": 15,
-      "hp": 1,
-      "interval": 1.42,
-      "delay": 18.86,
+      "count": 9,
+      "hp": 4,
+      "interval": 1.66,
+      "delay": 21.64,
       "columns": 3,
       "spread": 0.51,
       "x": -0.44
     },
     {
       "kind": "runner",
-      "count": 8,
-      "hp": 1,
-      "interval": 2.84,
-      "delay": 20,
-      "columns": 4,
-      "spread": 0.6,
-      "x": -0.22
+      "count": 6,
+      "hp": 4,
+      "interval": 3.33,
+      "delay": 23,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "grunt",
-      "count": 20,
-      "hp": 1,
-      "interval": 1.36,
-      "delay": 26,
-      "columns": 4,
-      "spread": 0.69,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 20,
-      "hp": 1,
-      "interval": 1.36,
-      "delay": 26.26,
-      "columns": 4,
-      "spread": 0.69,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 20,
-      "hp": 1,
-      "interval": 1.36,
-      "delay": 26.52,
-      "columns": 4,
-      "spread": 0.69,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 20,
-      "hp": 1,
-      "interval": 1.36,
-      "delay": 26.78,
-      "columns": 4,
-      "spread": 0.69,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 8,
-      "hp": 1,
-      "interval": 2.72,
-      "delay": 28,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
-      "kind": "tank",
-      "count": 2,
-      "hp": 280,
-      "interval": 3,
-      "delay": 27,
-      "x": 0.3,
-      "spread": 0.6
-    },
-    {
-      "kind": "grunt",
-      "count": 30,
-      "hp": 1,
-      "interval": 1.28,
-      "delay": 34,
-      "columns": 5,
-      "spread": 0.86,
-      "x": -0.13
-    },
-    {
-      "kind": "grunt",
-      "count": 30,
-      "hp": 1,
-      "interval": 1.28,
-      "delay": 34.24,
-      "columns": 5,
-      "spread": 0.86,
-      "x": 0.13
-    },
-    {
-      "kind": "grunt",
-      "count": 30,
-      "hp": 1,
-      "interval": 1.28,
-      "delay": 34.48,
-      "columns": 5,
-      "spread": 0.86,
-      "x": -0.13
-    },
-    {
-      "kind": "grunt",
-      "count": 30,
-      "hp": 1,
-      "interval": 1.28,
-      "delay": 34.71,
-      "columns": 5,
-      "spread": 0.86,
-      "x": 0.13
-    },
-    {
-      "kind": "runner",
-      "count": 12,
-      "hp": 1,
-      "interval": 2.56,
-      "delay": 36,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0.07
-    },
-    {
-      "kind": "grunt",
-      "count": 36,
-      "hp": 1,
-      "interval": 1.19,
-      "delay": 42,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 36,
-      "hp": 1,
-      "interval": 1.19,
-      "delay": 42.22,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 36,
-      "hp": 1,
-      "interval": 1.19,
-      "delay": 42.44,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 36,
-      "hp": 1,
-      "interval": 1.19,
-      "delay": 42.66,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 12,
-      "hp": 1,
-      "interval": 2.39,
-      "delay": 44,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
-      "kind": "tank",
-      "count": 2,
-      "hp": 336,
-      "interval": 3,
-      "delay": 43,
-      "x": 0.3,
-      "spread": 0.6
-    },
-    {
-      "kind": "grunt",
-      "count": 42,
-      "hp": 1,
-      "interval": 1.1,
-      "delay": 50,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 42,
-      "hp": 1,
-      "interval": 1.1,
-      "delay": 50.2,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 42,
-      "hp": 1,
-      "interval": 1.1,
-      "delay": 50.4,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 42,
-      "hp": 1,
-      "interval": 1.1,
-      "delay": 50.6,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 12,
-      "hp": 1,
-      "interval": 2.19,
-      "delay": 52,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 48,
-      "hp": 1,
-      "interval": 0.99,
-      "delay": 58,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 48,
-      "hp": 1,
-      "interval": 0.99,
-      "delay": 58.19,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 48,
-      "hp": 1,
-      "interval": 0.99,
-      "delay": 58.37,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 48,
-      "hp": 1,
-      "interval": 0.99,
-      "delay": 58.55,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
       "count": 16,
-      "hp": 1,
-      "interval": 1.98,
-      "delay": 60,
+      "hp": 4,
+      "interval": 1.55,
+      "delay": 29,
       "columns": 4,
-      "spread": 0.6,
+      "spread": 0.69,
       "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 16,
+      "hp": 4,
+      "interval": 1.55,
+      "delay": 29.57,
+      "columns": 4,
+      "spread": 0.69,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 6,
+      "hp": 4,
+      "interval": 3.1,
+      "delay": 31,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
+    },
+    {
+      "kind": "grunt",
+      "count": 20,
+      "hp": 7,
+      "interval": 1.41,
+      "delay": 37,
+      "columns": 5,
+      "spread": 0.86,
+      "x": -0.13
+    },
+    {
+      "kind": "grunt",
+      "count": 20,
+      "hp": 7,
+      "interval": 1.41,
+      "delay": 37.5,
+      "columns": 5,
+      "spread": 0.86,
+      "x": 0.13
+    },
+    {
+      "kind": "runner",
+      "count": 6,
+      "hp": 4,
+      "interval": 2.83,
+      "delay": 39,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
+    },
+    {
+      "kind": "grunt",
+      "count": 30,
+      "hp": 9,
+      "interval": 1.26,
+      "delay": 45,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 30,
+      "hp": 9,
+      "interval": 1.26,
+      "delay": 45.45,
+      "columns": 6,
+      "spread": 1,
+      "x": 0
+    },
+    {
+      "kind": "runner",
+      "count": 6,
+      "hp": 5,
+      "interval": 2.52,
+      "delay": 47,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "tank",
       "count": 3,
-      "hp": 364,
-      "interval": 3,
-      "delay": 59,
+      "hp": 318,
+      "interval": 1.5,
+      "delay": 46,
       "x": 0.3,
       "spread": 0.6
     },
     {
       "kind": "grunt",
-      "count": 54,
-      "hp": 1,
-      "interval": 0.88,
-      "delay": 66,
+      "count": 36,
+      "hp": 23,
+      "interval": 1.09,
+      "delay": 53,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 54,
-      "hp": 1,
-      "interval": 0.88,
-      "delay": 66.17,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 54,
-      "hp": 1,
-      "interval": 0.88,
-      "delay": 66.33,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 54,
-      "hp": 1,
-      "interval": 0.88,
-      "delay": 66.5,
+      "count": 36,
+      "hp": 23,
+      "interval": 1.09,
+      "delay": 53.39,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "runner",
-      "count": 16,
-      "hp": 1,
-      "interval": 1.76,
-      "delay": 68,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
+      "count": 6,
+      "hp": 5,
+      "interval": 2.18,
+      "delay": 55,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "grunt",
-      "count": 60,
-      "hp": 1,
-      "interval": 0.76,
-      "delay": 74,
+      "count": 36,
+      "hp": 23,
+      "interval": 0.91,
+      "delay": 61,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 60,
-      "hp": 1,
-      "interval": 0.76,
-      "delay": 74.15,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 60,
-      "hp": 1,
-      "interval": 0.76,
-      "delay": 74.31,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 60,
-      "hp": 1,
-      "interval": 0.76,
-      "delay": 74.46,
+      "count": 36,
+      "hp": 23,
+      "interval": 0.91,
+      "delay": 61.34,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "runner",
-      "count": 20,
-      "hp": 1,
-      "interval": 1.52,
-      "delay": 76,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
+      "count": 9,
+      "hp": 5,
+      "interval": 1.82,
+      "delay": 63,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "tank",
-      "count": 4,
-      "hp": 420,
-      "interval": 3,
-      "delay": 75,
+      "count": 3,
+      "hp": 887,
+      "interval": 1.5,
+      "delay": 62,
       "x": 0.3,
       "spread": 0.6
     },
     {
       "kind": "grunt",
-      "count": 72,
-      "hp": 1,
-      "interval": 0.63,
-      "delay": 82,
+      "count": 54,
+      "hp": 27,
+      "interval": 0.71,
+      "delay": 69,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 72,
-      "hp": 1,
-      "interval": 0.63,
-      "delay": 82.14,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 72,
-      "hp": 1,
-      "interval": 0.63,
-      "delay": 82.28,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 72,
-      "hp": 1,
-      "interval": 0.63,
-      "delay": 82.42,
+      "count": 54,
+      "hp": 27,
+      "interval": 0.71,
+      "delay": 69.3,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "runner",
-      "count": 24,
-      "hp": 1,
-      "interval": 1.27,
-      "delay": 84,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
+      "count": 12,
+      "hp": 5,
+      "interval": 1.42,
+      "delay": 71,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "grunt",
-      "count": 96,
-      "hp": 1,
+      "count": 78,
+      "hp": 27,
       "interval": 0.5,
-      "delay": 90,
+      "delay": 77,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 96,
-      "hp": 1,
+      "count": 78,
+      "hp": 27,
       "interval": 0.5,
-      "delay": 90.13,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 96,
-      "hp": 1,
-      "interval": 0.5,
-      "delay": 90.25,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 96,
-      "hp": 1,
-      "interval": 0.5,
-      "delay": 90.38,
+      "delay": 77.25,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "runner",
-      "count": 32,
-      "hp": 1,
+      "count": 18,
+      "hp": 5,
       "interval": 1,
-      "delay": 92,
-      "columns": 4,
-      "spread": 0.6,
-      "x": 0
+      "delay": 79,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
     },
     {
       "kind": "tank",
-      "count": 4,
-      "hp": 448,
-      "interval": 3,
-      "delay": 91,
+      "count": 5,
+      "hp": 1538,
+      "interval": 1.2,
+      "delay": 70,
       "x": 0.3,
       "spread": 0.6
     },
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 6000,
+      "hp": 1600,
       "interval": 1,
-      "delay": 25.8,
+      "delay": 24.8,
       "x": -0.4,
       "spread": 0.3
     },
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 10000,
+      "hp": 7800,
       "interval": 1,
-      "delay": 56.7,
-      "x": 0.4,
-      "spread": 0.3
+      "delay": 48,
+      "x": 0,
+      "spread": 0.3,
+      "summons": {
+        "kind": "runner",
+        "hp": 21,
+        "count": 12,
+        "columns": 6,
+        "at": [0.5]
+      }
     },
     {
-      "kind": "miniboss",
+      "kind": "boss",
       "count": 1,
-      "hp": 11500,
+      "hp": 26000,
       "interval": 1,
-      "delay": 87.5,
-      "x": 0,
-      "spread": 0.3
+      "delay": 77,
+      "x": 0.4,
+      "spread": 0.3,
+      "summons": {
+        "kind": "grunt",
+        "hp": 104,
+        "count": 32,
+        "columns": 8,
+        "at": [0.75, 0.5, 0.25]
+      }
     }
   ]
 }

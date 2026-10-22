@@ -34,10 +34,10 @@ export const CAMPAIGN: Readonly<Record<string, CampaignTarget>> = {
     runs: [7, 13],
     role: 'tutorial: wall, horde, boss, a little further each run',
   },
-  'stationary-02': { runs: [3, 5], role: 'breather: the upgrades bought show', pending: true },
-  'stationary-03': { runs: [9, 12], role: 'the first real wall', pending: true },
-  'stationary-04': { runs: [3, 4], role: 'power fantasy: a flood that melts', pending: true },
-  'stationary-05': { runs: [12, 15], role: 'chapter boss', pending: true },
+  'stationary-02': { runs: [3, 5], role: 'breather: the upgrades bought show' },
+  'stationary-03': { runs: [9, 12], role: 'the first real wall' },
+  'stationary-04': { runs: [3, 4], role: 'power fantasy: a flood that melts' },
+  'stationary-05': { runs: [12, 15], role: 'chapter boss' },
 };
 
 /**
