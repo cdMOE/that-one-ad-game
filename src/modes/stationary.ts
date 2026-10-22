@@ -26,8 +26,9 @@ import { WEAPONS, itemLabel } from './stationary/weapons';
 const DRAG_GAIN = 1.3; // finger travel -> squad travel
 const KEY_SPEED = 11; // A/D, world units per second
 /**
- * Only the first few lane elements carry their numbers: the low camera stacks the rest behind
- * them, and their labels would pile up into an unreadable column.
+ * Only the first few power-ups carry their captions: the camera stacks the rest behind them, and
+ * the text would pile up into an unreadable column. Every tyre pile shows its number, though, all
+ * the way down the lane: the big ones far off are the goals for the next runs.
  */
 const LANE_LABELS = 2;
 
@@ -70,7 +71,7 @@ export class StationaryMode implements GameMode {
   /** The prize at the end of the upgrade lane: its caption shows from the start. */
   private readonly jackpot: LaneElement | null;
   /** What cost soldiers last: if the run is lost, that is what finished it. */
-  private lastBlow: 'horde' | 'volley' | null = null;
+  private lastBlow: 'horde' | 'volley' | 'boss' | null = null;
 
   private readonly scene: ShooterScene;
   private viewKey = -1;
@@ -160,6 +161,19 @@ export class StationaryMode implements GameMode {
             particles.burst(this.sim.squadX, 0.8, 18, 6, Pc.Bad, 0.5, 0.18);
             this.pillPop = 1;
           }
+        },
+        charge: (x, y) => {
+          // the boss has waited long enough: a roar, a jolt, and it comes for the squad
+          sfx.lose();
+          camera.shake(0.25);
+          popups.add(x, y + 3.5, '!', COLORS.bad, 1.6);
+        },
+        smash: (x, y) => {
+          this.lastBlow = 'boss';
+          camera.shake(0.6);
+          sfx.boom();
+          particles.burst(x, Math.max(0.5, y), 40, 8, Pc.Bad, 0.7, 0.22);
+          particles.burst(this.sim.squadX, 0.8, 30, 7, Pc.Bad, 0.6, 0.2);
         },
         bite: (x, y, lost) => {
           this.lastBlow = 'horde';
@@ -278,9 +292,20 @@ export class StationaryMode implements GameMode {
     return starsFor(this.sim.count, this.sim.peak);
   }
 
+  /** Health left (0..1) of the boss the run did not get past, if one was on the field. */
+  get bossLeft(): number | undefined {
+    return this.sim.wallLeft ?? undefined;
+  }
+
   /** Why a lost run ended, for the result screen. */
   get lossReason(): string | undefined {
+    // a boss still standing is the wall the run did not get past: say how close it was
+    const left = this.sim.wallLeft;
+    if (left !== null && left <= 0.35)
+      return `The boss had only ${Math.max(1, Math.round(left * 100))}% health left!`;
+    if (this.lastBlow === 'boss') return 'The boss smashed your squad. Hit it harder!';
     if (this.lastBlow === 'volley') return 'A boss volley wiped out your squad.';
+    if (left !== null) return 'The boss held the line. Upgrade and hit it harder!';
     if (this.lastBlow === 'horde') return 'The horde broke through.';
     return undefined;
   }
@@ -465,7 +490,9 @@ export class StationaryMode implements GameMode {
         drawHealthBar(g, sc.sx, sc.sy, w, Math.max(5, w * 0.14), share);
         continue;
       }
-      const fontPx = Math.round(Math.max(13, sc.scale * (kind === 'boss' ? 0.75 : 0.6)));
+      // a charging boss's health throbs: this is the number that has to reach zero, now
+      const throb = sim.mstate[i] === 3 ? 1 + 0.18 * Math.abs(Math.sin(performance.now() / 90)) : 1;
+      const fontPx = Math.round(Math.max(13, sc.scale * (kind === 'boss' ? 0.75 : 0.6)) * throb);
       const w = Math.max(fontPx * 4.2, sc.scale * r * 2);
       const h = fontPx * 1.35;
       drawHealthBar(g, sc.sx, sc.sy, w, h, share);
@@ -485,12 +512,17 @@ export class StationaryMode implements GameMode {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.lineJoin = 'round';
-    sim.lane.elements.forEach((e, k) => {
-      // the prize at the far end keeps its caption all the way: it is the goal of the run
-      if (k >= LANE_LABELS && e !== this.jackpot) return;
-      if (e.type === 'item' && e.item) this.drawItemLabel(g, e, e.item);
-      else this.drawBlockLabel(g, e);
-    });
+    // far to near, so the close labels are drawn over the distant ones
+    const els = sim.lane.elements;
+    for (let k = els.length - 1; k >= 0; k--) {
+      const e = els[k];
+      if (e.type === 'item' && e.item) {
+        // the prize at the far end keeps its caption all the way: it is the goal of the run
+        if (k < LANE_LABELS || e === this.jackpot) this.drawItemLabel(g, e, e.item);
+      } else {
+        this.drawBlockLabel(g, e);
+      }
+    }
   }
 
   private drawItemLabel(g: CanvasRenderingContext2D, e: LaneElement, def: ItemDef): void {
@@ -517,7 +549,7 @@ export class StationaryMode implements GameMode {
     const lane = this.sim.lane;
     // big orange numbers on the front of the pile, like the obstacles in the ad shooters
     sc.placeAt((lane.blockLo + lane.blockHi) / 2, o.y - BLOCK_HEIGHT / 2, 0.6);
-    const fontPx = Math.round(Math.max(14, sc.scale * 0.95));
+    const fontPx = Math.round(Math.max(11, sc.scale * 0.95));
     drawBigNumber(g, formatCount(Math.ceil(o.hp)), sc.sx, sc.sy, fontPx, BLOCK_FILL);
   }
 

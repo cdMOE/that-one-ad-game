@@ -51,12 +51,17 @@ export interface ResultInfo {
   progress?: { reached: number; bestBefore: number };
   /** Why a lost run ended. */
   lossReason?: string;
+  /** Health left (0..1) of the boss that ended a lost run. */
+  bossLeft?: number;
 }
 
 const MODE_INFO: Record<LevelMode, { title: string; blurb: string }> = {
   runner: { title: 'RUNNER', blurb: 'Run, pick the right gates, crush the boss' },
   stationary: { title: 'SHOOTER', blurb: 'Slide, shoot, earn coins, buy upgrades' },
 };
+
+/** Pips on an upgrade card: one stretch of levels at a time (see `makeUpgradeBar`). */
+const PIPS = 5;
 
 const starText = (n: number) => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
 
@@ -90,8 +95,11 @@ const ICON_BACK =
  * Headline of a lost shooter run: a near miss is named, otherwise it points at the next step (the
  * upgrade cards right under it), never at the defeat. A new record is cheered by the bar below.
  */
-function runOverTitle(p: ResultInfo['progress']): string {
-  return p && p.reached >= 0.75 ? 'SO CLOSE!' : 'UPGRADE & GO!';
+function runOverTitle(info: ResultInfo): string {
+  const close =
+    (info.progress && info.progress.reached >= 0.75) ||
+    (info.bossLeft !== undefined && info.bossLeft <= 0.2);
+  return close ? 'SO CLOSE!' : 'UPGRADE & GO!';
 }
 
 /** One bullet pointing right, for the fire rate picture. */
@@ -540,9 +548,11 @@ export class Ui {
         art.append(h('span', { class: 'up-badge', text: String(level) }));
         if (level > 0)
           art.append(h('span', { class: 'up-effect', text: upgradeEffect(kind, level) }));
+        // five pips for the current stretch of five levels: they fill up, then start over
         const pips = h('span', { class: 'up-pips' });
-        for (let i = 0; i < info.maxLevel; i++) {
-          pips.append(h('span', { class: i < level ? 'pip on' : 'pip' }));
+        const lit = maxed ? PIPS : level === 0 ? 0 : ((level - 1) % PIPS) + 1;
+        for (let i = 0; i < PIPS; i++) {
+          pips.append(h('span', { class: i < lit ? 'pip on' : 'pip' }));
         }
         const card = h(
           'button',
@@ -769,11 +779,7 @@ export class Ui {
     // a lost shooter run is never a defeat screen: it paid coins, and the cards below spend them
     const runOver = !won && upgradesAvailable;
     this.result.classList.toggle('run-over', runOver);
-    this.resultTitle.textContent = won
-      ? 'VICTORY!'
-      : runOver
-        ? runOverTitle(info.progress)
-        : 'DEFEATED';
+    this.resultTitle.textContent = won ? 'VICTORY!' : runOver ? runOverTitle(info) : 'DEFEATED';
     this.resultSub.textContent = won
       ? `${survivors} survivor${survivors === 1 ? '' : 's'} made it`
       : upgradesAvailable

@@ -16,14 +16,6 @@
         "item": {
           "kind": "crowd",
           "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "x",
           "value": 2
         }
       },
@@ -34,41 +26,9 @@
       {
         "type": "item",
         "item": {
-          "kind": "upgrade",
-          "stat": "rate",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 60
-      },
-      {
-        "type": "item",
-        "item": {
           "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "block",
-        "hp": 90
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
+          "op": "x",
           "value": 2
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
         }
       },
       {
@@ -83,62 +43,6 @@
         }
       },
       {
-        "type": "block",
-        "hp": 450
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "block",
-        "hp": 800
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "damage",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 1400
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "x",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 3000
-      },
-      {
         "type": "item",
         "item": {
           "kind": "crowd",
@@ -148,7 +52,7 @@
       },
       {
         "type": "block",
-        "hp": 5000
+        "hp": 800
       },
       {
         "type": "item",
@@ -160,7 +64,7 @@
       },
       {
         "type": "block",
-        "hp": 8000
+        "hp": 5000
       },
       {
         "type": "item",
@@ -168,6 +72,18 @@
           "kind": "crowd",
           "op": "x",
           "value": 2
+        }
+      },
+      {
+        "type": "block",
+        "hp": 10000
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 10
         }
       }
     ]
@@ -266,7 +182,7 @@
     {
       "kind": "grunt",
       "count": 20,
-      "hp": 4,
+      "hp": 2,
       "interval": 1.41,
       "delay": 37,
       "columns": 5,
@@ -276,7 +192,7 @@
     {
       "kind": "grunt",
       "count": 20,
-      "hp": 4,
+      "hp": 2,
       "interval": 1.41,
       "delay": 37.5,
       "columns": 5,
@@ -296,7 +212,7 @@
     {
       "kind": "grunt",
       "count": 30,
-      "hp": 4,
+      "hp": 2,
       "interval": 1.26,
       "delay": 45,
       "columns": 6,
@@ -306,7 +222,7 @@
     {
       "kind": "grunt",
       "count": 30,
-      "hp": 4,
+      "hp": 2,
       "interval": 1.26,
       "delay": 45.45,
       "columns": 6,
@@ -326,7 +242,7 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 140,
+      "hp": 70,
       "interval": 1.5,
       "delay": 46,
       "x": 0.3,
@@ -335,7 +251,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 7,
+      "hp": 4,
       "interval": 1.09,
       "delay": 53,
       "columns": 6,
@@ -345,7 +261,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 7,
+      "hp": 4,
       "interval": 1.09,
       "delay": 53.39,
       "columns": 6,
@@ -365,7 +281,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 7,
+      "hp": 4,
       "interval": 0.91,
       "delay": 61,
       "columns": 6,
@@ -375,7 +291,7 @@
     {
       "kind": "grunt",
       "count": 36,
-      "hp": 7,
+      "hp": 4,
       "interval": 0.91,
       "delay": 61.34,
       "columns": 6,
@@ -395,7 +311,7 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 300,
+      "hp": 150,
       "interval": 1.5,
       "delay": 62,
       "x": 0.3,
@@ -404,7 +320,7 @@
     {
       "kind": "grunt",
       "count": 54,
-      "hp": 10,
+      "hp": 5,
       "interval": 0.71,
       "delay": 69,
       "columns": 6,
@@ -414,7 +330,7 @@
     {
       "kind": "grunt",
       "count": 54,
-      "hp": 10,
+      "hp": 5,
       "interval": 0.71,
       "delay": 69.3,
       "columns": 6,
@@ -434,7 +350,7 @@
     {
       "kind": "grunt",
       "count": 78,
-      "hp": 10,
+      "hp": 5,
       "interval": 0.5,
       "delay": 77,
       "columns": 6,
@@ -444,7 +360,7 @@
     {
       "kind": "grunt",
       "count": 78,
-      "hp": 10,
+      "hp": 5,
       "interval": 0.5,
       "delay": 77.25,
       "columns": 6,
@@ -464,7 +380,7 @@
     {
       "kind": "tank",
       "count": 5,
-      "hp": 520,
+      "hp": 260,
       "interval": 1.2,
       "delay": 70,
       "x": 0.3,
@@ -482,7 +398,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 600,
+      "hp": 700,
       "interval": 1,
       "delay": 77,
       "x": 0.4,

@@ -29,9 +29,10 @@ export type UpgradeLevels = Record<UpgradeKind, number>;
  * Every permanent upgrade has a cap, so the strongest possible squad is a known quantity.
  *
  * Prices are the dial for how long the campaign takes: `npm run simulate:campaign` shows the
- * runs per level. The rule of thumb is that every run buys at least one upgrade, and a good run
- * several: even a weak first run pays for a damage or fire rate level, and prices climb slowly
- * enough that the payout keeps up with them.
+ * runs per level. Damage and fire rate come in many small steps that start cheap and get steeper,
+ * like the ad shooters: the first runs buy several levels each and the squad gets stronger fast,
+ * later every run still buys one or two, and the levels (each one a wall of bosses) take a few more
+ * runs each. The strongest squad is no stronger than before; it just takes longer to get there.
  */
 export interface UpgradeInfo {
   title: string;
@@ -50,19 +51,19 @@ export interface UpgradeInfo {
 export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   damage: {
     title: 'Damage',
-    baseCost: 40 * COIN_SCALE,
-    costGrowth: 1.42,
-    maxLevel: 10,
-    perLevel: 0.2,
+    baseCost: 50 * COIN_SCALE,
+    costGrowth: 1.15,
+    maxLevel: 30,
+    perLevel: 0.08,
     unit: 'percent',
     blurb: 'more damage per bullet',
   },
   rate: {
     title: 'Fire rate',
-    baseCost: 40 * COIN_SCALE,
-    costGrowth: 1.42,
-    maxLevel: 10,
-    perLevel: 0.1,
+    baseCost: 50 * COIN_SCALE,
+    costGrowth: 1.15,
+    maxLevel: 25,
+    perLevel: 0.05,
     unit: 'percent',
     blurb: 'shots per second',
   },
@@ -94,11 +95,19 @@ export function isMaxed(kind: UpgradeKind, level: number): boolean {
   return level >= UPGRADES[kind].maxLevel;
 }
 
+/**
+ * The first levels of every upgrade are on sale: a quarter, a half, three quarters of the price,
+ * then full price from this level on. So even a botched first run buys something, and the second
+ * run is visibly stronger, without making the rest of the price curve any cheaper.
+ */
+const INTRO_LEVELS = 4;
+
 /** Price of the next level when `level` has already been bought (Infinity once maxed out). */
 export function upgradeCost(kind: UpgradeKind, level: number): number {
   if (isMaxed(kind, level)) return Infinity;
   const u = UPGRADES[kind];
-  return Math.round(u.baseCost * Math.pow(u.costGrowth, level));
+  const intro = Math.min(1, (level + 1) / INTRO_LEVELS);
+  return Math.round(u.baseCost * Math.pow(u.costGrowth, level) * intro);
 }
 
 /** Multiplier for a percent upgrade at the given level (1 = no bonus). */

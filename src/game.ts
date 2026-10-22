@@ -363,6 +363,7 @@ export class Game {
       bonus,
       ...(shooter ? { progress: { reached: mode.progress, bestBefore } } : {}),
       ...(mode.lossReason ? { lossReason: mode.lossReason } : {}),
+      ...(mode.bossLeft !== undefined ? { bossLeft: mode.bossLeft } : {}),
     });
   }
 

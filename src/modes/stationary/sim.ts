@@ -44,8 +44,13 @@ export const SOLDIER_SPACING = 0.6;
 export const GRID_COLS = 5;
 /** At most this many soldiers are simulated and drawn; bigger squads hit harder per bullet. */
 export const MAX_SHOOTERS = 40;
-/** Global pace of the shooter: everything (monsters, bullets, items) runs this much faster. */
-export const GAME_SPEED = 1.3;
+/**
+ * Global pace of the shooter: everything (monsters, bullets, items) runs this much faster. Kept
+ * high, like the ad shooters: the horde storms in, kills and coins come every split second, and a
+ * lost run is over in well under a minute. Boss warnings are set in game time so that they still
+ * give the same reaction time in real seconds (see `EliteStats.telegraph`).
+ */
+export const GAME_SPEED = 1.6;
 const SQUAD_MAX_SPEED = 16;
 /** How fast lane elements slide towards the squad. */
 const LANE_SPEED = 3.4;
@@ -71,12 +76,17 @@ const BLOCK_COINS = 20 * COIN_SCALE;
 const HIT_FORGIVENESS = 0.35;
 
 /**
- * Minibosses and bosses do not walk down to the squad. They stop at `holdY`, never touch it, and
- * every `interval` seconds fire a volley of `zones` strikes: each zone `halfWidth` to each side
- * lights up for `telegraph` seconds, then hits. With chance `aimedChance` the first zone is aimed
- * at where the squad stands, otherwise it lands at random; every further zone is random. A volley
- * always leaves a gap the squad fits into, so it can be dodged. Whoever is caught by any zone
- * loses `damage` of the squad (once per volley, however many zones it stands in).
+ * Minibosses and bosses are the walls of a level. They stop at `holdY` and every `interval`
+ * seconds fire a volley of `zones` strikes: each zone `halfWidth` to each side lights up for
+ * `telegraph` seconds, then hits. With chance `aimedChance` the first zone is aimed at where the
+ * squad stands, otherwise it lands at random; every further zone is random. A volley always leaves
+ * a gap the squad fits into, so it can be dodged. Whoever is caught by any zone loses `damage` of
+ * the squad (once per volley, however many zones it stands in).
+ *
+ * Dodging alone does not get you past one: after `patience` seconds on its hold line it charges
+ * at `chargeSpeed`, and if it reaches the squad it smashes all of it. So every elite is a damage
+ * check the shop upgrades have to pass, and a run that fails it ends at once, with the boss's
+ * health bar saying how close it was. All times are game time (see `GAME_SPEED`).
  */
 export interface EliteStats {
   holdY: number;
@@ -86,6 +96,8 @@ export interface EliteStats {
   damage: number;
   zones: number;
   aimedChance: number;
+  patience: number;
+  chargeSpeed: number;
 }
 
 export interface MonsterStats {
@@ -110,11 +122,14 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
     elite: {
       holdY: 7.5,
       interval: 5,
-      telegraph: 1.1,
+      // 0.85 s of warning in real time
+      telegraph: 1.35,
       halfWidth: 1.1,
       damage: 0.2,
       zones: 1,
       aimedChance: 0.5,
+      patience: 9,
+      chargeSpeed: 1.4,
     },
   },
   boss: {
@@ -125,11 +140,14 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
     elite: {
       holdY: 7,
       interval: 3.6,
-      telegraph: 1,
+      // 0.77 s of warning in real time
+      telegraph: 1.23,
       halfWidth: 1.3,
       damage: 0.3,
       zones: 2,
       aimedChance: 0.6,
+      patience: 12,
+      chargeSpeed: 1.2,
     },
   },
 };
@@ -233,6 +251,10 @@ export interface SimHooks {
    * and is reported on the first zone that caught the squad only (0 on the others).
    */
   strike?(x: number, half: number, hit: boolean, lost: number): void;
+  /** An elite ran out of patience and charges at the squad. */
+  charge?(x: number, y: number): void;
+  /** A charging elite reached the squad and smashed it: the run is lost. */
+  smash?(x: number, y: number): void;
   /** A soldier fired; (x, y) is the muzzle position. Called once per soldier shot. */
   shot?(x: number, y: number): void;
   hit?(x: number, y: number): void;
@@ -334,9 +356,18 @@ export class StationarySim {
   readonly mmax = new Float32Array(MAX_MONSTERS);
   readonly mkind = new Uint8Array(MAX_MONSTERS);
   readonly malive = new Uint8Array(MAX_MONSTERS);
-  /** Elite state: 0 walking in, 1 holding (waiting to strike), 2 strike announced. */
+  /** Elite state: 0 walking in, 1 holding (waiting to strike), 2 strike announced, 3 charging. */
   readonly mstate = new Uint8Array(MAX_MONSTERS);
   private readonly mtimer = new Float32Array(MAX_MONSTERS);
+  /** Seconds an elite still waits on its hold line before it charges (see `EliteStats`). */
+  private readonly mpatience = new Float32Array(MAX_MONSTERS);
+  /** Health left (0..1) of the elite that smashed the squad, or null if none did. */
+  smashedAt: number | null = null;
+  /**
+   * When a run is lost with an elite on the field: health left (0..1) of the one in front, the
+   * wall the run did not get past. How close it came, for the result screen; null otherwise.
+   */
+  wallLeft: number | null = null;
   /** Centres of the announced zones, `MAX_ZONES` slots per monster. */
   private readonly mtarget = new Float32Array(MAX_MONSTERS * MAX_ZONES);
   private readonly mzones = new Uint8Array(MAX_MONSTERS);
@@ -495,6 +526,15 @@ export class StationarySim {
 
   private end(won: boolean): void {
     this.phase = won ? 'won' : 'lost';
+    if (!won) {
+      let front = -1;
+      for (let i = 0; i < MAX_MONSTERS; i++) {
+        if (!this.malive[i] || !MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].elite) continue;
+        if (this.my[i] > ARENA.spawnTop) continue;
+        if (front < 0 || this.my[i] < this.my[front]) front = i;
+      }
+      if (front >= 0) this.wallLeft = Math.max(0, this.mhp[front] / this.mmax[front]);
+    }
     this.hooks.ended?.(won);
   }
 
@@ -535,6 +575,7 @@ export class StationarySim {
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
     this.mstate[slot] = 0;
+    this.mpatience[slot] = stats.elite?.patience ?? 0;
     this.malive[slot] = 1;
     return true;
   }
@@ -713,6 +754,16 @@ export class StationarySim {
       y -= step;
       left -= step / fast;
     }
+    if (this.mstate[i] === 3) {
+      // charging: straight at the squad, past its own hold line
+      this.my[i] = y - e.chargeSpeed * left;
+      if (this.my[i] > 0.5 + stats.radius * 0.6) return false;
+      this.smashedAt = Math.max(0, this.mhp[i] / this.mmax[i]);
+      this.hooks.smash?.(this.mx[i], this.my[i]);
+      this.count = 0;
+      this.end(false);
+      return true;
+    }
     y -= stats.speed * left;
     // also while holding: when the elite in front falls, the next one steps up
     const hold = this.holdLine(i, e);
@@ -722,6 +773,13 @@ export class StationarySim {
         this.mstate[i] = 1;
         this.mtimer[i] = e.interval * 0.6;
       }
+      return false;
+    }
+    // only the one at the front of the queue loses patience; between volleys it may charge
+    if (this.my[i] <= e.holdY + 1e-3) this.mpatience[i] -= dt;
+    if (this.mstate[i] === 1 && this.mpatience[i] <= 0) {
+      this.mstate[i] = 3;
+      this.hooks.charge?.(this.mx[i], this.my[i]);
       return false;
     }
     this.mtimer[i] -= dt;

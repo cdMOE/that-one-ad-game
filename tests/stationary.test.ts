@@ -36,6 +36,18 @@ const base: StationaryLevel = {
   monsters: [{ kind: 'grunt', count: 3, hp: 4, interval: 1 }],
 };
 
+/** Runs `body` with every elite's patience set to `patience` (see `EliteStats.patience`). */
+function withPatience(patience: number, body: () => void): void {
+  const elites = Object.values(MONSTERS).flatMap((m) => (m.elite ? [m.elite] : []));
+  const saved = elites.map((e) => e.patience);
+  for (const e of elites) e.patience = patience;
+  try {
+    body();
+  } finally {
+    elites.forEach((e, k) => (e.patience = saved[k]));
+  }
+}
+
 function run(sim: StationarySim, seconds: number, steer?: (s: StationarySim) => void): void {
   for (let i = 0; i < seconds * 30 && sim.phase !== 'won' && sim.phase !== 'lost'; i++) {
     steer?.(sim);
@@ -199,22 +211,55 @@ describe('StationarySim', () => {
     expect(sim.count).toBe(0);
   });
 
-  it('elites stop at their hold line and never bite', () => {
+  it('elites hold their line for a while, then charge and smash a squad that did not stop them', () => {
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 30,
       monsters: [{ kind: 'miniboss', count: 1, hp: 1000000, interval: 1 }],
     });
     const sim = new StationarySim(level, mulberry32(1));
     sim.targetX = -5; // parked in the upgrade lane: out of reach of its strikes
-    run(sim, 60);
     const e = MONSTERS.miniboss.elite!;
-    expect(sim.phase).toBe('fighting');
-    expect(sim.monstersAlive).toBe(1);
-    const i = sim.malive.findIndex((v) => v === 1);
-    expect(sim.my[i]).toBeCloseTo(e.holdY, 3);
-    expect(sim.count).toBe(30);
+    let held = 0;
+    let charged = false;
+    let smashed = false;
+    sim.hooks.charge = () => (charged = true);
+    sim.hooks.smash = () => (smashed = true);
+    for (let k = 0; k < 60 * 30 && sim.phase !== 'lost'; k++) {
+      sim.update(1 / 30);
+      const m = sim.malive.findIndex((v) => v === 1);
+      if (!charged && m >= 0 && sim.mstate[m] !== 0) {
+        // holding: on its line, and it never bites
+        expect(sim.my[m]).toBeCloseTo(e.holdY, 3);
+        expect(sim.count).toBe(30);
+        held += GAME_SPEED / 30;
+      }
+    }
+    expect(held).toBeGreaterThanOrEqual(e.patience - 0.1);
+    expect(charged).toBe(true);
+    expect(smashed).toBe(true);
+    expect(sim.phase).toBe('lost');
+    expect(sim.smashedAt).toBeCloseTo(1, 3); // untouched: the whole wall was still standing
     expect(MONSTERS.miniboss.coins).toBeGreaterThan(MONSTERS.tank.coins);
     expect(MONSTERS.miniboss.radius).toBeGreaterThan(MONSTERS.tank.radius);
+  });
+
+  it('a boss that is shot down while it charges never reaches the squad', () => {
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 30,
+      monsters: [{ kind: 'miniboss', count: 1, hp: 1000000, interval: 1 }],
+    });
+    const sim = new StationarySim(level, mulberry32(1));
+    sim.targetX = -5;
+    let charging = -1;
+    sim.hooks.charge = () => (charging = sim.malive.findIndex((v) => v === 1));
+    for (let k = 0; k < 60 * 30 && charging < 0; k++) sim.update(1 / 30);
+    expect(charging).toBeGreaterThanOrEqual(0);
+    sim.mhp[charging] = 1; // nearly dead: the squad finishes it on its way in
+    sim.targetX = sim.mx[charging];
+    run(sim, 10);
+    expect(sim.monstersAlive).toBe(0);
+    expect(sim.count).toBe(30);
+    expect(sim.smashedAt).toBeNull();
   });
 
   it('an elite aims at the squad (or not, by chance) and the strike can be dodged', () => {
@@ -358,7 +403,7 @@ describe('StationarySim', () => {
       monsters: [{ kind: 'grunt', count: 24, hp: 1e6, interval: 0.5, delay: 1, columns: 6 }],
     });
     const sim = new StationarySim(level, mulberry32(3));
-    run(sim, 1.4); // 1 s of gap, then the first row appears
+    run(sim, 1.82 / GAME_SPEED); // 1 s of gap, then the first row appears (times in game time)
     const rows = () => {
       const xs = new Set<number>();
       let n = 0;
@@ -375,7 +420,7 @@ describe('StationarySim', () => {
     };
     expect(rows().n).toBe(6);
     expect(rows().columns).toBeGreaterThanOrEqual(5); // side by side across the lane
-    run(sim, 1);
+    run(sim, 1.3 / GAME_SPEED);
     expect(rows().n).toBeGreaterThanOrEqual(18); // the next ranks followed without a break
   });
 
@@ -401,8 +446,8 @@ describe('StationarySim', () => {
 
   it('monsters are slow enough to react to and big enough to hit', () => {
     const speeds = Object.values(MONSTERS).map((m) => m.speed * GAME_SPEED);
-    // nothing crosses the field in under 3.5 seconds
-    expect(Math.max(...speeds)).toBeLessThan(16.3 / 3.5);
+    // fast, like the ad shooters, but nothing crosses the field in under 3 seconds
+    expect(Math.max(...speeds)).toBeLessThan(16.3 / 3);
     // the fastest monster is at most twice as fast as the slowest ordinary one
     expect(MONSTERS.runner.speed).toBeLessThanOrEqual(MONSTERS.grunt.speed * 2);
     // a grunt is clearly wider than the gap between two bullet lanes, so it cannot slip through
@@ -684,7 +729,7 @@ describe('bodies', () => {
     const before = bossY();
     expect(before).toBeGreaterThan(MONSTERS.boss.elite!.holdY + 1);
     sim.targetX = mid; // now shoot the miniboss down
-    run(sim, 20);
+    run(sim, 6);
     expect(field(sim).some((m) => m.kind === 3)).toBe(false);
     expect(bossY()).toBeCloseTo(MONSTERS.boss.elite!.holdY, 1);
   });
@@ -703,7 +748,11 @@ describe('bodies', () => {
       });
       const sim = new StationarySim(level, mulberry32(seed));
       sim.targetX = -5; // out of the way: whatever is left alive is stuck, not shot
-      run(sim, 70);
+      // the elites stay put for the whole test (they would charge and end the run otherwise)
+      sim.hooks.charge = () => {
+        throw new Error('no charge expected');
+      };
+      withPatience(Infinity, () => run(sim, 70));
       expect(field(sim).filter((m) => m.kind < 3)).toHaveLength(0);
     }
   });

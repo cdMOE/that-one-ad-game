@@ -9,40 +9,7 @@
     "elements": [
       {
         "type": "block",
-        "hp": 20
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "block",
-        "hp": 150
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "rate",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 1062,
-        "grow": 6
+        "hp": 18
       },
       {
         "type": "item",
@@ -53,17 +20,20 @@
         }
       },
       {
+        "type": "block",
+        "hp": 140
+      },
+      {
         "type": "item",
         "item": {
           "kind": "crowd",
-          "op": "+",
-          "value": 1
+          "op": "x",
+          "value": 2
         }
       },
       {
         "type": "block",
-        "hp": 2123,
-        "grow": 4.8
+        "hp": 2250
       },
       {
         "type": "item",
@@ -73,51 +43,28 @@
         }
       },
       {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 4
+        }
+      },
+      {
         "type": "block",
-        "hp": 5015,
-        "grow": 6
+        "hp": 15000
       },
       {
         "type": "item",
         "item": {
           "kind": "crowd",
           "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
+          "value": 6
         }
       },
       {
         "type": "block",
-        "hp": 9784,
-        "grow": 7.2
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "damage",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 16897,
-        "grow": 8.4
+        "hp": 45000
       },
       {
         "type": "item",
@@ -129,57 +76,14 @@
       },
       {
         "type": "block",
-        "hp": 26825,
-        "grow": 9.6
+        "hp": 95000
       },
       {
         "type": "item",
         "item": {
           "kind": "crowd",
           "op": "+",
-          "value": 3
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "rate",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 40036,
-        "grow": 10.8
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "x",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 57000,
-        "grow": 12
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "damage",
-          "value": 0.6
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 3
+          "value": 12
         }
       }
     ]
@@ -872,7 +776,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 5660,
+      "hp": 11000,
       "interval": 1,
       "delay": 30.5,
       "x": -0.4,
@@ -881,7 +785,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 7546,
+      "hp": 17000,
       "interval": 1,
       "delay": 54.9,
       "x": 0.4,
@@ -890,7 +794,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 9432,
+      "hp": 25000,
       "interval": 1,
       "delay": 79.3,
       "x": 0,
@@ -899,7 +803,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 11319,
+      "hp": 38000,
       "interval": 1,
       "delay": 103.7,
       "x": -0.2,
@@ -908,7 +812,7 @@
     {
       "kind": "boss",
       "count": 1,
-      "hp": 8820,
+      "hp": 46000,
       "interval": 1,
       "delay": 115.9,
       "spread": 0.2

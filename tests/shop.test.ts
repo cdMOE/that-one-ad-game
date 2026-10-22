@@ -26,6 +26,27 @@ describe('shop', () => {
     }
   });
 
+  it('comes in many small steps: the first run buys several, the campaign fills them all', () => {
+    expect(UPGRADES.damage.maxLevel).toBeGreaterThanOrEqual(20);
+    expect(UPGRADES.rate.maxLevel).toBeGreaterThanOrEqual(20);
+    // a weak first run of the first level (~4000 coins) buys at least three levels
+    let wallet = 4000;
+    let bought = 0;
+    const levels = { damage: 0, rate: 0 };
+    for (;;) {
+      const kind =
+        upgradeCost('damage', levels.damage) <= upgradeCost('rate', levels.rate)
+          ? 'damage'
+          : 'rate';
+      const cost = upgradeCost(kind, levels[kind]);
+      if (cost > wallet) break;
+      wallet -= cost;
+      levels[kind]++;
+      bought++;
+    }
+    expect(bought).toBeGreaterThanOrEqual(3);
+  });
+
   it('starts cheap and gets steeper, but never explodes', () => {
     expect(upgradeCost('damage', 0)).toBeLessThanOrEqual(70 * COIN_SCALE);
     const last = UPGRADES.damage.maxLevel - 1;
@@ -51,13 +72,13 @@ describe('shop', () => {
 
   it('has no bonus at level 0 and a linear bonus per level', () => {
     expect(upgradeMultiplier('damage', 0)).toBe(1);
-    expect(upgradeMultiplier('damage', 5)).toBeCloseTo(2);
+    expect(upgradeMultiplier('damage', 25)).toBeCloseTo(3);
     expect(upgradeMultiplier('coins', 2)).toBeCloseTo(1.5);
   });
 
   it('describes tiers and empty upgrades', () => {
     expect(noUpgrades()).toEqual({ damage: 0, rate: 0, soldiers: 0, coins: 0 });
-    expect(tierUpgrades(3)).toEqual({ damage: 3, rate: 3, soldiers: 2, coins: 0 });
+    expect(tierUpgrades(3)).toEqual({ damage: 9, rate: 8, soldiers: 2, coins: 0 });
   });
 
   it('caps every upgrade: the last level can be bought, the one after cannot', () => {
@@ -73,7 +94,7 @@ describe('shop', () => {
   it('gives whole soldiers for the soldiers upgrade and a fully upgraded squad at the top tier', () => {
     expect(startSoldiers(3)).toBe(3);
     expect(upgradeEffect('soldiers', 2)).toBe('+2');
-    expect(upgradeEffect('damage', 3)).toBe('+60%');
+    expect(upgradeEffect('damage', 3)).toBe('+24%');
     const top = tierUpgrades(MAX_TIER);
     for (const kind of ['damage', 'rate', 'soldiers'] as const) {
       expect(top[kind]).toBe(UPGRADES[kind].maxLevel);

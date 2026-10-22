@@ -16,104 +16,12 @@
         "item": {
           "kind": "crowd",
           "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "block",
-        "hp": 114
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "rate",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 828
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
           "value": 2
         }
       },
       {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
         "type": "block",
-        "hp": 1106
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "rate",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 2616
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 1
-        }
-      },
-      {
-        "type": "block",
-        "hp": 5105
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "upgrade",
-          "stat": "damage",
-          "value": 0.5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 8818
+        "hp": 110
       },
       {
         "type": "item",
@@ -125,7 +33,14 @@
       },
       {
         "type": "block",
-        "hp": 14000
+        "hp": 900
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "weapon",
+          "weapon": "minigun"
+        }
       },
       {
         "type": "item",
@@ -136,11 +51,39 @@
         }
       },
       {
+        "type": "block",
+        "hp": 6000
+      },
+      {
         "type": "item",
         "item": {
-          "kind": "upgrade",
-          "stat": "rate",
-          "value": 0.5
+          "kind": "crowd",
+          "op": "+",
+          "value": 5
+        }
+      },
+      {
+        "type": "block",
+        "hp": 12000
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "x",
+          "value": 2
+        }
+      },
+      {
+        "type": "block",
+        "hp": 30000
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "crowd",
+          "op": "+",
+          "value": 10
         }
       }
     ]
@@ -656,7 +599,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 2430,
+      "hp": 2000,
       "interval": 1,
       "delay": 23,
       "x": -0.4,
@@ -665,7 +608,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 3645,
+      "hp": 6200,
       "interval": 1,
       "delay": 50.6,
       "x": 0.4,
@@ -674,7 +617,7 @@
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 4860,
+      "hp": 7200,
       "interval": 1,
       "delay": 78.2,
       "x": 0,

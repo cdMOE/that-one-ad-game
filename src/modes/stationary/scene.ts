@@ -122,15 +122,16 @@ const BULLET_HEIGHT = 0.62;
 const MAX_DRAWN_BULLETS = 120;
 /**
  * The bullets show how hard the squad hits: every few damage levels (shop or power-ups) they get
- * bigger, longer and change colour, from warm tracers to cyan to hot pink to gold, so a bought
+ * bigger, longer and change colour, from warm tracers to cyan, hot pink, red and gold, so a bought
  * upgrade is something you see on the very next run. The cores are saturated, not white: the
  * road is light, and a pale tracer vanishes on it. `at` is the damage multiplier.
  */
 const BULLET_LOOKS = [
   { at: 1, core: 0xfff0a0, glow: 0xff9d2e, opacity: 0.15, size: 1 },
   { at: 1.4, core: 0x3fe0ff, glow: 0x2fd2ff, opacity: 0.24, size: 1.3 },
-  { at: 2, core: 0xff4fcf, glow: 0xff3fc8, opacity: 0.3, size: 1.6 },
-  { at: 2.6, core: 0xffbf1a, glow: 0xffc21f, opacity: 0.36, size: 1.9 },
+  { at: 1.9, core: 0xff4fcf, glow: 0xff3fc8, opacity: 0.3, size: 1.55 },
+  { at: 2.5, core: 0xff5a2a, glow: 0xff3a10, opacity: 0.34, size: 1.8 },
+  { at: 3.1, core: 0xffbf1a, glow: 0xffc21f, opacity: 0.4, size: 2.05 },
 ];
 const WHITE = new Color(0xffffff);
 const POPUP_HEIGHT = 1.3;
@@ -991,8 +992,11 @@ export class ShooterScene implements Placer {
       const t = time * HOP_RATE[k] + phase;
       const hop = Math.abs(Math.sin(t));
       const small = r < 1;
-      const lift = hop * (small ? 0.16 : 0.05) * r;
-      const squash = 1 - 0.1 * (1 - hop);
+      // a charging boss stomps: big, quick hops instead of its slow sway
+      const charging = sim.mstate[i] === 3;
+      const stomp = Math.abs(Math.sin(time * 9 + phase));
+      const lift = charging ? stomp * 0.22 * r : hop * (small ? 0.16 : 0.05) * r;
+      const squash = 1 - (charging ? 0.16 * (1 - stomp) : 0.1 * (1 - hop));
       let s = r;
       if (sim.mstate[i] === 2) s *= 1 + 0.05 * Math.sin(time * 40);
       writeTRS(

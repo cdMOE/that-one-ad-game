@@ -73,6 +73,10 @@ function nearestElite(sim: StationarySim): number {
 function botTarget(sim: StationarySim): number {
   const dodge = dodgeTarget(sim);
   if (dodge !== null) return dodge;
+  // a charging elite ends the run when it arrives: everything goes into it
+  for (let i = 0; i < MAX_MONSTERS; i++) {
+    if (sim.malive[i] && sim.mstate[i] === 3) return sim.mx[i];
+  }
   const reach = sim.halfWidth() + 0.5;
   let nearestY = Infinity;
   let danger = 0;

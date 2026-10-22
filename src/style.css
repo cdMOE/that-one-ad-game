@@ -452,14 +452,14 @@ body {
 
 .up-pips {
   display: flex;
-  gap: 2px;
+  gap: 3px;
   padding: 5px 4px;
   background: #1d2a5b;
 }
 
 .pip {
   flex: 1;
-  height: 7px;
+  height: 9px;
   border-radius: 2px;
   background: #4a5784;
 }

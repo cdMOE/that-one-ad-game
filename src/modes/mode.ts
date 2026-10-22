@@ -44,6 +44,8 @@ export interface GameMode {
   readonly stars?: 1 | 2 | 3;
   /** Why a lost run ended, in one short sentence, for modes that can tell. */
   readonly lossReason?: string;
+  /** Health left (0..1) of the boss that ended a lost run, for modes that have one. */
+  readonly bossLeft?: number;
   update(dt: number): void;
   /** Draws a frame. 2D modes paint the whole canvas; 3D modes render to the GL layer and paint only the overlay. */
   render(ctx: CanvasRenderingContext2D): void;
