@@ -308,6 +308,13 @@ export class ShooterScene implements Placer {
   private readonly bulletLastLife = new Float32Array(MAX_BULLETS);
   /** Running share of new bullets to draw; every time it passes 1, one is drawn. */
   private bulletPick = 0;
+  /**
+   * Where the muzzles of the front row are (sim y). The camera looks at the squad from behind, so
+   * the gun of a soldier further back sits right at the backpack of the one in front of it: its
+   * flash and its bullet are kept hidden until they are past the front row, or every backpack in
+   * the squad would flash with every shot.
+   */
+  private squadFront = 0;
   /** Cartoon outlines: a back-facing shell per crowd mesh that shares its instance matrices. */
   private readonly outlines: Array<{
     src: InstancedMesh<BufferGeometry, Material>;
@@ -1135,6 +1142,10 @@ export class ShooterScene implements Placer {
     const size = 1.15 + 0.55 / Math.sqrt(Math.max(1, n));
     const muzzleArr = this.muzzles.instanceMatrix.array as Float32Array;
     const flare = recoil * recoil;
+    let front = -Infinity;
+    for (let i = 0; i < n; i++) front = Math.max(front, player.y[i]);
+    this.squadFront = front + 0.8 * size;
+    let muzzleN = 0;
     for (let i = 0; i < n; i++) {
       // every soldier stands a little off its grid slot and turned its own way: a group of people,
       // not a parade block (small enough that the bullets still leave from the gun)
@@ -1144,16 +1155,18 @@ export class ShooterScene implements Placer {
       const bob = (Math.abs(Math.sin(time * 14 + i * 1.3)) * 0.06 * moving) as number;
       writeTRS(arr, i, x, bob, -y + recoil * 0.12, yaw, lean, size, size, size);
       writeTRS(shadowArr, shadowN++, x, 0.1, -y, 0, 0, 0.2 * size, 1, 0.2 * size);
-      // the gun's muzzle sits at (0, 0.55, -0.76) in model space
+      // the gun's muzzle sits at (0, 0.55, -0.76) in model space; only the front row flares
+      if (player.y[i] < front - 0.3) continue;
       const m = flare * size * 0.55;
-      writeTRS(muzzleArr, i, x, 0.55 * size, -y - 0.8 * size + recoil * 0.12, i * 1.9, 0, m, m, m);
+      const mz = -y - 0.8 * size + recoil * 0.12;
+      writeTRS(muzzleArr, muzzleN++, x, 0.55 * size, mz, i * 1.9, 0, m, m, m);
     }
     this.soldiers.count = n;
     this.soldiers.instanceMatrix.needsUpdate = true;
     const glow = Math.max(0, 1 - (time - this.glowStart) / GLOW_TIME);
     this.squadShellMat.opacity = 0.85 * glow;
     this.squadShell.count = glow > 0 ? n : 0;
-    this.muzzles.count = recoil > 0.05 ? n : 0;
+    this.muzzles.count = recoil > 0.05 ? muzzleN : 0;
     this.muzzles.instanceMatrix.needsUpdate = true;
     this.shadows.count = shadowN;
     this.shadows.instanceMatrix.needsUpdate = true;
@@ -1197,7 +1210,7 @@ export class ShooterScene implements Placer {
         if (this.bulletPick >= 1) this.bulletPick -= 1;
       }
       this.bulletLastLife[i] = life;
-      if (life <= 0 || !this.bulletDrawn[i]) continue;
+      if (life <= 0 || !this.bulletDrawn[i] || sim.by[i] < this.squadFront) continue;
       const yaw = Math.atan2(sim.bvx[i], -sim.bvy[i]);
       writeTRS(arr, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, tw, tw, tl);
       writeTRS(glow, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, tw * 1.2, tw * 1.2, tl * 1.3);

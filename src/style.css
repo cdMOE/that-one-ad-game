@@ -1084,8 +1084,12 @@ body {
   margin-top: -10px;
 }
 
+/* a fixed width: a wallet that grows with every coin would squeeze the bar next to it, and the bar,
+   its record line and its flag would jitter all run long */
 .hud.shooter .hud-wallet {
   display: flex;
+  flex: none;
+  width: 112px;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
@@ -1108,6 +1112,8 @@ body {
 .hud-coins-num {
   font-weight: 900;
   font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: #fff;
   text-shadow: 0 2px 0 #0f2f66;
   min-width: 2ch;
@@ -1128,6 +1134,8 @@ body {
 
 .hud-gain {
   margin-right: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   font-weight: 900;
   font-size: 17px;
   color: #fff;

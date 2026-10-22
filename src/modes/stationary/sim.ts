@@ -289,8 +289,11 @@ export interface SimHooks {
   blockBreak?(x: number, y: number): void;
   itemCollected?(x: number, y: number, def: ItemDef, delta: number): void;
   itemLost?(x: number, def: ItemDef): void;
-  /** An elite called `count` monsters of its horde to its side (see `SummonDef`). */
-  summon?(x: number, y: number, count: number): void;
+  /**
+   * An elite called `count` monsters of its horde to its side (see `SummonDef`): at one of its
+   * health marks, or (`rage`) as the half wave that comes with a rage step.
+   */
+  summon?(x: number, y: number, count: number, rage: boolean): void;
   ended?(won: boolean): void;
 }
 
@@ -646,7 +649,7 @@ export class StationarySim {
    * Elite `i` calls `n` monsters of its horde: they appear in ranks right behind it, across the
    * whole monster lane, and storm the squad around it. As many as the pool has room for.
    */
-  private callHorde(i: number, n: number): void {
+  private callHorde(i: number, n: number, rage = false): void {
     const h = this.msummons[i];
     if (!h || n <= 0) return;
     const r = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].radius;
@@ -662,7 +665,7 @@ export class StationarySim {
       this.mcalled[slot] = 1;
       called++;
     }
-    if (called > 0) this.hooks.summon?.(this.mx[i], this.my[i], called);
+    if (called > 0) this.hooks.summon?.(this.mx[i], this.my[i], called, rage);
   }
 
   private updateFight(dt: number): void {
@@ -870,7 +873,7 @@ export class StationarySim {
         this.hooks.enrage?.(this.mx[i], this.my[i], this.mrage[i]);
         // and every rage step it sends half a wave more of its horde
         const h = this.msummons[i];
-        if (h) this.callHorde(i, Math.ceil(h.count / 2));
+        if (h) this.callHorde(i, Math.ceil(h.count / 2), true);
       }
     }
     this.mtimer[i] -= dt;

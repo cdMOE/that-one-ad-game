@@ -97,17 +97,25 @@ export class StationaryMode implements GameMode {
     private readonly ctx: GameContext,
   ) {
     const { particles, popups, camera } = ctx;
-    // the menu demo plays silently
+    // the menu demo plays silently. The big sounds play once per moment: a boss that calls its
+    // horde in the same instant as its volley lands would otherwise roar and boom twice over
+    const heard: Record<string, number> = {};
+    const once = (key: string, gapMs: number, play: () => void) => {
+      const now = performance.now();
+      if (now - (heard[key] ?? -Infinity) < gapMs) return;
+      heard[key] = now;
+      play();
+    };
     const sfx = {
       coin: () => !this.demo && ctx.sfx.coin(),
       shoot: () => !this.demo && ctx.sfx.shoot(),
       pop: () => !this.demo && ctx.sfx.pop(),
-      boom: () => !this.demo && ctx.sfx.boom(),
+      boom: () => !this.demo && once('boom', 150, () => ctx.sfx.boom()),
       hit: () => !this.demo && ctx.sfx.hit(),
       gate: (good: boolean) => !this.demo && ctx.sfx.gate(good),
       win: () => !this.demo && ctx.sfx.win(),
       lose: () => !this.demo && ctx.sfx.lose(),
-      roar: () => !this.demo && ctx.sfx.roar(),
+      roar: () => !this.demo && once('roar', 400, () => ctx.sfx.roar()),
     };
     this.coinMul = upgradeMultiplier('coins', ctx.upgrades.coins) * ctx.coinFactor;
     this.sim = new StationarySim(
@@ -184,7 +192,13 @@ export class StationaryMode implements GameMode {
           popups.add(x, y + 3.5, 'RAGE!', COLORS.bad, 1.2 + 0.15 * rage);
           particles.burst(x, y, 12 + 4 * rage, 6, Pc.Bad, 0.5, 0.2);
         },
-        summon: (x, y) => {
+        summon: (x, y, _count, rage) => {
+          // the half wave of a rage step is part of that step: RAGE! already said it, and the
+          // boss bar shows no mark for it, so it only bursts out of the boss
+          if (rage) {
+            particles.burst(x, y + 1.5, 16, 6, Pc.Bad, 0.5, 0.2);
+            return;
+          }
           // it calls its horde: the loudest moment of the fight, the wave is right behind it
           sfx.roar();
           sfx.boom();
