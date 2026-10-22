@@ -207,6 +207,7 @@ body {
 
 /* the wallet as a dark pill with a coin, like the HUD */
 .up-purse {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -288,16 +289,106 @@ body {
   cursor: default;
 }
 
+/* a bought card squashes, overshoots and settles */
 .up-card.pop {
-  animation: up-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+  animation: up-pop 0.42s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 @keyframes up-pop {
+  0% {
+    transform: scale(0.86, 0.8);
+  }
+  45% {
+    transform: scale(1.12, 1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* stars bursting out of a bought card */
+.up-burst {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.up-star {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  background: #ffe066;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  filter: drop-shadow(0 0 3px rgba(255, 214, 64, 0.9));
+  animation: up-star 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes up-star {
   from {
-    transform: scale(0.85);
+    transform: rotate(var(--a)) translateY(0) scale(0.4);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
   }
   to {
-    transform: scale(1);
+    transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1.1) rotate(90deg);
+    opacity: 0;
+  }
+}
+
+/* the pip and the badge that just went up flash white */
+.pip.new {
+  animation: pip-new 0.5s ease-out;
+}
+
+@keyframes pip-new {
+  from {
+    background: #fff;
+    box-shadow: 0 0 8px #fff;
+    transform: scaleY(1.8);
+  }
+}
+
+.up-badge.bump {
+  animation: badge-bump 0.4s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+
+@keyframes badge-bump {
+  from {
+    transform: scale(1.8);
+  }
+}
+
+/* the price floats up out of the wallet */
+.up-spent {
+  position: absolute;
+  right: 6px;
+  top: -4px;
+  font-size: 18px;
+  font-weight: 900;
+  color: #ff5b7a;
+  text-shadow:
+    0 2px 0 #fff,
+    0 0 4px #fff;
+  pointer-events: none;
+  animation: up-spent 0.9s ease-out forwards;
+}
+
+@keyframes up-spent {
+  from {
+    transform: translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-34px) scale(1);
+    opacity: 0;
   }
 }
 

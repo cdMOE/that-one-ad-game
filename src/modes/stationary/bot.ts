@@ -58,7 +58,7 @@ function dodgeTarget(sim: StationarySim): number | null {
 
 /**
  * Index of the elite closest to the squad, or -1 when none is on the field. One still walking in
- * through the haze beyond `spawnTop` is out of range and does not count.
+ * beyond `spawnTop` does not count yet: chasing it that early leaves the crowd unattended.
  */
 function nearestElite(sim: StationarySim): number {
   let best = -1;

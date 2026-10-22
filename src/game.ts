@@ -316,6 +316,7 @@ export class Game {
     this.save.coins -= cost;
     this.save.upgrades[kind]++;
     writeSave(this.save);
+    this.sfx.upgrade(this.save.upgrades[kind]);
     // a bought soldier steps into the waiting squad at once
     if (kind === 'soldiers' && this.previewIndex !== null) {
       const index = this.previewIndex;

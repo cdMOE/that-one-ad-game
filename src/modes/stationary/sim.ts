@@ -59,8 +59,12 @@ export const UPGRADE_LANE_WIDTH = 3.6;
 export const UPGRADE_LANE_CENTER = 3.8;
 /** Empty strip between the two lanes. */
 const LANE_GAP = 0.9;
-/** How far a bullet flies: almost to the far end of the field, but not all the way. */
-export const BULLET_RANGE = 14.5;
+/**
+ * How far a bullet flies: well past the top of the field into the queue walking in, so the shots
+ * visibly reach the horde (a bullet always hits the nearest monster on its path, so this changes
+ * the look far more than the balance), but never out into the haze where monsters appear.
+ */
+export const BULLET_RANGE = 24;
 /** Coins for smashing a block. */
 const BLOCK_COINS = 20 * COIN_SCALE;
 /** Bullets are forgiving: the hit circle of a monster is this much bigger than the monster. */
@@ -880,7 +884,7 @@ export class StationarySim {
       const y1 = y0 + this.bvy[i] * dt;
       this.bx[i] = x1;
       this.by[i] = y1;
-      if (Math.abs(x1) > 8 || y1 > 21 || y1 < -6) {
+      if (Math.abs(x1) > 8 || y1 > BULLET_RANGE + 6 || y1 < -6) {
         this.blife[i] = 0;
         continue;
       }

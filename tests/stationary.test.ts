@@ -16,6 +16,7 @@ import {
   MONSTERS,
   MONSTER_KIND_BY_INDEX,
   SOLDIER_SPACING,
+  SPAWN_FAR,
   StationarySim,
 } from '../src/modes/stationary/sim';
 import {
@@ -300,7 +301,7 @@ describe('StationarySim', () => {
     expect(lost.filter((l) => l > 0).length).toBeLessThanOrEqual(1);
   });
 
-  it('bullets stop short of the far end of the field', () => {
+  it('bullets stop well short of where the horde appears', () => {
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 1,
       monsters: [{ kind: 'grunt', count: 1, hp: 1e6, interval: 1, delay: 1000 }],
@@ -315,7 +316,7 @@ describe('StationarySim', () => {
     }
     expect(highest).toBeGreaterThan(BULLET_RANGE - 1); // they do fly a long way...
     expect(highest).toBeLessThan(0.5 + BULLET_RANGE + 0.5); // ...but not out to the spawn line
-    expect(highest).toBeLessThan(ARENA.spawnTop);
+    expect(highest).toBeLessThan(SPAWN_FAR - 10);
   });
 
   it('hits harder with a bigger squad, even beyond what can be drawn', () => {

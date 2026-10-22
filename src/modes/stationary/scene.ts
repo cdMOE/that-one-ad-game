@@ -120,6 +120,19 @@ const PYLONS_Y = [6, 30, 54];
 const BULLET_HEIGHT = 0.62;
 /** At most this many bullets are drawn; a big squad fires hundreds, and every one of them is noise. */
 const MAX_DRAWN_BULLETS = 120;
+/**
+ * The bullets show how hard the squad hits: every few damage levels (shop or power-ups) they get
+ * bigger, longer and change colour, from warm tracers to cyan to hot pink to gold, so a bought
+ * upgrade is something you see on the very next run. The cores are saturated, not white: the
+ * road is light, and a pale tracer vanishes on it. `at` is the damage multiplier.
+ */
+const BULLET_LOOKS = [
+  { at: 1, core: 0xfff0a0, glow: 0xff9d2e, opacity: 0.15, size: 1 },
+  { at: 1.4, core: 0x3fe0ff, glow: 0x2fd2ff, opacity: 0.24, size: 1.3 },
+  { at: 2, core: 0xff4fcf, glow: 0xff3fc8, opacity: 0.3, size: 1.6 },
+  { at: 2.6, core: 0xffbf1a, glow: 0xffc21f, opacity: 0.36, size: 1.9 },
+];
+const WHITE = new Color(0xffffff);
 const POPUP_HEIGHT = 1.3;
 const MAX_ATTACKS = 12;
 const MAX_FLASHES = 6;
@@ -276,6 +289,8 @@ export class ShooterScene implements Placer {
   private readonly bullets: InstancedMesh<BufferGeometry, Material>;
   private readonly bulletGlow: InstancedMesh<BufferGeometry, Material>;
   private readonly muzzles: InstancedMesh<BufferGeometry, Material>;
+  /** Index into `BULLET_LOOKS` the bullet materials are coloured for (-1: not yet). */
+  private bulletLook = -1;
   /** Cartoon outlines: a back-facing shell per crowd mesh that shares its instance matrices. */
   private readonly outlines: Array<{
     src: InstancedMesh<BufferGeometry, Material>;
@@ -1086,8 +1101,29 @@ export class ShooterScene implements Placer {
     this.shadows.instanceMatrix.needsUpdate = true;
   }
 
+  /** Recolours bullets and muzzle flashes when the damage multiplier reaches the next look. */
+  private syncBulletLook(): number {
+    const mul = this.sim.weapon.damageMul;
+    let k = 0;
+    while (k + 1 < BULLET_LOOKS.length && mul >= BULLET_LOOKS[k + 1].at - 1e-6) k++;
+    const look = BULLET_LOOKS[k];
+    if (k !== this.bulletLook) {
+      this.bulletLook = k;
+      (this.bullets.material as MeshBasicMaterial).color.setHex(look.core);
+      const glow = this.bulletGlow.material as MeshBasicMaterial;
+      glow.color.setHex(look.glow);
+      glow.opacity = look.opacity;
+      (this.muzzles.material as MeshBasicMaterial).color.setHex(look.glow).lerp(WHITE, 0.55);
+    }
+    return look.size;
+  }
+
   private syncBullets(): void {
     const sim = this.sim;
+    const size = this.syncBulletLook();
+    // thicker and longer, the glow a little more so: it reads as a tracer streak
+    const tw = size;
+    const tl = 1 + (size - 1) * 1.4;
     const arr = this.bullets.instanceMatrix.array as Float32Array;
     const glow = this.bulletGlow.instanceMatrix.array as Float32Array;
     let alive = 0;
@@ -1099,8 +1135,8 @@ export class ShooterScene implements Placer {
     for (let i = 0; i < MAX_BULLETS; i++) {
       if (sim.blife[i] <= 0 || seen++ % stride !== 0) continue;
       const yaw = Math.atan2(sim.bvx[i], -sim.bvy[i]);
-      writeTRS(arr, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, 1, 1, 1);
-      writeTRS(glow, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, 1, 1, 1);
+      writeTRS(arr, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, tw, tw, tl);
+      writeTRS(glow, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, tw * 1.2, tw * 1.2, tl * 1.3);
       n++;
     }
     this.bullets.count = n;

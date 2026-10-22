@@ -91,6 +91,14 @@ export class Sfx {
     }
   }
 
+  /** A bought upgrade: a quick rising chime that climbs a step with every level. */
+  upgrade(level: number): void {
+    const base = 440 * Math.pow(2, Math.min(level, 12) / 12);
+    [1, 1.25, 1.5, 2].forEach((m, i) =>
+      this.tone(base * m, 0.12, 'triangle', 0.28, undefined, i * 0.045),
+    );
+  }
+
   /** Throttled, so a swarm fight does not turn into a wall of noise. */
   hit(): void {
     const now = performance.now();

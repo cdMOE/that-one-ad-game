@@ -577,9 +577,8 @@ export class Ui {
           this.handlers.onClick();
           this.handlers.onBuy(kind);
           this.renderBars();
-          // restart the pop animation on the card that was just bought
           const bought = cards.children[UPGRADE_KINDS.indexOf(kind)];
-          bought?.classList.add('pop');
+          if (bought) celebratePurchase(bought, wallet.parentElement, cost);
         });
         cards.append(card);
       }
@@ -815,5 +814,31 @@ export class Ui {
 
   setFps(fps: number, extra: string): void {
     if (this.fpsEl) this.fpsEl.textContent = `${Math.round(fps)} fps  ${extra}`;
+  }
+}
+
+/**
+ * Juice for a bought upgrade, like the ad games: the card bounces, a ring of stars bursts out of
+ * it, the new pip and the level badge flash, and the price floats up out of the wallet.
+ */
+function celebratePurchase(card: Element, purse: Element | null, cost: number): void {
+  card.classList.add('pop');
+  card.querySelector('.up-badge')?.classList.add('bump');
+  const lit = card.querySelectorAll('.pip.on');
+  lit[lit.length - 1]?.classList.add('new');
+  const burst = h('span', { class: 'up-burst' });
+  const rays = 10;
+  for (let i = 0; i < rays; i++) {
+    const star = h('span', { class: 'up-star' });
+    star.style.setProperty('--a', `${(360 / rays) * i + Math.random() * 18}deg`);
+    star.style.setProperty('--d', `${48 + Math.random() * 26}px`);
+    burst.append(star);
+  }
+  card.append(burst);
+  window.setTimeout(() => burst.remove(), 700);
+  if (purse) {
+    const spent = h('span', { class: 'up-spent', text: `-${formatCount(cost)}` });
+    purse.append(spent);
+    window.setTimeout(() => spent.remove(), 900);
   }
 }
