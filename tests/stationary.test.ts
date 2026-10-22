@@ -36,15 +36,15 @@ const base: StationaryLevel = {
   monsters: [{ kind: 'grunt', count: 3, hp: 4, interval: 1 }],
 };
 
-/** Runs `body` with every elite's patience set to `patience` (see `EliteStats.patience`). */
-function withPatience(patience: number, body: () => void): void {
+/** Runs `body` with every elite's calm set to `calm` (see `EliteStats.calm`). */
+function withCalm(calm: number, body: () => void): void {
   const elites = Object.values(MONSTERS).flatMap((m) => (m.elite ? [m.elite] : []));
-  const saved = elites.map((e) => e.patience);
-  for (const e of elites) e.patience = patience;
+  const saved = elites.map((e) => e.calm);
+  for (const e of elites) e.calm = calm;
   try {
     body();
   } finally {
-    elites.forEach((e, k) => (e.patience = saved[k]));
+    elites.forEach((e, k) => (e.calm = saved[k]));
   }
 }
 
@@ -211,55 +211,44 @@ describe('StationarySim', () => {
     expect(sim.count).toBe(0);
   });
 
-  it('elites hold their line for a while, then charge and smash a squad that did not stop them', () => {
+  it('elites hold their line and get angrier the longer they stand, until no lane is safe', () => {
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 30,
       monsters: [{ kind: 'miniboss', count: 1, hp: 1000000, interval: 1 }],
     });
     const sim = new StationarySim(level, mulberry32(1));
-    sim.targetX = -5; // parked in the upgrade lane: out of reach of its strikes
+    sim.targetX = -5; // parked in the upgrade lane: out of reach of its strikes, for a while
     const e = MONSTERS.miniboss.elite!;
+    const rages: number[] = [];
+    // zones per volley, keyed by the time it was announced
+    const volleys = new Map<number, number>();
+    sim.hooks.charge = () => rages.push(sim.time);
+    sim.hooks.telegraph = () => volleys.set(sim.time, (volleys.get(sim.time) ?? 0) + 1);
     let held = 0;
-    let charged = false;
-    let smashed = false;
-    sim.hooks.charge = () => (charged = true);
-    sim.hooks.smash = () => (smashed = true);
-    for (let k = 0; k < 60 * 30 && sim.phase !== 'lost'; k++) {
+    let firstLoss = Infinity;
+    for (let k = 0; k < 120 * 30 && sim.phase !== 'lost'; k++) {
       sim.update(1 / 30);
       const m = sim.malive.findIndex((v) => v === 1);
-      if (!charged && m >= 0 && sim.mstate[m] !== 0) {
-        // holding: on its line, and it never bites
+      if (m >= 0 && sim.mstate[m] !== 0) {
+        // holding: it never leaves its line, never charges, never bites
         expect(sim.my[m]).toBeCloseTo(e.holdY, 3);
-        expect(sim.count).toBe(30);
         held += GAME_SPEED / 30;
       }
+      if (sim.count < 30) firstLoss = Math.min(firstLoss, sim.time);
     }
-    expect(held).toBeGreaterThanOrEqual(e.patience - 0.1);
-    expect(charged).toBe(true);
-    expect(smashed).toBe(true);
+    expect(held).toBeGreaterThanOrEqual(e.calm + (e.maxRage - 1) * e.rageEvery - 0.1);
+    expect(rages).toHaveLength(e.maxRage);
+    // the upgrade lane is a shelter until it is in full rage, then the strikes wear the squad down
+    expect(firstLoss).toBeGreaterThanOrEqual(rages[e.maxRage - 1]);
     expect(sim.phase).toBe('lost');
-    expect(sim.smashedAt).toBeCloseTo(1, 3); // untouched: the whole wall was still standing
+    expect(sim.wallLeft).toBeCloseTo(1, 3); // untouched: the whole wall was still standing
+    // angry volleys come sooner and with more zones
+    const times = [...volleys.keys()];
+    const gaps = times.slice(1).map((t, k) => t - times[k]);
+    expect(gaps[gaps.length - 1]).toBeLessThan(gaps[0] * 0.75);
+    expect(Math.max(...volleys.values())).toBeGreaterThan(e.zones);
     expect(MONSTERS.miniboss.coins).toBeGreaterThan(MONSTERS.tank.coins);
     expect(MONSTERS.miniboss.radius).toBeGreaterThan(MONSTERS.tank.radius);
-  });
-
-  it('a boss that is shot down while it charges never reaches the squad', () => {
-    const level = withLane([{ type: 'block', hp: 1000000 }], {
-      startCount: 30,
-      monsters: [{ kind: 'miniboss', count: 1, hp: 1000000, interval: 1 }],
-    });
-    const sim = new StationarySim(level, mulberry32(1));
-    sim.targetX = -5;
-    let charging = -1;
-    sim.hooks.charge = () => (charging = sim.malive.findIndex((v) => v === 1));
-    for (let k = 0; k < 60 * 30 && charging < 0; k++) sim.update(1 / 30);
-    expect(charging).toBeGreaterThanOrEqual(0);
-    sim.mhp[charging] = 1; // nearly dead: the squad finishes it on its way in
-    sim.targetX = sim.mx[charging];
-    run(sim, 10);
-    expect(sim.monstersAlive).toBe(0);
-    expect(sim.count).toBe(30);
-    expect(sim.smashedAt).toBeNull();
   });
 
   it('an elite aims at the squad (or not, by chance) and the strike can be dodged', () => {
@@ -748,11 +737,11 @@ describe('bodies', () => {
       });
       const sim = new StationarySim(level, mulberry32(seed));
       sim.targetX = -5; // out of the way: whatever is left alive is stuck, not shot
-      // the elites stay put for the whole test (they would charge and end the run otherwise)
+      // the elites stay calm for the whole test (in full rage they would strike the parked squad)
       sim.hooks.charge = () => {
-        throw new Error('no charge expected');
+        throw new Error('no rage expected');
       };
-      withPatience(Infinity, () => run(sim, 70));
+      withCalm(Infinity, () => run(sim, 70));
       expect(field(sim).filter((m) => m.kind < 3)).toHaveLength(0);
     }
   });

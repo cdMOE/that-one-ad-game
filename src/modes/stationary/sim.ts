@@ -76,17 +76,20 @@ const BLOCK_COINS = 20 * COIN_SCALE;
 const HIT_FORGIVENESS = 0.35;
 
 /**
- * Minibosses and bosses are the walls of a level. They stop at `holdY` and every `interval`
- * seconds fire a volley of `zones` strikes: each zone `halfWidth` to each side lights up for
- * `telegraph` seconds, then hits. With chance `aimedChance` the first zone is aimed at where the
- * squad stands, otherwise it lands at random; every further zone is random. A volley always leaves
- * a gap the squad fits into, so it can be dodged. Whoever is caught by any zone loses `damage` of
- * the squad (once per volley, however many zones it stands in).
+ * Minibosses and bosses are the walls of a level. They stop at `holdY`, stay there and every
+ * `interval` seconds fire a volley of `zones` strikes: each zone `halfWidth` to each side lights up
+ * for `telegraph` seconds, then hits. With chance `aimedChance` the first zone is aimed at where
+ * the squad stands, otherwise it lands at random; every further zone is random. A volley always
+ * leaves a gap the squad fits into, so it can be dodged. Whoever is caught by any zone loses
+ * `damage` of the squad (once per volley, however many zones it stands in).
  *
- * Dodging alone does not get you past one: after `patience` seconds on its hold line it charges
- * at `chargeSpeed`, and if it reaches the squad it smashes all of it. So every elite is a damage
- * check the shop upgrades have to pass, and a run that fails it ends at once, with the boss's
- * health bar saying how close it was. All times are game time (see `GAME_SPEED`).
+ * The longer one stands, the angrier it gets: after `calm` seconds on its hold line, and again
+ * every `rageEvery` seconds, it rages one step more (up to `maxRage`). Every step makes its volleys
+ * come `RAGE_PACE` times sooner, every second step adds a zone, and at full rage the upgrade lane
+ * is no shelter any more. A short fight is relaxed, a long one gets hectic, and a squad too weak to
+ * bring it down in time is worn down by the strikes it cannot all dodge. So every elite is a
+ * damage check the shop upgrades have to pass, and a lost run ends with the boss's health bar
+ * saying how close it was. All times are game time (see `GAME_SPEED`).
  */
 export interface EliteStats {
   holdY: number;
@@ -96,9 +99,13 @@ export interface EliteStats {
   damage: number;
   zones: number;
   aimedChance: number;
-  patience: number;
-  chargeSpeed: number;
+  calm: number;
+  rageEvery: number;
+  maxRage: number;
 }
+
+/** Every rage step makes an elite's volleys come this many times sooner. */
+export const RAGE_PACE = 0.8;
 
 export interface MonsterStats {
   speed: number;
@@ -128,8 +135,9 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
       damage: 0.2,
       zones: 1,
       aimedChance: 0.5,
-      patience: 9,
-      chargeSpeed: 1.4,
+      calm: 9,
+      rageEvery: 4,
+      maxRage: 4,
     },
   },
   boss: {
@@ -146,8 +154,9 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
       damage: 0.3,
       zones: 2,
       aimedChance: 0.6,
-      patience: 12,
-      chargeSpeed: 1.2,
+      calm: 12,
+      rageEvery: 4,
+      maxRage: 4,
     },
   },
 };
@@ -251,9 +260,12 @@ export interface SimHooks {
    * and is reported on the first zone that caught the squad only (0 on the others).
    */
   strike?(x: number, half: number, hit: boolean, lost: number): void;
-  /** An elite ran out of patience and charges at the squad. */
+  /**
+   * An elite got angrier (one rage step, see `EliteStats`): its volleys come sooner from now on.
+   * Named after the charge elites used to make; the view still reacts to it under this name.
+   */
   charge?(x: number, y: number): void;
-  /** A charging elite reached the squad and smashed it: the run is lost. */
+  /** @deprecated Elites no longer charge, so this never fires; kept until the view drops it. */
   smash?(x: number, y: number): void;
   /** A soldier fired; (x, y) is the muzzle position. Called once per soldier shot. */
   shot?(x: number, y: number): void;
@@ -356,13 +368,13 @@ export class StationarySim {
   readonly mmax = new Float32Array(MAX_MONSTERS);
   readonly mkind = new Uint8Array(MAX_MONSTERS);
   readonly malive = new Uint8Array(MAX_MONSTERS);
-  /** Elite state: 0 walking in, 1 holding (waiting to strike), 2 strike announced, 3 charging. */
+  /** Elite state: 0 walking in, 1 holding (waiting to strike), 2 strike announced. */
   readonly mstate = new Uint8Array(MAX_MONSTERS);
   private readonly mtimer = new Float32Array(MAX_MONSTERS);
-  /** Seconds an elite still waits on its hold line before it charges (see `EliteStats`). */
-  private readonly mpatience = new Float32Array(MAX_MONSTERS);
-  /** Health left (0..1) of the elite that smashed the squad, or null if none did. */
-  smashedAt: number | null = null;
+  /** Seconds an elite still stands on its hold line before its next rage step (see `EliteStats`). */
+  private readonly mcalm = new Float32Array(MAX_MONSTERS);
+  /** Rage steps an elite has taken so far, 0 (calm) .. `EliteStats.maxRage`. */
+  readonly mrage = new Uint8Array(MAX_MONSTERS);
   /**
    * When a run is lost with an elite on the field: health left (0..1) of the one in front, the
    * wall the run did not get past. How close it came, for the result screen; null otherwise.
@@ -575,7 +587,8 @@ export class StationarySim {
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
     this.mstate[slot] = 0;
-    this.mpatience[slot] = stats.elite?.patience ?? 0;
+    this.mcalm[slot] = stats.elite?.calm ?? 0;
+    this.mrage[slot] = 0;
     this.malive[slot] = 1;
     return true;
   }
@@ -624,10 +637,11 @@ export class StationarySim {
       if (stats?.elite && this.mstate[i] === 2) {
         const t = 1 - Math.max(0, this.mtimer[i]) / stats.elite.telegraph;
         const half = stats.elite.halfWidth;
+        const [minX, maxX] = this.strikeField(i, stats.elite);
         for (let z = 0; z < this.mzones[i]; z++) {
           const x = this.mtarget[i * MAX_ZONES + z];
-          const lo = Math.max(x - half, this.monsterMinX);
-          const hi = Math.min(x + half, this.monsterMaxX);
+          const lo = Math.max(x - half, minX);
+          const hi = Math.min(x + half, maxX);
           this.attacks.push({ x, half, lo, hi, t, y: this.my[i] });
         }
       }
@@ -739,6 +753,16 @@ export class StationarySim {
   }
 
   /**
+   * Where an elite's strikes may land: the monster field, and at full rage the whole road, the
+   * upgrade lane included.
+   */
+  private strikeField(i: number, e: EliteStats): [number, number] {
+    return this.mrage[i] >= e.maxRage
+      ? [-ARENA.halfWidth, ARENA.halfWidth]
+      : [this.monsterMinX, this.monsterMaxX];
+  }
+
+  /**
    * One elite's step: walk in to the hold line, wait, announce a volley (see `aimVolley`), then
    * let it land. Returns true when the volley wiped out the squad.
    */
@@ -754,16 +778,6 @@ export class StationarySim {
       y -= step;
       left -= step / fast;
     }
-    if (this.mstate[i] === 3) {
-      // charging: straight at the squad, past its own hold line
-      this.my[i] = y - e.chargeSpeed * left;
-      if (this.my[i] > 0.5 + stats.radius * 0.6) return false;
-      this.smashedAt = Math.max(0, this.mhp[i] / this.mmax[i]);
-      this.hooks.smash?.(this.mx[i], this.my[i]);
-      this.count = 0;
-      this.end(false);
-      return true;
-    }
     y -= stats.speed * left;
     // also while holding: when the elite in front falls, the next one steps up
     const hold = this.holdLine(i, e);
@@ -775,12 +789,14 @@ export class StationarySim {
       }
       return false;
     }
-    // only the one at the front of the queue loses patience; between volleys it may charge
-    if (this.my[i] <= e.holdY + 1e-3) this.mpatience[i] -= dt;
-    if (this.mstate[i] === 1 && this.mpatience[i] <= 0) {
-      this.mstate[i] = 3;
-      this.hooks.charge?.(this.mx[i], this.my[i]);
-      return false;
+    // only the one at the front of the queue gets angry; the ones behind it wait their turn calmly
+    if (this.my[i] <= e.holdY + 1e-3 && this.mrage[i] < e.maxRage) {
+      this.mcalm[i] -= dt;
+      if (this.mcalm[i] <= 0) {
+        this.mrage[i]++;
+        this.mcalm[i] = e.rageEvery;
+        this.hooks.charge?.(this.mx[i], this.my[i]);
+      }
     }
     this.mtimer[i] -= dt;
     if (this.mtimer[i] > 0) return false;
@@ -793,22 +809,24 @@ export class StationarySim {
       }
       return false;
     }
-    // only the monster field is struck: a squad standing in the upgrade lane is out of reach
+    // only the monster field is struck: a squad standing in the upgrade lane is out of reach,
+    // until the elite is in full rage
     const reach = this.halfWidth();
     const zones = this.mzones[i];
+    const [minX, maxX] = this.strikeField(i, e);
     const caught: boolean[] = [];
     let hit = false;
     for (let z = 0; z < zones; z++) {
       const x = this.mtarget[i * MAX_ZONES + z];
-      const lo = Math.max(x - e.halfWidth, this.monsterMinX);
-      const hi = Math.min(x + e.halfWidth, this.monsterMaxX);
+      const lo = Math.max(x - e.halfWidth, minX);
+      const hi = Math.min(x + e.halfWidth, maxX);
       const inside = this.squadX + reach >= lo && this.squadX - reach <= hi;
       caught.push(inside);
       hit ||= inside;
     }
     const lost = hit ? Math.max(1, Math.ceil(this.count * e.damage)) : 0;
     this.mstate[i] = 1;
-    this.mtimer[i] = e.interval;
+    this.mtimer[i] = e.interval * Math.pow(RAGE_PACE, this.mrage[i]);
     if (hit) this.count = clampCount(this.count - lost);
     let reported = false;
     for (let z = 0; z < zones; z++) {
@@ -829,13 +847,13 @@ export class StationarySim {
   }
 
   /**
-   * Picks the zones of a volley. The first one is aimed at the squad with chance `aimedChance`,
-   * otherwise (and for all further zones) it lands at random on the monster field. A zone that
-   * would leave no gap the squad fits into is dropped, so a volley can always be dodged.
+   * Picks the zones of a volley: `zones` of them, one more for every second rage step. The first
+   * one is aimed at the squad with chance `aimedChance`, otherwise (and for all further zones) it
+   * lands at random where the elite may strike (see `strikeField`). A zone that would leave no gap
+   * the squad fits into is dropped, so a volley can always be dodged.
    */
   private aimVolley(i: number, e: EliteStats): void {
-    const minX = this.monsterMinX;
-    const maxX = this.monsterMaxX;
+    const [minX, maxX] = this.strikeField(i, e);
     const aimed = this.rng() < e.aimedChance;
     const need = 2 * this.halfWidth() + SAFE_MARGIN;
     const zones: number[] = [];
@@ -851,7 +869,8 @@ export class StationarySim {
       }
       return ARENA.halfWidth - cursor >= need;
     };
-    for (let z = 0; z < Math.min(e.zones, MAX_ZONES); z++) {
+    const count = Math.min(e.zones + Math.floor(this.mrage[i] / 2), MAX_ZONES);
+    for (let z = 0; z < count; z++) {
       // the very first zone is allowed to hit the squad whatever the room, a lone strike can be dodged
       const x =
         z === 0 && aimed
