@@ -3,7 +3,7 @@
   "name": "Growing Pains",
   "mode": "stationary",
   "startCount": 1,
-  "weapon": "rifle",
+  "weapon": "pistol",
   "lane": {
     "side": "left",
     "elements": [
@@ -29,6 +29,13 @@
           "kind": "crowd",
           "op": "x",
           "value": 2
+        }
+      },
+      {
+        "type": "item",
+        "item": {
+          "kind": "weapon",
+          "weapon": "rifle"
         }
       },
       {

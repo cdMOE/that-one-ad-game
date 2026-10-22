@@ -603,8 +603,9 @@ export class Ui {
 
   /**
    * The level list of a mode. The shooter's is the level itself: it stands ready behind the screen,
-   * a slim strip at the top picks which one, the cards sit at the bottom and a tap on the road in
-   * between starts it. `pick` is the level picked in the strip (default: the first one not beaten).
+   * a slim strip at the top shows where it sits in the campaign, the cards sit at the bottom and a
+   * tap on the road in between starts it. Only the current level is played: losing pays coins
+   * anyway, so an old level has nothing to offer. `pick` is honoured with `?unlock=all` (testing).
    */
   openLevels(mode: LevelMode, pick?: number): void {
     this.hideAll();
@@ -616,7 +617,8 @@ export class Ui {
     // the shooter's PLAY starts the first level not beaten yet (or the last one, once all are)
     const list = this.indicesOf(mode);
     const open = list.find((i) => this.isUnlocked(i) && !this.save.completed[this.levels[i].id]);
-    this.playIndex = pick ?? open ?? list[list.length - 1];
+    const now = open ?? list[list.length - 1];
+    this.playIndex = shooter && !this.unlockAll ? now : (pick ?? now);
     this.playBtn.hidden = !shooter;
     this.playBtn.replaceChildren(
       h('span', { class: 'play-hand', text: '\u{1F446}' }),
@@ -649,7 +651,8 @@ export class Ui {
                 : 'locked',
         }),
       );
-      cell.disabled = !unlocked;
+      // the shooter strip is a map of the campaign, not a menu (except with `?unlock=all`)
+      cell.disabled = !unlocked || (shooter && !this.unlockAll);
       cell.addEventListener('click', () => {
         this.handlers.onClick();
         // a shooter level is picked first (it then stands ready behind the screen), a runner one starts
@@ -787,6 +790,8 @@ export class Ui {
         : 'Your crowd was wiped out. Try another path through the gates.';
     const next = won && info.hasNext;
     this.nextBtn.hidden = !next;
+    // a beaten shooter level is not played again while the next one waits
+    this.retryBtn.hidden = next && upgradesAvailable;
     // the shooter gets one big button for the obvious next step; the others shrink to links
     this.retryBtn.className = `btn btn-retry ${
       upgradesAvailable ? (next ? 'btn-ghost' : 'btn-primary') : 'btn-secondary'

@@ -31,7 +31,7 @@ npm run dev
 ```
 
 Open the printed URL (on a phone: use the network URL on the same Wi-Fi). Add `?debug` to the URL
-for an FPS overlay, and `?unlock=all` to unlock every level.
+for an FPS overlay, and `?unlock=all` to unlock every level (and pick any shooter level).
 
 Controls: drag with finger or mouse, or use `A`/`D` or the arrow keys.
 
@@ -158,7 +158,11 @@ Prices start low and climb moderately to the cap (`src/core/shop.ts`): the desig
 next upgrade is one or two runs away, and every card shows a thin bar of how close the wallet is.
 The result screen has a "next goal" bar that fills with the coins of the run, so even a run that buys
 nothing visibly moves you forward. The first win of a level pays a one-off bonus (`firstClearBonus`).
-A level that was already beaten pays half, so replaying it is no way around the wall.
+Every shooter level pays a quarter more per kill and per block than the one before
+(`LEVEL_COIN_GROWTH`), so income keeps up with the climbing prices. Only the current shooter level
+is played: the strip at the top of the shooter screen shows the campaign but picks nothing (a lost
+run pays anyway, so an old level has nothing to offer). Once every level is beaten, PLAY replays the
+last one at half pay. Every level starts with the pistol; the rifle and the minigun wait on its lane.
 `npm run simulate:campaign` prints the runs per level and the longest stretch without a purchase.
 
 **The first shooter level teaches the loop** in about three runs. Like the ads, it starts with a

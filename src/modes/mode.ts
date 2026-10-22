@@ -18,7 +18,7 @@ export interface GameContext {
   readonly gl: GlLayer;
   /** The player's permanent upgrades (bought in the shop). */
   readonly upgrades: UpgradeLevels;
-  /** Share of the normal coin payout this run pays (1, or less when the level is replayed). */
+  /** Factor on the normal coin payout of this run (more in later levels, less on a replay). */
   coinFactor: number;
 }
 

@@ -773,6 +773,11 @@ body {
   gap: 0;
 }
 
+/* beaten levels are shown, not picked: no pointer, no press */
+.levels.shooter .level-cell:disabled:not(.locked) {
+  cursor: default;
+}
+
 .levels.shooter .level-num {
   font-size: 20px;
 }

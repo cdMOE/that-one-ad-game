@@ -20,6 +20,18 @@ export function firstClearBonus(order: number): number {
   return Math.round(150 * COIN_SCALE * Math.pow(1.5, Math.max(0, order)));
 }
 
+/**
+ * Every shooter level pays this many times more per kill and per block than the one before. Prices
+ * climb with every purchase (`costGrowth`), so with a flat payout the later levels would turn into
+ * a grind of runs that buy nothing; this keeps every run good for at least one upgrade.
+ */
+export const LEVEL_COIN_GROWTH = 1.25;
+
+/** Payout factor of the shooter level at position `order` (0 = first). */
+export function levelCoinFactor(order: number): number {
+  return Math.pow(LEVEL_COIN_GROWTH, Math.max(0, order));
+}
+
 export const UPGRADE_KINDS = ['damage', 'rate', 'soldiers', 'coins'] as const;
 export type UpgradeKind = (typeof UPGRADE_KINDS)[number];
 

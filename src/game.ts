@@ -1,5 +1,11 @@
 import { Sfx } from './audio/sfx';
-import { REPLAY_PAYOUT, firstClearBonus, upgradeCost, type UpgradeKind } from './core/shop';
+import {
+  REPLAY_PAYOUT,
+  firstClearBonus,
+  levelCoinFactor,
+  upgradeCost,
+  type UpgradeKind,
+} from './core/shop';
 import { Camera } from './core/camera';
 import { GlLayer } from './core/gl';
 import { Input } from './core/input';
@@ -18,6 +24,12 @@ type State = 'menu' | 'playing' | 'result';
 
 const NO_3D =
   "This browser can't show the 3D shooter. Turn on hardware acceleration or try another browser.";
+
+/** Position of a level among the shooter levels (0 = first, -1 for a runner level). */
+function shooterOrder(level: Level): number {
+  if (level.mode !== 'stationary') return -1;
+  return levels.filter((l) => l.mode === 'stationary').indexOf(level);
+}
 
 /** Game shell: owns the canvas, the loop, shared services and the screen flow. */
 export class Game {
@@ -167,8 +179,11 @@ export class Game {
     }
     this.leaveRun();
     this.levelIndex = index;
-    // a level that was already beaten pays less, so replaying it is no way around the wall
-    this.ctx.coinFactor = this.save.completed[levels[index].id] ? REPLAY_PAYOUT : 1;
+    // later levels pay more; a level that was already beaten pays less, so replaying it is no way
+    // around the wall
+    this.ctx.coinFactor =
+      levelCoinFactor(shooterOrder(levels[index])) *
+      (this.save.completed[levels[index].id] ? REPLAY_PAYOUT : 1);
     try {
       this.mode = this.newMode(levels[index]);
     } catch (e) {
@@ -342,8 +357,7 @@ export class Game {
       const prev = this.save.completed[level.id];
       if (!prev && level.mode === 'stationary') {
         // the first win pays a one-off bonus that grows with the level
-        const order = levels.filter((l) => l.mode === 'stationary').indexOf(level);
-        bonus = firstClearBonus(order);
+        bonus = firstClearBonus(shooterOrder(level));
         this.save.coins += bonus;
       }
       this.save.completed[level.id] = {

@@ -127,7 +127,9 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
     bite: 0,
     coins: 60 * COIN_SCALE,
     elite: {
-      holdY: 7.5,
+      // the front edge stays about nine units off the squad: big, but not in its face. Further back
+      // and a queue of three elites (two minibosses, then the boss) no longer fits on the field
+      holdY: 10,
       interval: 5,
       // 0.85 s of warning in real time
       telegraph: 1.35,
@@ -146,7 +148,8 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
     bite: 0,
     coins: 300 * COIN_SCALE,
     elite: {
-      holdY: 7,
+      // further back than the miniboss, as it is bigger (same front edge)
+      holdY: 11,
       interval: 3.6,
       // 0.77 s of warning in real time
       telegraph: 1.23,

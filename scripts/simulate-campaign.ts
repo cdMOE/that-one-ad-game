@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import {
   UPGRADE_KINDS,
   firstClearBonus,
+  levelCoinFactor,
   noUpgrades,
   startSoldiers,
   upgradeCost,
@@ -85,8 +86,10 @@ for (const [order, level] of levels.entries()) {
     path.push(
       r.won ? `won (lane ${Math.round(r.laneShare * 100)}%)` : `${Math.floor(r.progress * 100)}%`,
     );
-    coins += r.coins;
-    earned += r.coins;
+    // later levels pay more per kill and per block (see LEVEL_COIN_GROWTH)
+    const paid = r.coins * levelCoinFactor(order);
+    coins += paid;
+    earned += paid;
     won = r.won;
     if (won) coins += firstClearBonus(order);
     sinceBuy++;
