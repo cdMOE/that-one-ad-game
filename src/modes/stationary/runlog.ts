@@ -3,7 +3,7 @@ import type { RunTrace } from './sim';
 
 /**
  * A log of the shooter runs played in this browser, so a playtest can be laid next to the bot's
- * runs (see `npm run simulate:campaign`): what was owned, how the run went, what was bought after
+ * runs (see `npm run compare:runlog`): what was owned, how the run went, what was bought after
  * it. It stays on the device; `?debug` shows a button on the menu that saves it as a file.
  */
 export interface RunEntry {

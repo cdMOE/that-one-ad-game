@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel, StationaryLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
-import { upgradeCost } from '../src/core/shop';
+import { noUpgrades, upgradeCost } from '../src/core/shop';
 import {
   MAX_TIER,
   TUTORIAL,
@@ -13,7 +13,14 @@ import {
   analyzeStationary,
   runBot,
 } from '../src/modes/stationary/bot';
-import { CAMPAIGN, MAX_DRY, playCampaign } from '../src/modes/stationary/campaign';
+import {
+  CAMPAIGN,
+  MAX_DRY,
+  PROFILES,
+  playCampaign,
+  spend,
+  type ProfileName,
+} from '../src/modes/stationary/campaign';
 
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
 const files = readdirSync(dir)
@@ -116,9 +123,9 @@ describe('shipped levels', () => {
 
 /**
  * The difficulty curve: the shooter levels played in order the way a player does (lose, keep the
- * coins, buy the cheapest upgrade, retry) by the `HUMAN` pilot, each level held to its `CAMPAIGN`
- * range of runs. A level marked `pending` is still played (the next one starts with what it paid
- * for) but not checked: it has not been rebuilt for its target yet.
+ * coins, buy upgrades, retry), once for every player profile, each level held to its `CAMPAIGN`
+ * range of runs for that profile. A level `pending` for a profile is still played (the next one
+ * starts with what it paid for) but not checked for it: it has not been tuned for that player yet.
  */
 describe('campaign', () => {
   const shooterLevels = shooterFiles.map((f) => {
@@ -126,35 +133,73 @@ describe('campaign', () => {
     if (!result.ok || result.level.mode !== 'stationary') throw new Error(`bad level ${f}`);
     return result.level;
   });
-  let played: ReturnType<typeof playCampaign> | null = null;
-  const campaign = () => (played ??= playCampaign(shooterLevels, { maxRuns: 40 }));
+  const played = new Map<ProfileName, ReturnType<typeof playCampaign>>();
+  const campaign = (profile: ProfileName) => {
+    let p = played.get(profile);
+    if (!p) {
+      p = playCampaign(shooterLevels, { profile: PROFILES[profile], maxRuns: 40 });
+      played.set(profile, p);
+    }
+    return p;
+  };
 
   it('sets a target for every shooter level, and only for those', () => {
     expect(Object.keys(CAMPAIGN).sort()).toEqual(shooterLevels.map((l) => l.id).sort());
   });
 
-  const checks = shooterLevels.map((level, order) => ({
-    level,
-    order,
-    target: CAMPAIGN[level.id],
-  }));
-  it.each(checks.filter((c) => !c.target?.pending))(
-    '$level.name takes the runs it is meant to',
-    ({ order, target }) => {
-      const p = campaign()[order];
+  const checks = (Object.keys(PROFILES) as ProfileName[]).flatMap((profile) =>
+    shooterLevels.map((level, order) => ({
+      profile,
+      level,
+      order,
+      target: CAMPAIGN[level.id],
+      range: CAMPAIGN[level.id]?.runs[profile],
+    })),
+  );
+  const pending = (c: (typeof checks)[number]) => c.target?.pending?.includes(c.profile) ?? false;
+  it.each(checks.filter((c) => !pending(c)))(
+    '$level.name takes the runs it is meant to ($profile)',
+    ({ profile, order, range }) => {
+      const p = campaign(profile)[order];
       expect(p.won).toBe(true);
-      expect(p.runs).toBeGreaterThanOrEqual(target.runs[0]);
-      expect(p.runs).toBeLessThanOrEqual(target.runs[1]);
+      expect(p.runs).toBeGreaterThanOrEqual(range[0]);
+      expect(p.runs).toBeLessThanOrEqual(range[1]);
       // and losing keeps paying for upgrades
       expect(p.dry).toBeLessThanOrEqual(MAX_DRY);
     },
     SLOW_TEST_MS,
   );
-  for (const c of checks.filter((c) => c.target?.pending)) {
+  for (const c of checks.filter(pending)) {
     it.todo(
-      `${c.level.name} takes ${c.target.runs[0]}-${c.target.runs[1]} runs (${c.target.role})`,
+      `${c.level.name} takes ${c.range[0]}-${c.range[1]} runs (${c.profile}: ${c.target.role})`,
     );
   }
+});
+
+/** The two ways the campaign shops, checked against purchases from the user's logged playtest. */
+describe('spend', () => {
+  it('buys like the user: one of each card per round, soldiers first, then coins, then damage and rate', () => {
+    // the first run: two rounds of the coin bonus, one of fire rate and damage
+    const first = noUpgrades();
+    expect(spend(first, 4957, 'player')).toBe(1057);
+    expect(first).toEqual({ damage: 1, rate: 1, soldiers: 0, coins: 2 });
+    // the soldiers card as soon as it is affordable
+    const up = { damage: 1, rate: 1, soldiers: 0, coins: 2 };
+    expect(spend(up, 8123, 'player')).toBe(123);
+    expect(up).toEqual({ damage: 1, rate: 1, soldiers: 1, coins: 2 });
+    // coin bonus maxed, soldiers out of reach: damage and fire rate by turns
+    const later = { damage: 4, rate: 5, soldiers: 3, coins: 5 };
+    expect(spend(later, 26859, 'player')).toBe(2605);
+    expect(later).toEqual({ damage: 6, rate: 7, soldiers: 3, coins: 5 });
+  });
+
+  it('buys the cheapest upgrade and never the coin bonus', () => {
+    const up = noUpgrades();
+    const left = spend(up, 20000, 'cheapest');
+    expect(up.coins).toBe(0);
+    expect(up.damage + up.rate).toBeGreaterThan(2);
+    expect(left).toBeLessThan(upgradeCost('damage', up.damage));
+  });
 });
 
 describe('validateLevel', () => {

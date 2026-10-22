@@ -79,7 +79,7 @@ export const BULLET_RANGE = 24;
 /** Coins for smashing a block. */
 const BLOCK_COINS = 20 * COIN_SCALE;
 /** Bullets are forgiving: the hit circle of a monster is this much bigger than the monster. */
-const HIT_FORGIVENESS = 0.35;
+export const HIT_FORGIVENESS = 0.35;
 
 /**
  * Minibosses and bosses are the walls of a level. They stop at `holdY`, stay there and every

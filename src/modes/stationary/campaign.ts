@@ -10,34 +10,83 @@ import {
   type UpgradeLevels,
 } from '../../core/shop';
 import type { StationaryLevel } from '../../levels/schema';
-import { HUMAN, runBot, type BotResult, type Pilot } from './bot';
+import { CASUAL, GOOD, runBot, type BotResult, type Pilot } from './bot';
 import { GAME_SPEED } from './sim';
+
+/**
+ * How a player buys upgrades between runs:
+ * - `cheapest`: always the cheapest upgrade still available, never the coin bonus (it only speeds
+ *   the campaign up, and a careful player buys it late).
+ * - `player`: what the user did in their playtest (it buys what they bought after 15 of their 17
+ *   runs): round after round along the cards, one level of each it can afford per round, the
+ *   soldiers card first (an extra soldier is the biggest jump in power), then the coin bonus, then
+ *   damage and fire rate, the one behind first.
+ */
+export type BuyPolicy = 'cheapest' | 'player';
+
+/** A kind of player the campaign is played and checked for: their hand and how they shop. */
+export interface Profile {
+  pilot: Pilot;
+  buy: BuyPolicy;
+}
+
+/**
+ * The two players the campaign is measured against. `good` is the user (a strong player who knows
+ * the game), calibrated against their logged playtest; `casual` plays now and then and should need
+ * about twice the runs.
+ */
+export const PROFILES = {
+  good: { pilot: GOOD, buy: 'player' },
+  casual: { pilot: CASUAL, buy: 'cheapest' },
+} as const satisfies Record<string, Profile>;
+
+export type ProfileName = keyof typeof PROFILES;
 
 /** How many campaign runs a shooter level is meant to take, and what it is there for. */
 export interface CampaignTarget {
-  /** Runs (lowest and highest) the `HUMAN` pilot needs, losing and buying its way through. */
-  runs: readonly [number, number];
+  /** Runs (lowest and highest) each profile needs, losing and buying its way through. */
+  runs: Readonly<Record<ProfileName, readonly [number, number]>>;
   role: string;
-  /** Not rebuilt for its target yet: the campaign still plays it, the test skips its check. */
-  pending?: boolean;
+  /**
+   * Profiles this level has not been tuned for yet: the campaign still plays it, the test skips
+   * its check for them.
+   */
+  pending?: readonly ProfileName[];
 }
 
 /**
  * The difficulty curve of the campaign, by level id. It rises in waves, not in a line: a breather
  * after every wall, so a level that just felt hard is followed by one that shows off the upgrades.
- * The counts are for the `HUMAN` pilot; people need about half (3-5 runs where it needs 8 on the
- * first level). The unit tests hold every level that is not `pending` to its range, so a change
- * anywhere (shop, weapons, a level) that shifts the curve fails there instead of in a playtest.
+ * `good` holds the runs agreed for a strong player; the `casual` ranges are still the ones the
+ * levels were built for before the good profile existed (about twice the good ones), until the
+ * levels are retuned for both. The unit tests hold every level to its range for every profile that
+ * is not `pending`, so a change anywhere (shop, weapons, a level) that shifts the curve fails there
+ * instead of in a playtest.
  */
 export const CAMPAIGN: Readonly<Record<string, CampaignTarget>> = {
   'stationary-01': {
-    runs: [7, 13],
+    runs: { good: [4, 6], casual: [7, 13] },
     role: 'tutorial: wall, horde, boss, a little further each run',
+    pending: ['good'],
   },
-  'stationary-02': { runs: [3, 5], role: 'breather: the upgrades bought show' },
-  'stationary-03': { runs: [9, 12], role: 'the first real wall' },
-  'stationary-04': { runs: [3, 4], role: 'power fantasy: a flood that melts' },
-  'stationary-05': { runs: [12, 15], role: 'chapter boss' },
+  'stationary-02': {
+    runs: { good: [2, 4], casual: [3, 5] },
+    role: 'breather: the upgrades bought show',
+  },
+  'stationary-03': {
+    runs: { good: [6, 8], casual: [9, 12] },
+    role: 'the first real wall',
+  },
+  'stationary-04': {
+    runs: { good: [2, 3], casual: [3, 4] },
+    role: 'power fantasy: a flood that melts',
+    pending: ['good'],
+  },
+  'stationary-05': {
+    runs: { good: [8, 10], casual: [12, 15] },
+    role: 'chapter boss',
+    pending: ['good'],
+  },
 };
 
 /**
@@ -94,23 +143,51 @@ export interface LevelCampaign {
   upgrades: UpgradeLevels;
 }
 
-// the coin bonus is left out on purpose: it only speeds a run up and a careful player buys it late
-const BUYABLE: UpgradeKind[] = UPGRADE_KINDS.filter((k) => k !== 'coins');
+/** Spends the wallet on upgrades the way `policy` says; returns what is left. */
+export function spend(up: UpgradeLevels, coins: number, policy: BuyPolicy): number {
+  const price = (k: UpgradeKind) => upgradeCost(k, up[k]);
+  if (policy === 'cheapest') {
+    for (;;) {
+      // the coin bonus is left out: it only speeds a run up and a careful player buys it late
+      const pick = UPGRADE_KINDS.filter((k) => k !== 'coins' && price(k) <= coins).sort(
+        (a, b) => price(a) - price(b),
+      )[0];
+      if (pick === undefined) return coins;
+      coins -= price(pick);
+      up[pick]++;
+    }
+  }
+  // round after round along the cards, one level of each it can afford per round
+  for (let bought = true; bought;) {
+    bought = false;
+    // damage and fire rate cost the same at the same level, so the cheaper one is the one behind;
+    // level with each other, the user went for fire rate first
+    const turn = price('damage') < price('rate') ? 'damage' : 'rate';
+    for (const k of ['soldiers', 'coins', turn, turn === 'rate' ? 'damage' : 'rate'] as const) {
+      if (price(k) > coins) continue;
+      coins -= price(k);
+      up[k]++;
+      bought = true;
+    }
+  }
+  return coins;
+}
 
 /**
  * Plays the shooter levels in order with ONE shared wallet and permanent upgrades, like a player
- * working through the campaign: lose, bank the coins, buy the cheapest upgrade, retry. A level not
- * won within `maxRuns` is left behind and the next one is played with what was bought so far.
- * `npm run simulate:campaign` prints this, and the unit tests check it against `CAMPAIGN`.
+ * working through the campaign: lose, bank the coins, buy upgrades (see `BuyPolicy`), retry. A
+ * level not won within `maxRuns` is left behind and the next one is played with what was bought so
+ * far. `npm run simulate:campaign` prints this, and the unit tests check it against `CAMPAIGN`.
  */
 export function playCampaign(
   levels: readonly StationaryLevel[],
   {
-    pilot = HUMAN,
+    profile = PROFILES.casual,
     maxRuns = 400,
     onRun,
-  }: { pilot?: Pilot; maxRuns?: number; onRun?: (run: CampaignRun) => void } = {},
+  }: { profile?: Profile; maxRuns?: number; onRun?: (run: CampaignRun) => void } = {},
 ): LevelCampaign[] {
+  const { pilot, buy } = profile;
   const up = noUpgrades();
   let coins = 0;
   let seed = 1;
@@ -132,8 +209,8 @@ export function playCampaign(
       seconds += r.seconds / GAME_SPEED;
       r.itemTimes.forEach((t, i) => gaps.push(t - (i > 0 ? r.itemTimes[i - 1] : 0)));
       reached.push(r.won ? 1 : r.progress);
-      // later levels pay more per kill and per block (see LEVEL_COIN_GROWTH)
-      const paid = r.coins * levelCoinFactor(order);
+      // later levels pay more per kill and per block (see LEVEL_COIN_GROWTH), the coin bonus on top
+      const paid = r.coins * levelCoinFactor(order) * upgradeMultiplier('coins', up.coins);
       coins += paid;
       earned += paid;
       won = r.won;
@@ -142,17 +219,9 @@ export function playCampaign(
         laneShare = r.laneShare;
       }
       const before = { ...up };
-      // spend: always the cheapest upgrade that is still available
-      for (;;) {
-        const options = BUYABLE.map((k) => ({ k, cost: upgradeCost(k, up[k]) }))
-          .filter((o) => Number.isFinite(o.cost) && o.cost <= coins)
-          .sort((a, b) => a.cost - b.cost);
-        if (options.length === 0) break;
-        coins -= options[0].cost;
-        up[options[0].k]++;
-      }
+      coins = spend(up, coins, buy);
       // a run that buys nothing (also because everything is maxed out) extends the dry stretch
-      if (BUYABLE.some((k) => up[k] > before[k])) sinceBuy = 0;
+      if (UPGRADE_KINDS.some((k) => up[k] > before[k])) sinceBuy = 0;
       else dry = Math.max(dry, ++sinceBuy);
       onRun?.({ order, run: runs, result: r, before, after: { ...up } });
     }

@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "validate:levels": "tsx scripts/validate-levels.ts",
     "typecheck": "tsc --noEmit",
-    "simulate:campaign": "tsx scripts/simulate-campaign.ts"
+    "simulate:campaign": "tsx scripts/simulate-campaign.ts",
+    "compare:runlog": "tsx scripts/compare-runlog.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

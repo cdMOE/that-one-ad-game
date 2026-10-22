@@ -44,6 +44,7 @@ Controls: drag with finger or mouse, or use `A`/`D` or the arrow keys.
 | `npm test`                  | Unit tests (gate math, battle resolution, swarm, level checks) |
 | `npm run validate:levels`   | Validates every level file and checks that it can be won       |
 | `npm run simulate:campaign` | Plays the shooter levels in order and prints runs per level    |
+| `npm run compare:runlog`    | Replays a logged playtest with the bot, run by run             |
 | `npm run lint`              | ESLint                                                         |
 | `npm run format`            | Prettier                                                       |
 
@@ -221,15 +222,23 @@ seeds, and in addition that the first level's first run pays for the first damag
 upgrade, that every later level is never won without upgrades, and that its first run pays at least
 a third of the first upgrade.
 
-`npm run simulate:campaign` plays all shooter levels in order with one shared wallet (buying the
-cheapest upgrade after every run) and prints how many runs each level took and how far each run got
-(`runs: 26% > 50% > won (lane 100%)`, the lane share as above), next to the level's target. The
-default bot is sharper than most people; `--human` plays with a slower, less precise hand, and the
-campaign is tuned for that one (a person who knows the game needs about half its runs). The targets
-live in `CAMPAIGN` (`src/modes/stationary/campaign.ts`): a range of runs per level, rising in
-waves (a breather after every wall). The unit tests play the same campaign and hold every level to
-its range, and to at most `MAX_DRY` runs in a row that buy nothing; a level marked `pending` has not
-been rebuilt for its target yet and shows up as a todo.
+`npm run simulate:campaign` plays all shooter levels in order with one shared wallet and prints how
+many runs each level took and how far each run got (`runs: 26% > 50% > won (lane 100%)`, the lane
+share as above), next to the level's target. It plays the campaign once for each player profile
+(`PROFILES` in `src/modes/stationary/campaign.ts`) and then shows them side by side: `good` is a
+strong player who knows the game (the `GOOD` pilot, buying like the user did: one of each card per
+round, soldiers first, then the coin bonus, then damage and fire rate), `casual` plays now and then
+(the `CASUAL` pilot, buying the cheapest upgrade) and should need about twice the runs;
+`--profile=good` plays only one. The targets live in `CAMPAIGN`: a range of runs per level and
+profile, rising in waves (a breather after every wall). The unit tests play the same campaigns and
+hold every level to its range, and to at most `MAX_DRY` runs in a row that buy nothing; a level
+`pending` for a profile has not been tuned for it yet and shows up as a todo.
+
+The `GOOD` pilot is calibrated against a real playtest: open the game with `?debug`, play, save the
+log with EXPORT RUN LOG, then `npm run compare:runlog -- runlog.json` replays every logged run with
+exactly the upgrades it had, over several seeds (`--pilot=good,casual`, `--seeds=N`,
+`--level=stationary-05`). Where the player won, the bot should win most seeds; where they lost, it
+should get about as far and earn about as much.
 
 Check your level before opening a pull request:
 

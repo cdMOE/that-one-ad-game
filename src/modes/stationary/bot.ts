@@ -10,9 +10,11 @@ import type { StationaryLevel } from '../../levels/schema';
 import {
   ARENA,
   GAME_SPEED,
+  HIT_FORGIVENESS,
   MAX_MONSTERS,
   MONSTERS,
   MONSTER_KIND_BY_INDEX,
+  SOLDIER_SPACING,
   StationarySim,
 } from './sim';
 
@@ -47,11 +49,10 @@ export interface BotResult {
 }
 
 /**
- * Where the bot wants the squad. Monsters come down in masses, so it stands under the
- * densest column of monsters whenever they are close; otherwise it goes to the upgrade
- * lane to shoot the front block or catch the falling power-up.
+ * How the bot plays: how quick and how precise its hand is, and how well it reads the field. The
+ * reading is what sets a strong player apart: calibrated against a logged playtest (`npm run
+ * compare:runlog`), hand speed barely mattered, these three habits did.
  */
-/** How the bot plays: how quick and how precise its hand is. */
 export interface Pilot {
   /** It re-aims every this many steps (1 = every ~33 ms); higher is slower than a mouse hand. */
   aimEvery: number;
@@ -59,31 +60,75 @@ export interface Pilot {
   reaction: number;
   /** Aiming error in world units, drawn fresh on every re-aim (0 = dead on). */
   wobble: number;
+  /**
+   * Steps clear of a lit-up strike zone, by more than its own aiming error, and stays out until it
+   * has struck. Without it the bot steps out, aims at the crowd again on the next re-aim and walks
+   * straight back in, so a boss fight costs it a third of the squad per volley.
+   */
+  careful?: boolean;
+  /**
+   * Only counts the monsters its bullets can reach from a spot: a boss soaks up every bullet in
+   * its line, so the crowd behind and beside it is out of reach. Without it the bot stands under
+   * the boss and pours its fire into it while the horde walks past on both sides.
+   */
+  lineOfFire?: boolean;
+  /**
+   * Monsters closer than this (world units) pull it off the upgrade lane once there are a few of
+   * them. A strong player thins out the horde while it is still far away; the default 7 waits
+   * until it is almost on top of the squad.
+   */
+  engageAt?: number;
 }
 
 /** The validator's bot: quicker and more precise than most people. */
 export const SHARP: Pilot = { aimEvery: 1, reaction: 0.25, wobble: 0 };
 /**
- * Closer to a person: re-aims five times a second, notices a strike late and is a little off
- * target. The campaign is tuned for how many runs this one needs, not the sharp bot.
+ * Someone who plays now and then: re-aims five times a second, notices a strike late, is a little
+ * off target and reads the field plainly (see `Pilot`). It needs about twice the runs of `GOOD`.
  */
-export const HUMAN: Pilot = { aimEvery: 6, reaction: 0.45, wobble: 0.5 };
+export const CASUAL: Pilot = { aimEvery: 6, reaction: 0.45, wobble: 0.5 };
+/**
+ * A strong player who knows the game, calibrated against the user's logged playtest: with the same
+ * upgrades it wins where they won (all 17 runs of the first playthrough), gets as far where they
+ * lost and earns the same coins. Its hand is a mouse hand, but what makes it strong is the reading.
+ */
+export const GOOD: Pilot = {
+  aimEvery: 3,
+  reaction: 0.45,
+  wobble: 0.25,
+  careful: true,
+  lineOfFire: true,
+  engageAt: 10,
+};
 
-/** Where to stand to be out of every lit-up strike zone, or null when it is not in danger. */
-function dodgeTarget(sim: StationarySim, reaction: number): number | null {
+/** Pilots by name, for the scripts. */
+export const PILOTS: Readonly<Record<string, Pilot>> = {
+  good: GOOD,
+  casual: CASUAL,
+  sharp: SHARP,
+};
+
+/**
+ * Where to stand to be out of every lit-up strike zone: the safe spot nearest to `want` (by
+ * default where the squad is), or null when `want` is not in danger.
+ */
+function dodgeTarget(
+  sim: StationarySim,
+  reaction: number,
+  margin = 0.05,
+  want = sim.squadX,
+): number | null {
   const reach = sim.halfWidth() + 0.3;
   const limit = 6 - sim.halfWidth();
   const zones = sim.attacks.filter((a) => a.t >= reaction);
   const blocked = (x: number) => zones.some((a) => x + reach >= a.lo && x - reach <= a.hi);
-  if (!blocked(sim.squadX)) return null;
+  if (!blocked(want)) return null;
   // the nearest spot just beside a zone edge that no other zone covers
   const options = zones
-    .flatMap((a) => [a.lo - reach - 0.05, a.hi + reach + 0.05])
+    .flatMap((a) => [a.lo - reach - margin, a.hi + reach + margin])
     .filter((x) => x >= -limit && x <= limit && !blocked(x));
   if (options.length === 0) return null;
-  return options.reduce((best, x) =>
-    Math.abs(x - sim.squadX) < Math.abs(best - sim.squadX) ? x : best,
-  );
+  return options.reduce((best, x) => (Math.abs(x - want) < Math.abs(best - want) ? x : best));
 }
 
 /**
@@ -100,27 +145,81 @@ function nearestElite(sim: StationarySim): number {
   return best;
 }
 
+/** Where the bot wants the squad: out of the strikes first, then wherever the field needs it. */
 function botTarget(sim: StationarySim, pilot: Pilot): number {
-  const dodge = dodgeTarget(sim, pilot.reaction);
-  if (dodge !== null) return dodge;
-  const reach = sim.halfWidth() + 0.5;
-  let nearestY = Infinity;
-  let danger = 0;
-  for (let i = 0; i < MAX_MONSTERS; i++) {
-    if (!sim.malive[i]) continue;
-    if (sim.my[i] < nearestY) nearestY = sim.my[i];
-    if (sim.my[i] < 7) danger++;
+  if (pilot.careful) {
+    const want = fieldTarget(sim, pilot);
+    return dodgeTarget(sim, pilot.reaction, pilot.wobble + 0.05, want) ?? want;
   }
-  // densest column: try a few positions across the monster lane, closer monsters count more
-  let bestX = (sim.monsterMinX + sim.monsterMaxX) / 2;
-  let bestScore = 0;
-  for (let cx = sim.monsterMinX; cx <= sim.monsterMaxX + 0.01; cx += 0.7) {
-    let score = 0;
+  return dodgeTarget(sim, pilot.reaction) ?? fieldTarget(sim, pilot);
+}
+
+/**
+ * How much of the crowd the squad's bullets reach from `cx`: closer monsters count more. With
+ * `lineOfFire`, only the monsters in front of the first elite in each bullet line of the front row
+ * count; otherwise every monster within the squad's reach does.
+ */
+function crowdScore(sim: StationarySim, cx: number, pilot: Pilot, elites: number[]): number {
+  let score = 0;
+  if (!pilot.lineOfFire) {
+    const reach = sim.halfWidth() + 0.5;
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (sim.malive[i] && Math.abs(sim.mx[i] - cx) <= reach && sim.my[i] < 13) {
         score += 1 / (sim.my[i] + 1);
       }
     }
+    return score;
+  }
+  const lines: number[] = [];
+  const shadow: number[] = [];
+  for (let c = 0; c < sim.cols; c++) {
+    const x = cx + (c - (sim.cols - 1) / 2) * SOLDIER_SPACING;
+    let y = Infinity;
+    for (const e of elites) {
+      const r = MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[e]]].radius + HIT_FORGIVENESS;
+      if (Math.abs(sim.mx[e] - x) <= r) y = Math.min(y, sim.my[e]);
+    }
+    lines.push(x);
+    shadow.push(y);
+  }
+  for (let i = 0; i < MAX_MONSTERS; i++) {
+    if (!sim.malive[i] || sim.my[i] >= 13) continue;
+    const stats = MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]];
+    if (stats.elite) continue;
+    const r = stats.radius + HIT_FORGIVENESS;
+    for (let l = 0; l < lines.length; l++) {
+      if (Math.abs(sim.mx[i] - lines[l]) <= r && sim.my[i] < shadow[l]) {
+        score += 1 / (sim.my[i] + 1);
+        break;
+      }
+    }
+  }
+  return score;
+}
+
+/**
+ * Monsters come down in masses, so it stands where its fire reaches most of the crowd whenever
+ * they are close; otherwise it goes to the upgrade lane to shoot the front block or catch the
+ * falling power-up, or shoots a boss that is waiting on the field.
+ */
+function fieldTarget(sim: StationarySim, pilot: Pilot): number {
+  const engageAt = pilot.engageAt ?? 7;
+  let nearestY = Infinity;
+  let danger = 0;
+  const elites: number[] = [];
+  for (let i = 0; i < MAX_MONSTERS; i++) {
+    if (!sim.malive[i]) continue;
+    if (sim.my[i] < nearestY) nearestY = sim.my[i];
+    if (sim.my[i] < engageAt) danger++;
+    if (sim.my[i] <= ARENA.spawnTop && MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].elite) {
+      elites.push(i);
+    }
+  }
+  // try a few positions across the monster lane
+  let bestX = (sim.monsterMinX + sim.monsterMaxX) / 2;
+  let bestScore = 0;
+  for (let cx = sim.monsterMinX; cx <= sim.monsterMaxX + 0.01; cx += 0.7) {
+    const score = crowdScore(sim, cx, pilot, elites);
     if (score > bestScore) {
       bestScore = score;
       bestX = cx;
