@@ -75,8 +75,8 @@ import {
  * way from the screen centre to its bottom edge, with the road running off into the haze the horde
  * walks out of and room under it for the thumb.
  */
-const CAMERA_PITCH = (22 * Math.PI) / 180;
-const CAMERA_FOV = 60;
+const CAMERA_PITCH = (16 * Math.PI) / 180;
+const CAMERA_FOV = 40;
 const FIT_HALF_WIDTH = 4.8;
 const SQUAD_NDC = -0.15;
 /**
@@ -93,16 +93,17 @@ const CAMERA_FOLLOW = 0.35;
 const WIDE_FIT_HALF_WIDTH = 6.4;
 const SQUAD_EYE = 0.4;
 
-const FLOOR_NEAR = -10;
+/** Where the bridge starts behind the squad: well past the bottom edge of the screen. */
+const FLOOR_NEAR = -30;
 /**
  * Haze: the road fades into the horizon colour between these two points of it (sim y). The camera
  * moves with the screen size, so the fog is set from it in `resize`: monsters appear at
- * `SPAWN_FAR` where the haze is total, and walk out of it until they are clear at `FOG_CLEAR_Y`.
- * The band is kept short, so the field itself stays crisp and colourful (a long one washed the
- * whole upper half of the screen out). Nothing pops out of thin air.
+ * `SPAWN_FAR`, deep in the haze and tiny, and walk out of it until they are clear at `FOG_CLEAR_Y`.
+ * The fight (up to `ARENA.spawnTop`) and the near half of the queue stay crisp; the far end of
+ * the bridge pales gradually instead of ending in a flat wall of haze. Nothing pops out of thin air.
  */
-const FOG_CLEAR_Y = SPAWN_FAR - 7;
-const FOG_SOLID_Y = SPAWN_FAR - 1;
+const FOG_CLEAR_Y = SPAWN_FAR - 16;
+const FOG_SOLID_Y = SPAWN_FAR + 4;
 
 /** Sky colours overhead, a little above the horizon and at it; the fog fades into the horizon one. */
 const SKY_TOP = '#2f7fe0';
@@ -115,7 +116,7 @@ const OUTLINE = 0x1b1e2c;
 const SOLDIER_OUTLINE = 0.03;
 const MONSTER_OUTLINE = 0.055;
 /** Where the bridge pylons stand along the road (sim y). */
-const PYLONS_Y = [6, 30];
+const PYLONS_Y = [6, 30, 54];
 const BULLET_HEIGHT = 0.62;
 /** At most this many bullets are drawn; a big squad fires hundreds, and every one of them is noise. */
 const MAX_DRAWN_BULLETS = 120;
@@ -1056,8 +1057,9 @@ export class ShooterScene implements Placer {
     const moving = Math.min(1, Math.abs(sim.squadVx) / 4);
     const lean = Math.max(-0.3, Math.min(0.3, -sim.squadVx * 0.014));
     const n = player.n;
-    // a small squad is drawn bigger (one soldier would be a speck); a big one shrinks to its 1.6
-    const size = 1.6 + 0.7 / Math.sqrt(Math.max(1, n));
+    // a small squad is drawn bigger (one soldier would be a speck); a big one shrinks to its 1.15.
+    // Kept small against the road and the bosses, so the bridge looks wide and the giants loom
+    const size = 1.15 + 0.55 / Math.sqrt(Math.max(1, n));
     const muzzleArr = this.muzzles.instanceMatrix.array as Float32Array;
     const flare = recoil * recoil;
     for (let i = 0; i < n; i++) {

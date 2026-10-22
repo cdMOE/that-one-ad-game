@@ -24,11 +24,13 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
 
 export const ARENA = { halfWidth: 6, spawnTop: 16 };
 /**
- * Where monsters actually appear: far out in the haze beyond `ARENA.spawnTop`, so the horde walks
- * in from the distance instead of popping out of a gate. Each one starts early by the time it
- * needs for the extra way, so it still crosses `spawnTop` exactly when the level schedules it.
+ * Where monsters actually appear: far down the bridge beyond `ARENA.spawnTop`, so the horde queues
+ * up in a long column all the way to the horizon, like in the ad shooters: the road looks deep and
+ * you see what is still coming. Each one starts early by the time it needs for the extra way, so it
+ * still crosses `spawnTop` exactly when the level schedules it: the walk-in changes the view, not
+ * the fight.
  */
-export const SPAWN_FAR = 27;
+export const SPAWN_FAR = 48;
 /**
  * Distance between neighbouring soldiers; also the size of the formation grid. Wide enough that
  * the big, close-up soldiers read as a loose group of people, not a block of helmets.
@@ -153,12 +155,16 @@ const BODY_STIFFNESS = 0.4;
 /** An elite blocks the crowd as a disc this much smaller than its hit circle, so a tank still fits past it. */
 export const ELITE_BODY_SCALE = 0.85;
 
-/** Room for the horde on its long walk in from the haze, plus what reaches the squad. */
-export const MAX_MONSTERS = 600;
+/**
+ * Room for the horde on its long walk in down the bridge, plus what reaches the squad. The busiest
+ * level peaks at about 700 with the bot playing.
+ */
+export const MAX_MONSTERS = 1000;
 export const MAX_BULLETS = 900;
 /** Monsters are sorted into horizontal slabs of this height so bullets only test nearby ones. */
 const BUCKET_H = 1;
-const BUCKETS = 32;
+/** Enough slabs to reach past the spawn line (plus its jitter); anything beyond shares the last. */
+const BUCKETS = Math.ceil((SPAWN_FAR + 4) / BUCKET_H);
 
 export type SimPhase = 'gap' | 'fighting' | 'won' | 'lost';
 
@@ -583,16 +589,19 @@ export class StationarySim {
    * Keeps bodies from sharing space. Ordinary monsters shove each other apart a little every step
    * (a crowd, not a ghost parade); elites are immovable: whatever walks into one is pushed out
    * along the line from its centre, so a horde slides around a boss and splits into two streams.
+   * Only on the field: on the long walk in beyond `ARENA.spawnTop` the horde marches in step, so it
+   * reaches the field exactly as the level sends it, however far away it appeared.
    */
   private resolveBodies(): void {
     const minX = this.monsterMinX;
     const maxX = this.monsterMaxX;
     const kinds = MONSTER_KIND_BY_INDEX;
     const elites: number[] = [];
+    const top = ARENA.spawnTop;
 
     // ordinary monsters against each other, using the slabs built at the start of this step
     for (let i = 0; i < MAX_MONSTERS; i++) {
-      if (!this.malive[i]) continue;
+      if (!this.malive[i] || this.my[i] > top) continue;
       const si = MONSTERS[kinds[this.mkind[i]]];
       if (si.elite) {
         elites.push(i);
@@ -604,7 +613,7 @@ export class StationarySim {
       const hi = this.bucketStart[Math.min(BUCKETS - 1, b + 2) + 1];
       for (let k = lo; k < hi; k++) {
         const j = this.bucketItems[k];
-        if (j <= i || !this.malive[j]) continue;
+        if (j <= i || !this.malive[j] || this.my[j] > top) continue;
         const sj = MONSTERS[kinds[this.mkind[j]]];
         if (sj.elite) continue;
         const reach = ri + sj.radius * BODY_SCALE;
@@ -633,7 +642,7 @@ export class StationarySim {
 
     // and everything else is pushed out of the elites
     for (let m = 0; m < MAX_MONSTERS; m++) {
-      if (!this.malive[m]) continue;
+      if (!this.malive[m] || this.my[m] > top) continue;
       const sm = MONSTERS[kinds[this.mkind[m]]];
       if (sm.elite) continue;
       for (const e of elites) {
@@ -654,14 +663,15 @@ export class StationarySim {
 
   /**
    * Where an elite stops: its own hold line, or right behind an elite that is already in front of
-   * it. They all come down the middle, so they queue up in a column and leave both sides of the
-   * lane free for the crowd.
+   * it on the field. They all come down the middle, so they queue up in a column and leave both
+   * sides of the lane free for the crowd. One still walking in does not hold up the next: every
+   * elite reaches the field on time.
    */
   private holdLine(i: number, e: EliteStats): number {
     let hold = e.holdY;
     const ri = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].radius;
     for (let j = 0; j < MAX_MONSTERS; j++) {
-      if (j === i || !this.malive[j]) continue;
+      if (j === i || !this.malive[j] || this.my[j] > ARENA.spawnTop) continue;
       const other = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[j]]];
       if (!other.elite) continue;
       const inFront = this.my[j] < this.my[i] || (this.my[j] === this.my[i] && j < i);

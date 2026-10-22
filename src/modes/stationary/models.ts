@@ -148,8 +148,8 @@ const LOOK_SCALE: Record<MonsterKind, number> = {
   grunt: 1,
   runner: 1,
   tank: 1,
-  miniboss: 1.2,
-  boss: 1.25,
+  miniboss: 1.3,
+  boss: 1.6,
 };
 
 function crown(y: number, size: number): BufferGeometry[] {
