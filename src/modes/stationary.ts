@@ -7,6 +7,7 @@ import { startSoldiers, upgradeMultiplier } from '../core/shop';
 import { Swarm } from '../core/swarm';
 import type { ItemDef, StationaryLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
+import { FORT_STAGES, fortressStage } from './stationary/fortress';
 import { monsterTop } from './stationary/models';
 import { JACKPOT_SCALE, ShooterScene } from './stationary/scene';
 import {
@@ -70,6 +71,8 @@ export class StationaryMode implements GameMode {
   private coinLabelWait = 0;
   /** The prize at the end of the upgrade lane: its caption shows from the start. */
   private readonly jackpot: LaneElement | null;
+  /** Damage the fortress at the end of the bridge shows; it crumbles as the run goes on. */
+  private fortStage = 0;
   /** What cost soldiers last: if the run is lost, that is what finished it. */
   private lastBlow: 'horde' | 'volley' | 'boss' | null = null;
 
@@ -350,6 +353,14 @@ export class StationaryMode implements GameMode {
     this.sim.targetX = Math.max(-limit, Math.min(limit, this.sim.targetX));
 
     if (!this.preview) this.sim.update(dt);
+    // every quarter of the run knocks a piece off the fortress; the win brings it down
+    const stage = fortressStage(this.sim.progress);
+    if (stage > this.fortStage) {
+      this.fortStage = stage;
+      this.scene.breakFortress(stage, this.time);
+      camera.shake(stage === FORT_STAGES ? 0.5 : 0.18);
+      if (!this.demo) this.ctx.sfx.boom();
+    }
     for (const f of this.flashes) f.life -= dt;
     while (this.flashes.length > 0 && this.flashes[0].life <= 0) this.flashes.shift();
 

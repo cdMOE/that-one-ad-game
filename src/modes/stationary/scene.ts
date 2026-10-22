@@ -36,6 +36,7 @@ import type { GlLayer } from '../../core/gl';
 import { PALETTE, type ParticleSystem, type Placer } from '../../core/particles';
 import type { Swarm } from '../../core/swarm';
 import type { ItemDef, MonsterKind } from '../../levels/schema';
+import { FORT_GATE_Y, Fortress, fortressEmerge, type FortGate } from './fortress';
 import {
   gunGeometry,
   monsterGeometry,
@@ -97,13 +98,19 @@ const SQUAD_EYE = 0.4;
 const FLOOR_NEAR = -30;
 /**
  * Haze: the road fades into the horizon colour between these two points of it (sim y). The camera
- * moves with the screen size, so the fog is set from it in `resize`: monsters appear at
- * `SPAWN_FAR`, deep in the haze and tiny, and walk out of it until they are clear at `FOG_CLEAR_Y`.
- * The fight (up to `ARENA.spawnTop`) and the near half of the queue stay crisp; the far end of
- * the bridge pales gradually instead of ending in a flat wall of haze. Nothing pops out of thin air.
+ * moves with the screen size, so the fog is set from it in `resize`. The fight (up to
+ * `ARENA.spawnTop`) and the near half of the queue stay crisp; further back the horde and the
+ * fortress it walks out of pale a little, enough to read as far away, never so much that they
+ * blur into a pale smear. Nothing pops out of thin air: monsters appear inside the dark gateway.
  */
 const FOG_CLEAR_Y = SPAWN_FAR - 16;
-const FOG_SOLID_Y = SPAWN_FAR + 4;
+const FOG_SOLID_Y = SPAWN_FAR + 40;
+/**
+ * The sea keeps its deep blue under and around the bridge and only melts into the horizon colour
+ * in a thin strip at the very back (view depth), so it never meets the sky in a hard line.
+ */
+const SEA_HAZE_NEAR = 150;
+const SEA_HAZE_FAR = 290;
 
 /** Sky colours overhead, a little above the horizon and at it; the fog fades into the horizon one. */
 const SKY_TOP = '#2f7fe0';
@@ -116,7 +123,7 @@ const OUTLINE = 0x1b1e2c;
 const SOLDIER_OUTLINE = 0.03;
 const MONSTER_OUTLINE = 0.055;
 /** Where the bridge pylons stand along the road (sim y). */
-const PYLONS_Y = [6, 30, 54];
+const PYLONS_Y = [6, 30];
 const BULLET_HEIGHT = 0.62;
 /** At most this many bullets are drawn; a big squad fires hundreds, and every one of them is noise. */
 const MAX_DRAWN_BULLETS = 120;
@@ -292,6 +299,15 @@ export class ShooterScene implements Placer {
   private readonly muzzles: InstancedMesh<BufferGeometry, Material>;
   /** Index into `BULLET_LOOKS` the bullet materials are coloured for (-1: not yet). */
   private bulletLook = -1;
+  /**
+   * Whether each bullet slot is drawn. Decided once when a bullet is fired and kept for its whole
+   * flight, so thinning out a big volley never makes the bullets in the air blink.
+   */
+  private readonly bulletDrawn = new Uint8Array(MAX_BULLETS);
+  /** Each slot's remaining life last frame: a higher life now means a freshly fired bullet. */
+  private readonly bulletLastLife = new Float32Array(MAX_BULLETS);
+  /** Running share of new bullets to draw; every time it passes 1, one is drawn. */
+  private bulletPick = 0;
   /** Cartoon outlines: a back-facing shell per crowd mesh that shares its instance matrices. */
   private readonly outlines: Array<{
     src: InstancedMesh<BufferGeometry, Material>;
@@ -329,6 +345,7 @@ export class ShooterScene implements Placer {
   /** Landed strike zones on their way out. */
   private readonly fadingZones: Array<{ lo: number; hi: number; top: number; start: number }> = [];
   private readonly tireMat: MeshLambertMaterial;
+  private fortress!: Fortress;
   private readonly tmp = new Vector3();
 
   constructor(
@@ -540,11 +557,8 @@ export class ShooterScene implements Placer {
   private buildWorld(): void {
     const sim = this.sim;
     const plane = this.track(groundPlane());
-    // the road reaches at least as far back as the monsters spawn, and past the last lane element
-    let laneFar = SPAWN_FAR + 3;
-    for (const e of sim.lane.elements) laneFar = Math.max(laneFar, e.y + 3);
-    // and carries on far into the haze beyond that
-    const end = laneFar + 60;
+    // the road runs into the fortress gate at the far end, where the horde comes from
+    const end = FORT_GATE_Y;
     const length = end - FLOOR_NEAR;
     const mid = -(FLOOR_NEAR + end) / 2;
     const solid = (color: number, opacity = 1) =>
@@ -638,9 +652,29 @@ export class ShooterScene implements Placer {
       }),
     );
     sea.repeat.set(90, 90);
-    // the sea stays clear of the haze all the way to the horizon, deep blue on both sides of the
-    // bridge as in the ad shooters; only the bridge itself fades into the distance
-    const water = new Mesh(plane, this.track(new MeshBasicMaterial({ map: sea, fog: false })));
+    // the sea stays clear of the haze, deep blue on both sides of the bridge as in the ad shooters,
+    // and only pales into the horizon at the very back (see `SEA_HAZE_NEAR`)
+    const seaMat = this.track(new MeshBasicMaterial({ map: sea, fog: false }));
+    seaMat.onBeforeCompile = (shader) => {
+      shader.uniforms.haze = { value: new Color(HORIZON) };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vSeaDepth;')
+        .replace(
+          '#include <project_vertex>',
+          '#include <project_vertex>\n  vSeaDepth = -mvPosition.z;',
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nuniform vec3 haze;\nvarying float vSeaDepth;',
+        )
+        .replace(
+          '#include <opaque_fragment>',
+          `#include <opaque_fragment>
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, haze, smoothstep(${SEA_HAZE_NEAR.toFixed(1)}, ${SEA_HAZE_FAR.toFixed(1)}, vSeaDepth));`,
+        );
+    };
+    const water = new Mesh(plane, seaMat);
     placeRect(water, -400, 400, -300, 500, -5);
     this.scene.add(water);
 
@@ -724,11 +758,22 @@ export class ShooterScene implements Placer {
     const mx1 = sim.monsterMaxX + 0.2;
 
     // a solid dark wall between the upgrade lane and the monsters, with a lighter cap, from a
-    // little ahead of the squad until it disappears in the haze: the two lanes read at a glance
+    // little ahead of the squad into the fortress: the two lanes read at a glance
     const left = sim.lane.x < 0;
     const laneEdge = sim.lane.x + (left ? 1 : -1) * (sim.lane.width / 2);
     const fieldEdge = left ? sim.monsterMinX : sim.monsterMaxX;
     const wallX = (laneEdge + fieldEdge) / 2;
+
+    // the fortress at the end of the road: a big gate for the horde, a small one for the upgrade
+    // lane, and the divider running into the pier between them
+    const pier = 0.35;
+    const big = 4.2;
+    const small = 3;
+    const gates: FortGate[] = [
+      { lo: -half + 0.05, hi: wallX - pier, h: left ? small : big },
+      { lo: wallX + pier, hi: half - 0.05, h: left ? big : small },
+    ];
+    this.fortress = new Fortress(this.scene, (x) => this.track(x), half + 0.6, gates);
     const wallZ = -(SPAWN_FAR + 3.2) / 2;
     box(lambert(0x565c68), wallX, 0.75, wallZ, 0.32, 1.5, SPAWN_FAR - 3.2);
     box(lambert(0x9aa0ab), wallX, 1.54, wallZ, 0.38, 0.08, SPAWN_FAR - 3.2);
@@ -937,6 +982,11 @@ export class ShooterScene implements Placer {
     this.placeAt(x, y, POPUP_HEIGHT);
   }
 
+  /** The run reached damage stage `stage` of the fortress (see `fortressStage`). */
+  breakFortress(stage: number, time: number): void {
+    this.fortress.breakTo(stage, time);
+  }
+
   /** The squad caught a power-up: a gold ring runs over the ground from it and it glows gold. */
   celebrate(x: number): void {
     const ring = this.rings.reduce((a, b) => (a.start <= b.start ? a : b));
@@ -971,6 +1021,7 @@ export class ShooterScene implements Placer {
     this.syncZones(flashes, time);
     this.syncRings(time);
     this.syncCorpses(time);
+    this.fortress.update(time);
     for (const o of this.outlines) o.hull.count = o.src.count;
     this.renderer.render(this.scene, this.camera);
   }
@@ -995,9 +1046,11 @@ export class ShooterScene implements Placer {
       // a charging boss stomps: big, quick hops instead of its slow sway
       const charging = sim.mstate[i] === 3;
       const stomp = Math.abs(Math.sin(time * 9 + phase));
-      const lift = charging ? stomp * 0.22 * r : hop * (small ? 0.16 : 0.05) * r;
+      // fresh out of the fortress gate, it grows to full size in a few steps
+      const emerge = fortressEmerge(y);
+      const lift = (charging ? stomp * 0.22 * r : hop * (small ? 0.16 : 0.05) * r) * emerge;
       const squash = 1 - (charging ? 0.16 * (1 - stomp) : 0.1 * (1 - hop));
-      let s = r;
+      let s = r * emerge;
       if (sim.mstate[i] === 2) s *= 1 + 0.05 * Math.sin(time * 40);
       writeTRS(
         arrays[k],
@@ -1011,7 +1064,7 @@ export class ShooterScene implements Placer {
         s * squash,
         s * (2 - squash),
       );
-      const sr = r * 1.05 * (1 - lift * 0.3);
+      const sr = r * emerge * 1.05 * (1 - lift * 0.3);
       writeTRS(shadowArr, shadowN++, x, 0.1, -y, 0, 0, sr, 1, sr);
     }
     for (let k = 0; k < this.monsterMeshes.length; k++) {
@@ -1132,12 +1185,18 @@ export class ShooterScene implements Placer {
     const glow = this.bulletGlow.instanceMatrix.array as Float32Array;
     let alive = 0;
     for (let i = 0; i < MAX_BULLETS; i++) if (sim.blife[i] > 0) alive++;
-    // with more bullets in flight than we want on screen, only every `stride`-th one is drawn
-    const stride = Math.max(1, Math.ceil(alive / MAX_DRAWN_BULLETS));
+    // with more bullets in flight than we want on screen, only this share of new ones is drawn
+    const share = Math.min(1, MAX_DRAWN_BULLETS / Math.max(1, alive));
     let n = 0;
-    let seen = 0;
     for (let i = 0; i < MAX_BULLETS; i++) {
-      if (sim.blife[i] <= 0 || seen++ % stride !== 0) continue;
+      const life = sim.blife[i];
+      if (life > this.bulletLastLife[i]) {
+        this.bulletPick += share;
+        this.bulletDrawn[i] = this.bulletPick >= 1 ? 1 : 0;
+        if (this.bulletPick >= 1) this.bulletPick -= 1;
+      }
+      this.bulletLastLife[i] = life;
+      if (life <= 0 || !this.bulletDrawn[i]) continue;
       const yaw = Math.atan2(sim.bvx[i], -sim.bvy[i]);
       writeTRS(arr, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, tw, tw, tl);
       writeTRS(glow, n, sim.bx[i], BULLET_HEIGHT, -sim.by[i], yaw, 0, tw * 1.2, tw * 1.2, tl * 1.3);
