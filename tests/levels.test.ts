@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel, StationaryLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
-import { upgradeCost } from '../src/core/shop';
+import { UPGRADE_KINDS, noUpgrades, upgradeCost } from '../src/core/shop';
 import {
   MAX_TIER,
   TUTORIAL,
@@ -58,6 +58,29 @@ function wins(level: StationaryLevel, tier: number, runs: number, enough: number
   return won;
 }
 
+/**
+ * Runs it takes to win a level from scratch the way a player does: lose, keep the coins, buy the
+ * cheapest upgrade (the coin bonus aside), retry. The same loop as `npm run simulate:campaign`.
+ */
+function campaignRuns(level: StationaryLevel, maxRuns = 30): number {
+  const up = noUpgrades();
+  let coins = 0;
+  for (let run = 1; run <= maxRuns; run++) {
+    const r = runBot(level, run * 7919, up);
+    if (r.won) return run;
+    coins += r.coins;
+    for (;;) {
+      const next = UPGRADE_KINDS.filter((k) => k !== 'coins')
+        .map((k) => ({ k, cost: upgradeCost(k, up[k]) }))
+        .sort((a, b) => a.cost - b.cost)[0];
+      if (!Number.isFinite(next.cost) || next.cost > coins) break;
+      coins -= next.cost;
+      up[next.k]++;
+    }
+  }
+  return Infinity;
+}
+
 describe('shipped levels', () => {
   it('has at least one level', () => {
     expect(files.length).toBeGreaterThan(0);
@@ -77,8 +100,8 @@ describe('shipped levels', () => {
       if (result.ok && result.level.mode === 'stationary') {
         const level = result.level;
         if (shooterFiles.indexOf(file) === 0) {
-          // the tutorial: the first run is lost part of the way in and pays for a few upgrades,
-          // and with those few the level is won
+          // the tutorial: the first run is lost part of the way in and pays for damage and fire
+          // rate, and a handful of runs later the level is won
           const first = analyzeStationary(level, FIRST_TRY_RUNS, 0);
           expect(first.winRate).toBe(0);
           expect(first.medianProgress).toBeGreaterThanOrEqual(TUTORIAL.firstRun[0]);
@@ -89,6 +112,10 @@ describe('shipped levels', () => {
           expect(
             wins(level, TUTORIAL.maxTier, VALIDATION_RUNS, ENOUGH_WINS),
           ).toBeGreaterThanOrEqual(ENOUGH_WINS);
+          // long enough to be a challenge, short enough that every retry is worth it
+          const runs = campaignRuns(level);
+          expect(runs).toBeGreaterThanOrEqual(TUTORIAL.runs[0]);
+          expect(runs).toBeLessThanOrEqual(TUTORIAL.runs[1]);
         } else {
           // every later level needs shop upgrades (even the bot, which plays better than a
           // person, never wins it on the first try), yet a lost run pays a third of an upgrade

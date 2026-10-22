@@ -109,7 +109,9 @@ for (const [order, level] of levels.entries()) {
     }
     if (perRun) {
       const result = r.won ? 'WON ' : `${Math.floor(r.progress * 100)}%`.padEnd(4);
-      const left = r.blockLeft === null ? '' : `, next ${Math.round(r.blockLeft * 100)}% left`;
+      const left =
+        (r.blockLeft === null ? '' : `, next ${Math.round(r.blockLeft * 100)}% left`) +
+        (r.bossLeft === null ? '' : `, boss ${Math.round(r.bossLeft * 100)}% left`);
       const buys = bought.map((k) => `${k}+${up[k] - before[k]}`).join(' ') || 'nothing';
       console.log(
         `  run ${String(runs).padStart(2)}  ${result} ${(r.seconds / GAME_SPEED).toFixed(0).padStart(3)}s` +

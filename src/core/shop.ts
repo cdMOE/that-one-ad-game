@@ -29,15 +29,19 @@ export type UpgradeLevels = Record<UpgradeKind, number>;
  * Every permanent upgrade has a cap, so the strongest possible squad is a known quantity.
  *
  * Prices are the dial for how long the campaign takes: `npm run simulate:campaign` shows the
- * runs per level. Damage and fire rate come in many small steps that start cheap and get steeper,
- * like the ad shooters: the first runs buy several levels each and the squad gets stronger fast,
- * later every run still buys one or two, and the levels (each one a wall of bosses) take a few more
- * runs each. The strongest squad is no stronger than before; it just takes longer to get there.
+ * runs per level. Every lost run buys one or two levels and every level is felt (the bonuses
+ * compound, see `upgradeMultiplier`), so each retry gets visibly further: the first level takes
+ * about ten runs, past the wall on its upgrade lane, then the horde, then the boss.
  */
 export interface UpgradeInfo {
   title: string;
   /** Price of level 1. */
   baseCost: number;
+  /**
+   * A cheaper price for level 1, the first card the shop lights up. Damage and fire rate have one:
+   * a typical first run pays for both, and even a run lost in the first seconds for one of them.
+   */
+  firstCost?: number;
   /** Every level costs this many times more than the one before. */
   costGrowth: number;
   /** Highest level that can be bought. */
@@ -51,26 +55,28 @@ export interface UpgradeInfo {
 export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   damage: {
     title: 'Damage',
-    baseCost: 50 * COIN_SCALE,
+    baseCost: 150 * COIN_SCALE,
+    firstCost: 35 * COIN_SCALE,
     costGrowth: 1.15,
-    maxLevel: 30,
-    perLevel: 0.08,
+    maxLevel: 25,
+    perLevel: 0.12,
     unit: 'percent',
     blurb: 'more damage per bullet',
   },
   rate: {
     title: 'Fire rate',
-    baseCost: 50 * COIN_SCALE,
+    baseCost: 150 * COIN_SCALE,
+    firstCost: 35 * COIN_SCALE,
     costGrowth: 1.15,
-    maxLevel: 25,
-    perLevel: 0.05,
+    maxLevel: 20,
+    perLevel: 0.08,
     unit: 'percent',
     blurb: 'shots per second',
   },
   soldiers: {
     title: 'Soldiers',
-    baseCost: 120 * COIN_SCALE,
-    costGrowth: 1.9,
+    baseCost: 400 * COIN_SCALE,
+    costGrowth: 2,
     maxLevel: 5,
     perLevel: 1,
     unit: 'count',
@@ -81,7 +87,7 @@ export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
     baseCost: 50 * COIN_SCALE,
     costGrowth: 1.5,
     maxLevel: 5,
-    perLevel: 0.25,
+    perLevel: 0.2,
     unit: 'percent',
     blurb: 'coins per kill',
   },
@@ -95,24 +101,21 @@ export function isMaxed(kind: UpgradeKind, level: number): boolean {
   return level >= UPGRADES[kind].maxLevel;
 }
 
-/**
- * The first levels of every upgrade are on sale: a quarter, a half, three quarters of the price,
- * then full price from this level on. So even a botched first run buys something, and the second
- * run is visibly stronger, without making the rest of the price curve any cheaper.
- */
-const INTRO_LEVELS = 4;
-
 /** Price of the next level when `level` has already been bought (Infinity once maxed out). */
 export function upgradeCost(kind: UpgradeKind, level: number): number {
   if (isMaxed(kind, level)) return Infinity;
   const u = UPGRADES[kind];
-  const intro = Math.min(1, (level + 1) / INTRO_LEVELS);
-  return Math.round(u.baseCost * Math.pow(u.costGrowth, level) * intro);
+  if (level === 0 && u.firstCost !== undefined) return u.firstCost;
+  return Math.round(u.baseCost * Math.pow(u.costGrowth, level));
 }
 
-/** Multiplier for a percent upgrade at the given level (1 = no bonus). */
+/**
+ * Multiplier for a percent upgrade at the given level (1 = no bonus). The bonuses compound: every
+ * level adds `perLevel` on top of everything bought so far, so the tenth purchase is felt as much
+ * as the first instead of fading into a few percent.
+ */
 export function upgradeMultiplier(kind: UpgradeKind, level: number): number {
-  return 1 + UPGRADES[kind].perLevel * level;
+  return Math.pow(1 + UPGRADES[kind].perLevel, level);
 }
 
 /** Extra soldiers the squad starts with. */
@@ -125,7 +128,7 @@ export function upgradeEffect(kind: UpgradeKind, level: number): string {
   const u = UPGRADES[kind];
   return u.unit === 'count'
     ? `+${Math.round(u.perLevel * level)}`
-    : `+${Math.round(u.perLevel * level * 100)}%`;
+    : `+${Math.round((upgradeMultiplier(kind, level) - 1) * 100)}%`;
 }
 
 /** The highest tier the level validator tests: every upgrade at its cap. */
