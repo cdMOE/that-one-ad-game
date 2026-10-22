@@ -7,7 +7,14 @@ import {
   type UpgradeLevels,
 } from '../../core/shop';
 import type { StationaryLevel } from '../../levels/schema';
-import { ARENA, MAX_MONSTERS, MONSTERS, MONSTER_KIND_BY_INDEX, StationarySim } from './sim';
+import {
+  ARENA,
+  GAME_SPEED,
+  MAX_MONSTERS,
+  MONSTERS,
+  MONSTER_KIND_BY_INDEX,
+  StationarySim,
+} from './sim';
 
 export interface BotResult {
   won: boolean;
@@ -26,6 +33,15 @@ export interface BotResult {
    * on a won run means the end was played with nothing left to go for.
    */
   laneShare: number;
+  /** When each lane block broke, in real seconds (what the player's clock says). */
+  blockTimes: number[];
+  /** When each power-up was caught, in real seconds: the rhythm of the rewards. */
+  itemTimes: number[];
+  /**
+   * Health left (0..1) of the block the run was working on when it ended, or null when the lane
+   * had none left: how close the next reward was.
+   */
+  blockLeft: number | null;
 }
 
 /**
@@ -33,17 +49,29 @@ export interface BotResult {
  * densest column of monsters whenever they are close; otherwise it goes to the upgrade
  * lane to shoot the front block or catch the falling power-up.
  */
-/** The bot re-aims every this many steps (1 = every ~33 ms); higher is slower than a mouse hand. */
-const AIM_EVERY = 1;
+/** How the bot plays: how quick and how precise its hand is. */
+export interface Pilot {
+  /** It re-aims every this many steps (1 = every ~33 ms); higher is slower than a mouse hand. */
+  aimEvery: number;
+  /** How far into an announced strike it notices it (a person needs a moment as well). */
+  reaction: number;
+  /** Aiming error in world units, drawn fresh on every re-aim (0 = dead on). */
+  wobble: number;
+}
 
-/** How far into an announced strike the bot notices it (a person needs a moment as well). */
-const REACTION = 0.25;
+/** The validator's bot: quicker and more precise than most people. */
+export const SHARP: Pilot = { aimEvery: 1, reaction: 0.25, wobble: 0 };
+/**
+ * Closer to a person: re-aims five times a second, notices a strike late and is a little off
+ * target. The campaign is tuned for how many runs this one needs, not the sharp bot.
+ */
+export const HUMAN: Pilot = { aimEvery: 6, reaction: 0.45, wobble: 0.5 };
 
 /** Where to stand to be out of every lit-up strike zone, or null when it is not in danger. */
-function dodgeTarget(sim: StationarySim): number | null {
+function dodgeTarget(sim: StationarySim, reaction: number): number | null {
   const reach = sim.halfWidth() + 0.3;
   const limit = 6 - sim.halfWidth();
-  const zones = sim.attacks.filter((a) => a.t >= REACTION);
+  const zones = sim.attacks.filter((a) => a.t >= reaction);
   const blocked = (x: number) => zones.some((a) => x + reach >= a.lo && x - reach <= a.hi);
   if (!blocked(sim.squadX)) return null;
   // the nearest spot just beside a zone edge that no other zone covers
@@ -70,8 +98,8 @@ function nearestElite(sim: StationarySim): number {
   return best;
 }
 
-function botTarget(sim: StationarySim): number {
-  const dodge = dodgeTarget(sim);
+function botTarget(sim: StationarySim, pilot: Pilot): number {
+  const dodge = dodgeTarget(sim, pilot.reaction);
   if (dodge !== null) return dodge;
   // a charging elite ends the run when it arrives: everything goes into it
   for (let i = 0; i < MAX_MONSTERS; i++) {
@@ -117,18 +145,35 @@ export function runBot(
   level: StationaryLevel,
   seed: number,
   loadout: number | UpgradeLevels = 0,
-  maxSeconds = 300,
-  /** Called after every step (for debugging a run). */
-  trace?: (sim: StationarySim) => void,
+  {
+    maxSeconds = 300,
+    trace,
+    pilot = SHARP,
+  }: {
+    maxSeconds?: number;
+    /** Called after every step (for debugging a run). */
+    trace?: (sim: StationarySim) => void;
+    pilot?: Pilot;
+  } = {},
 ): BotResult {
   // a plain number is a validator tier; otherwise the exact upgrade levels the player owns
   const up = typeof loadout === 'number' ? tierUpgrades(loadout) : loadout;
   let blocks = 0;
   let laneDry = -1;
+  const blockTimes: number[] = [];
+  const itemTimes: number[] = [];
+  // its own stream, so the aiming error leaves the level's random spawns as they are
+  const hand = mulberry32(seed ^ 0x5bd1e995);
   const sim = new StationarySim(
     level,
     mulberry32(seed),
-    { blockBreak: () => blocks++ },
+    {
+      blockBreak: () => {
+        blocks++;
+        blockTimes.push(sim.time / GAME_SPEED);
+      },
+      itemCollected: () => itemTimes.push(sim.time / GAME_SPEED),
+    },
     {
       damageMul: upgradeMultiplier('damage', up.damage),
       rateMul: upgradeMultiplier('rate', up.rate),
@@ -142,12 +187,15 @@ export function runBot(
   let lowest = sim.count;
   for (let step = 0; step < steps; step++) {
     if (sim.phase === 'won' || sim.phase === 'lost') break;
-    if (step % AIM_EVERY === 0) sim.targetX = botTarget(sim);
+    if (step % pilot.aimEvery === 0) {
+      sim.targetX = botTarget(sim, pilot) + (hand() * 2 - 1) * pilot.wobble;
+    }
     sim.update(dt);
     trace?.(sim);
     lowest = Math.min(lowest, sim.count);
     if (laneDry < 0 && sim.lane.elements.length === 0) laneDry = sim.time;
   }
+  const front = sim.lane.elements.find((e) => e.type === 'block');
   return {
     won: sim.phase === 'won',
     survivors: sim.phase === 'won' ? sim.count : 0,
@@ -157,6 +205,9 @@ export function runBot(
     blocks,
     progress: sim.progress,
     laneShare: laneDry < 0 ? 1 : laneDry / Math.max(sim.time, 1e-6),
+    blockTimes,
+    itemTimes,
+    blockLeft: front?.type === 'block' ? Math.max(0, front.hp / front.maxHp) : null,
   };
 }
 
