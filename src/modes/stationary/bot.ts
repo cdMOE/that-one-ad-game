@@ -275,12 +275,12 @@ export const VALIDATION_RUNS = 20;
 /**
  * The first shooter level teaches the loop of the game: lose, keep the coins, buy upgrades, get
  * further, win. Without upgrades the bot loses every run somewhere in `firstRun` (share of the
- * level, median), at the wall on the upgrade lane, and it wins the level by `maxTier`. Played as a
- * campaign (lose, buy the cheapest upgrade, retry) it takes `runs` runs: past the wall, then the
- * horde, then the boss, every run a little further. The unit tests also check that the first run
- * pays for the first damage and fire-rate upgrade, so the second run is visibly stronger.
+ * level, median), at the wall on the upgrade lane, and it wins the level by `maxTier`. How many
+ * campaign runs it takes is set with the other levels in `CAMPAIGN` (campaign.ts). The unit tests
+ * also check that the first run pays for the first damage and fire-rate upgrade, so the second run
+ * is visibly stronger.
  */
-export const TUTORIAL = { firstRun: [0.25, 0.5], maxTier: 3, runs: [7, 13] } as const;
+export const TUTORIAL = { firstRun: [0.25, 0.5], maxTier: 3 } as const;
 
 /**
  * At the tier a level is first won, the upgrade lane must still have something on it for this

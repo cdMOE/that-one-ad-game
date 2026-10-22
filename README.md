@@ -219,8 +219,13 @@ a third of the first upgrade.
 
 `npm run simulate:campaign` plays all shooter levels in order with one shared wallet (buying the
 cheapest upgrade after every run) and prints how many runs each level took and how far each run got
-(`runs: 26% > 50% > won (lane 100%)`, the lane share as above). The bot is better than
-most people (it snaps to its target and reacts fast), so expect a person to need more runs.
+(`runs: 26% > 50% > won (lane 100%)`, the lane share as above), next to the level's target. The
+default bot is sharper than most people; `--human` plays with a slower, less precise hand, and the
+campaign is tuned for that one (a person who knows the game needs about half its runs). The targets
+live in `CAMPAIGN` (`src/modes/stationary/campaign.ts`): a range of runs per level, rising in
+waves (a breather after every wall). The unit tests play the same campaign and hold every level to
+its range, and to at most `MAX_DRY` runs in a row that buy nothing; a level marked `pending` has not
+been rebuilt for its target yet and shows up as a todo.
 
 Check your level before opening a pull request:
 

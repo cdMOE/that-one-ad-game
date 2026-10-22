@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeRunner, starsFor } from '../src/levels/analyze';
 import type { RunnerLevel, StationaryLevel } from '../src/levels/schema';
 import { validateLevel } from '../src/levels/validate';
-import { UPGRADE_KINDS, noUpgrades, upgradeCost } from '../src/core/shop';
+import { upgradeCost } from '../src/core/shop';
 import {
   MAX_TIER,
   TUTORIAL,
@@ -13,6 +13,7 @@ import {
   analyzeStationary,
   runBot,
 } from '../src/modes/stationary/bot';
+import { CAMPAIGN, MAX_DRY, playCampaign } from '../src/modes/stationary/campaign';
 
 const dir = join(import.meta.dirname, '..', 'src', 'levels');
 const files = readdirSync(dir)
@@ -58,29 +59,6 @@ function wins(level: StationaryLevel, tier: number, runs: number, enough: number
   return won;
 }
 
-/**
- * Runs it takes to win a level from scratch the way a player does: lose, keep the coins, buy the
- * cheapest upgrade (the coin bonus aside), retry. The same loop as `npm run simulate:campaign`.
- */
-function campaignRuns(level: StationaryLevel, maxRuns = 30): number {
-  const up = noUpgrades();
-  let coins = 0;
-  for (let run = 1; run <= maxRuns; run++) {
-    const r = runBot(level, run * 7919, up);
-    if (r.won) return run;
-    coins += r.coins;
-    for (;;) {
-      const next = UPGRADE_KINDS.filter((k) => k !== 'coins')
-        .map((k) => ({ k, cost: upgradeCost(k, up[k]) }))
-        .sort((a, b) => a.cost - b.cost)[0];
-      if (!Number.isFinite(next.cost) || next.cost > coins) break;
-      coins -= next.cost;
-      up[next.k]++;
-    }
-  }
-  return Infinity;
-}
-
 describe('shipped levels', () => {
   it('has at least one level', () => {
     expect(files.length).toBeGreaterThan(0);
@@ -112,10 +90,6 @@ describe('shipped levels', () => {
           expect(
             wins(level, TUTORIAL.maxTier, VALIDATION_RUNS, ENOUGH_WINS),
           ).toBeGreaterThanOrEqual(ENOUGH_WINS);
-          // long enough to be a challenge, short enough that every retry is worth it
-          const runs = campaignRuns(level);
-          expect(runs).toBeGreaterThanOrEqual(TUTORIAL.runs[0]);
-          expect(runs).toBeLessThanOrEqual(TUTORIAL.runs[1]);
         } else {
           // every later level needs shop upgrades (even the bot, which plays better than a
           // person, never wins it on the first try), yet a lost run pays a third of an upgrade
@@ -138,6 +112,49 @@ describe('shipped levels', () => {
     );
     expect(new Set(ids).size).toBe(ids.length);
   });
+});
+
+/**
+ * The difficulty curve: the shooter levels played in order the way a player does (lose, keep the
+ * coins, buy the cheapest upgrade, retry) by the `HUMAN` pilot, each level held to its `CAMPAIGN`
+ * range of runs. A level marked `pending` is still played (the next one starts with what it paid
+ * for) but not checked: it has not been rebuilt for its target yet.
+ */
+describe('campaign', () => {
+  const shooterLevels = shooterFiles.map((f) => {
+    const result = validateLevel(JSON.parse(readFileSync(join(dir, f), 'utf8')));
+    if (!result.ok || result.level.mode !== 'stationary') throw new Error(`bad level ${f}`);
+    return result.level;
+  });
+  let played: ReturnType<typeof playCampaign> | null = null;
+  const campaign = () => (played ??= playCampaign(shooterLevels, { maxRuns: 40 }));
+
+  it('sets a target for every shooter level, and only for those', () => {
+    expect(Object.keys(CAMPAIGN).sort()).toEqual(shooterLevels.map((l) => l.id).sort());
+  });
+
+  const checks = shooterLevels.map((level, order) => ({
+    level,
+    order,
+    target: CAMPAIGN[level.id],
+  }));
+  it.each(checks.filter((c) => !c.target?.pending))(
+    '$level.name takes the runs it is meant to',
+    ({ order, target }) => {
+      const p = campaign()[order];
+      expect(p.won).toBe(true);
+      expect(p.runs).toBeGreaterThanOrEqual(target.runs[0]);
+      expect(p.runs).toBeLessThanOrEqual(target.runs[1]);
+      // and losing keeps paying for upgrades
+      expect(p.dry).toBeLessThanOrEqual(MAX_DRY);
+    },
+    SLOW_TEST_MS,
+  );
+  for (const c of checks.filter((c) => c.target?.pending)) {
+    it.todo(
+      `${c.level.name} takes ${c.target.runs[0]}-${c.target.runs[1]} runs (${c.target.role})`,
+    );
+  }
 });
 
 describe('validateLevel', () => {
