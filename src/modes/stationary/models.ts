@@ -310,11 +310,13 @@ export function monsterTop(kind: MonsterKind): number {
 
 /**
  * A lane block as stacks of old tyres, like the obstacles in the ad shooters: piles of three side
- * by side (as many as fit, at least three), filling `width` and `depth` (ground units). Feet on
- * y = 0, `height` tall.
+ * by side (enough to span `width`, at least three), filling `width` and `depth` (ground units).
+ * Feet on y = 0, `height` tall.
  */
 export function tireStackGeometry(width: number, depth: number, height: number): BufferGeometry {
-  const stacks = Math.max(3, Math.round(width / depth));
+  // round up, so the piles (a little slimmer if need be) fill the whole width: no gap beside
+  // the pile where bullets would seem to fly past it
+  const stacks = Math.max(3, Math.ceil(width / depth));
   const r = Math.min(depth / 2, width / (stacks * 2));
   const layers = 3;
   const h = height / layers;
