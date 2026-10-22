@@ -125,7 +125,7 @@ export interface Placer {
   place(x: number, y: number): void;
 }
 
-const POPUP_CAP = 24;
+const POPUP_CAP = 40;
 
 /** Floating "+10" style numbers, pooled like the particles. */
 export class PopupSystem {

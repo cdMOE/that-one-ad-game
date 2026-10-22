@@ -1036,20 +1036,21 @@ export class ShooterScene implements Placer {
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!sim.malive[i]) continue;
       const k = sim.mkind[i];
-      const r = MONSTERS[MONSTER_KIND_BY_INDEX[k]].radius;
+      const stats = MONSTERS[MONSTER_KIND_BY_INDEX[k]];
+      const r = stats.radius;
       const x = sim.mx[i];
       const y = sim.my[i];
       const phase = i * 1.7;
       const t = time * HOP_RATE[k] + phase;
       const hop = Math.abs(Math.sin(t));
       const small = r < 1;
-      // a charging boss stomps: big, quick hops instead of its slow sway
-      const charging = sim.mstate[i] === 3;
-      const stomp = Math.abs(Math.sin(time * 9 + phase));
+      // a raging boss stomps on the spot instead of its slow sway, harder with every rage step
+      const rage = stats.elite ? sim.mrage[i] / stats.elite.maxRage : 0;
+      const stomp = Math.abs(Math.sin(time * (6 + 4 * rage) + phase));
       // fresh out of the fortress gate, it grows to full size in a few steps
       const emerge = fortressEmerge(y);
-      const lift = (charging ? stomp * 0.22 * r : hop * (small ? 0.16 : 0.05) * r) * emerge;
-      const squash = 1 - (charging ? 0.16 * (1 - stomp) : 0.1 * (1 - hop));
+      const lift = (rage > 0 ? stomp * 0.24 * rage * r : hop * (small ? 0.16 : 0.05) * r) * emerge;
+      const squash = 1 - (rage > 0 ? 0.18 * rage * (1 - stomp) : 0.1 * (1 - hop));
       let s = r * emerge;
       if (sim.mstate[i] === 2) s *= 1 + 0.05 * Math.sin(time * 40);
       writeTRS(

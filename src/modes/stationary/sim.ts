@@ -260,16 +260,12 @@ export interface SimHooks {
    * and is reported on the first zone that caught the squad only (0 on the others).
    */
   strike?(x: number, half: number, hit: boolean, lost: number): void;
-  /**
-   * An elite got angrier (one rage step, see `EliteStats`): its volleys come sooner from now on.
-   * Named after the charge elites used to make; the view still reacts to it under this name.
-   */
-  charge?(x: number, y: number): void;
-  /** @deprecated Elites no longer charge, so this never fires; kept until the view drops it. */
-  smash?(x: number, y: number): void;
+  /** An elite got angrier (one rage step, see `EliteStats`): its volleys come sooner from now on. */
+  enrage?(x: number, y: number, rage: number): void;
   /** A soldier fired; (x, y) is the muzzle position. Called once per soldier shot. */
   shot?(x: number, y: number): void;
-  hit?(x: number, y: number): void;
+  /** A bullet hit a monster without killing it, for `damage`. */
+  hit?(x: number, y: number, damage: number, kind: MonsterKind): void;
   kill?(x: number, y: number, kind: MonsterKind, radius: number): void;
   /** Coins dropped at a position (raw amount, before the coin-bonus upgrade). */
   coin?(x: number, y: number, amount: number): void;
@@ -379,9 +375,7 @@ export class StationarySim {
   /** Rage steps an elite has taken so far, 0 (calm) .. `EliteStats.maxRage`. */
   readonly mrage = new Uint8Array(MAX_MONSTERS);
   /** The horde an elite calls, null for everything else (see `SummonDef`). */
-  private readonly msummons: (SummonDef | null)[] = new Array<SummonDef | null>(MAX_MONSTERS).fill(
-    null,
-  );
+  readonly msummons: (SummonDef | null)[] = new Array<SummonDef | null>(MAX_MONSTERS).fill(null);
   /** How many of its `SummonDef.at` health shares an elite has dropped past (and called for). */
   private readonly mwave = new Uint8Array(MAX_MONSTERS);
   /**
@@ -843,7 +837,7 @@ export class StationarySim {
       if (this.mcalm[i] <= 0) {
         this.mrage[i]++;
         this.mcalm[i] = e.rageEvery;
-        this.hooks.charge?.(this.mx[i], this.my[i]);
+        this.hooks.enrage?.(this.mx[i], this.my[i], this.mrage[i]);
         // and every rage step it sends half a wave more of its horde
         const h = this.msummons[i];
         if (h) this.callHorde(i, Math.ceil(h.count / 2));
@@ -1104,7 +1098,7 @@ export class StationarySim {
         this.hooks.coin?.(this.mx[monster], this.my[monster], MONSTERS[kind].coins);
         this.hooks.kill?.(this.mx[monster], this.my[monster], kind, MONSTERS[kind].radius);
       } else {
-        this.hooks.hit?.(this.mx[monster], this.my[monster]);
+        this.hooks.hit?.(this.mx[monster], this.my[monster], dmg, kind);
         // an elite calls its horde whenever its health drops past one of its marks
         const h = this.msummons[monster];
         while (h && this.mwave[monster] < h.at.length) {

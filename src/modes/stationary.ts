@@ -74,7 +74,14 @@ export class StationaryMode implements GameMode {
   /** Damage the fortress at the end of the bridge shows; it crumbles as the run goes on. */
   private fortStage = 0;
   /** What cost soldiers last: if the run is lost, that is what finished it. */
-  private lastBlow: 'horde' | 'volley' | 'boss' | null = null;
+  private lastBlow: 'horde' | 'volley' | null = null;
+  /**
+   * Damage dealt to the elites since the last damage number popped up over them, and where: the
+   * bullets land every frame, so the hits are summed into one number a few times a second.
+   */
+  private eliteDamage = 0;
+  private eliteDamageAt = { x: 0, y: 0, lift: 0 };
+  private eliteDamageWait = 0;
 
   private readonly scene: ShooterScene;
   private viewKey = -1;
@@ -100,6 +107,7 @@ export class StationaryMode implements GameMode {
       gate: (good: boolean) => !this.demo && ctx.sfx.gate(good),
       win: () => !this.demo && ctx.sfx.win(),
       lose: () => !this.demo && ctx.sfx.lose(),
+      roar: () => !this.demo && ctx.sfx.roar(),
     };
     this.coinMul = upgradeMultiplier('coins', ctx.upgrades.coins) * ctx.coinFactor;
     this.sim = new StationarySim(
@@ -125,9 +133,13 @@ export class StationaryMode implements GameMode {
             particles.emit(x, y + 0.2, (Math.random() - 0.5) * 2, 4, 0.1, 0.22, Pc.Gold);
           }
         },
-        hit: (x, y) => {
+        hit: (x, y, damage, kind) => {
           if (Math.random() < 0.2) particles.burst(x, y, 1, 3, Pc.Enemy, 0.25, 0.12);
           sfx.pop();
+          if (kind === 'boss' || kind === 'miniboss') {
+            this.eliteDamage += damage;
+            this.eliteDamageAt = { x, y, lift: kind === 'boss' ? 2.6 : 1.9 };
+          }
         },
         kill: (x, y, kind, radius) => {
           this.scene.corpse(x, y, kind, radius);
@@ -165,18 +177,21 @@ export class StationaryMode implements GameMode {
             this.pillPop = 1;
           }
         },
-        charge: (x, y) => {
-          // the boss has waited long enough: a roar, a jolt, and it comes for the squad
-          sfx.lose();
-          camera.shake(0.25);
-          popups.add(x, y + 3.5, '!', COLORS.bad, 1.6);
+        enrage: (x, y, rage) => {
+          // it has stood too long: a roar, a jolt, and its volleys come sooner from now on
+          sfx.roar();
+          camera.shake(0.2 + 0.05 * rage);
+          popups.add(x, y + 3.5, 'RAGE!', COLORS.bad, 1.2 + 0.15 * rage);
+          particles.burst(x, y, 12 + 4 * rage, 6, Pc.Bad, 0.5, 0.2);
         },
-        smash: (x, y) => {
-          this.lastBlow = 'boss';
-          camera.shake(0.6);
+        summon: (x, y) => {
+          // it calls its horde: the loudest moment of the fight, the wave is right behind it
+          sfx.roar();
           sfx.boom();
-          particles.burst(x, Math.max(0.5, y), 40, 8, Pc.Bad, 0.7, 0.22);
-          particles.burst(this.sim.squadX, 0.8, 30, 7, Pc.Bad, 0.6, 0.2);
+          camera.shake(0.4);
+          // high over its head, clear of the coin numbers raining from the fight below
+          popups.add(x, y + 5.5, 'HORDE!', COLORS.bad, 2.2);
+          particles.burst(x, y + 1.5, 36, 8, Pc.Bad, 0.6, 0.22);
         },
         bite: (x, y, lost) => {
           this.lastBlow = 'horde';
@@ -306,9 +321,9 @@ export class StationaryMode implements GameMode {
     const left = this.sim.wallLeft;
     if (left !== null && left <= 0.35)
       return `The boss had only ${Math.max(1, Math.round(left * 100))}% health left!`;
-    if (this.lastBlow === 'boss') return 'The boss smashed your squad. Hit it harder!';
+    if (left !== null && this.lastBlow === 'horde') return "The boss's horde overran you.";
+    if (left !== null) return "The boss's strikes wore your squad down. Hit it harder!";
     if (this.lastBlow === 'volley') return 'A boss volley wiped out your squad.';
-    if (left !== null) return 'The boss held the line. Upgrade and hit it harder!';
     if (this.lastBlow === 'horde') return 'The horde broke through.';
     return undefined;
   }
@@ -327,6 +342,7 @@ export class StationaryMode implements GameMode {
     this.recoil *= Math.exp(-12 * dt);
     this.pillPop *= Math.exp(-7 * dt);
     this.coinLabelWait -= dt;
+    this.popEliteDamage(dt);
     for (const c of this.flyingCoins) c.t += dt * 1.6;
     while (this.flyingCoins.length > 0 && this.flyingCoins[0].t >= 1) this.flyingCoins.shift();
 
@@ -384,6 +400,27 @@ export class StationaryMode implements GameMode {
       this.endTimer -= dt;
       if (this.endTimer < 0) this.outcome = this.sim.phase === 'won' ? 'won' : 'lost';
     }
+  }
+
+  /**
+   * Damage numbers over a boss: what the squad dealt since the last one, a few times a second,
+   * a little to the side each time, so a melting health bar also reads as a shower of numbers.
+   */
+  private popEliteDamage(dt: number): void {
+    this.eliteDamageWait -= dt;
+    if (this.eliteDamageWait > 0 || this.eliteDamage < 1 || this.demo) return;
+    const { x, y, lift } = this.eliteDamageAt;
+    const big = Math.min(1.15, 0.6 + this.eliteDamage / 400);
+    const at = x + (Math.random() - 0.5) * 1.4;
+    this.ctx.popups.add(
+      at,
+      y + lift,
+      `\u2212${formatCount(Math.round(this.eliteDamage))}`,
+      '#fff',
+      big,
+    );
+    this.eliteDamage = 0;
+    this.eliteDamageWait = 0.14;
   }
 
   /** Keeps the 3D camera framed to the canvas; cheap when nothing changed. */
@@ -501,12 +538,15 @@ export class StationaryMode implements GameMode {
         drawHealthBar(g, sc.sx, sc.sy, w, Math.max(5, w * 0.14), share);
         continue;
       }
-      // a charging boss's health throbs: this is the number that has to reach zero, now
-      const throb = sim.mstate[i] === 3 ? 1 + 0.18 * Math.abs(Math.sin(performance.now() / 90)) : 1;
+      // a raging boss's health throbs, harder with every rage step: the clock is running
+      const rage = sim.mrage[i] / (MONSTERS[kind].elite?.maxRage ?? 1);
+      const throb = 1 + 0.14 * rage * Math.abs(Math.sin(performance.now() / (110 - 40 * rage)));
       const fontPx = Math.round(Math.max(13, sc.scale * (kind === 'boss' ? 0.75 : 0.6)) * throb);
       const w = Math.max(fontPx * 4.2, sc.scale * r * 2);
       const h = fontPx * 1.35;
       drawHealthBar(g, sc.sx, sc.sy, w, h, share);
+      const marks = sim.msummons[i]?.at;
+      if (marks) drawHordeMarks(g, sc.sx, sc.sy, w, h, share, marks);
       const label = formatCount(Math.ceil(sim.mhp[i]));
       g.font = `900 ${fontPx}px ${FONT}`;
       g.lineWidth = fontPx * 0.22;
@@ -608,6 +648,46 @@ function drawBigNumber(
   grad.addColorStop(1, fill[1]);
   g.fillStyle = grad;
   g.fillText(text, x, y);
+}
+
+/**
+ * Notches on a boss's health bar where it calls its horde (see `SummonDef.at`): the ones still
+ * ahead stand out and the next one pulses as the bar closes in on it, the ones passed fade, so
+ * the bar also says when the next wave comes.
+ */
+function drawHordeMarks(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  share: number,
+  marks: readonly number[],
+): void {
+  const pad = Math.max(1.5, h * 0.14);
+  const left = x - w / 2 + pad;
+  const inner = w - pad * 2;
+  const next = marks.find((m) => m < share);
+  for (const m of marks) {
+    const ahead = m < share;
+    // the next notch grows as the health drops towards it
+    const near = m === next ? Math.max(0, 1 - (share - m) / 0.08) : 0;
+    const pulse = near * (0.5 + 0.5 * Math.abs(Math.sin(performance.now() / 70)));
+    const mx = left + inner * m;
+    const reach = h * (0.62 + 0.25 * pulse);
+    g.beginPath();
+    g.moveTo(mx, y - reach);
+    g.lineTo(mx, y + reach);
+    g.lineCap = 'round';
+    g.lineWidth = Math.max(2, h * (0.16 + 0.1 * pulse));
+    g.strokeStyle = ahead ? 'rgba(20,6,10,0.9)' : 'rgba(20,6,10,0.35)';
+    g.stroke();
+    g.lineWidth = Math.max(1, h * (0.08 + 0.06 * pulse));
+    g.strokeStyle = ahead
+      ? `rgba(255,${Math.round(214 - 120 * pulse)},60,1)`
+      : 'rgba(255,255,255,0.3)';
+    g.stroke();
+  }
 }
 
 /** A rounded health bar centred on (x, y): dark track, red fill for the share that is left. */

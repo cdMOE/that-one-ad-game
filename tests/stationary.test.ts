@@ -264,7 +264,7 @@ describe('StationarySim', () => {
     const rages: number[] = [];
     // zones per volley, keyed by the time it was announced
     const volleys = new Map<number, number>();
-    sim.hooks.charge = () => rages.push(sim.time);
+    sim.hooks.enrage = () => rages.push(sim.time);
     sim.hooks.telegraph = () => volleys.set(sim.time, (volleys.get(sim.time) ?? 0) + 1);
     let held = 0;
     let firstLoss = Infinity;
@@ -780,7 +780,7 @@ describe('bodies', () => {
       const sim = new StationarySim(level, mulberry32(seed));
       sim.targetX = -5; // out of the way: whatever is left alive is stuck, not shot
       // the elites stay calm for the whole test (in full rage they would strike the parked squad)
-      sim.hooks.charge = () => {
+      sim.hooks.enrage = () => {
         throw new Error('no rage expected');
       };
       withCalm(Infinity, () => run(sim, 70));

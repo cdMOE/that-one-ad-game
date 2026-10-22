@@ -143,6 +143,13 @@ export class Sfx {
     this.tone(1047, 0.5, 'sine', 0.2, undefined, 0.36);
   }
 
+  /** A boss's roar: a low growl that drops, under a rumble. */
+  roar(): void {
+    this.noise(0.55, 0.5, 420);
+    this.tone(96, 0.55, 'sawtooth', 0.32, 52);
+    this.tone(144, 0.4, 'sawtooth', 0.16, 70, 0.04);
+  }
+
   lose(): void {
     this.tone(392, 0.28, 'sawtooth', 0.25, 330);
     this.tone(330, 0.28, 'sawtooth', 0.25, 262, 0.22);
