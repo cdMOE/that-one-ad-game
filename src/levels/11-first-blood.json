@@ -448,14 +448,7 @@
       "interval": 1,
       "delay": 24.8,
       "x": -0.4,
-      "spread": 0.3,
-      "summons": {
-        "kind": "grunt",
-        "hp": 1,
-        "count": 6,
-        "columns": 6,
-        "at": [0.5]
-      }
+      "spread": 0.3
     },
     {
       "kind": "boss",
