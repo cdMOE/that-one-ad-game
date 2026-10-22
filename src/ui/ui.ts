@@ -135,6 +135,9 @@ export class Ui {
   private readonly hudBar: HTMLElement;
   /** Shooter HUD: the progress in per cent, the wallet and what this run has added to it. */
   private readonly hudPct: HTMLElement;
+  /** Shooter HUD: the level's record as a line on the bar, and the cheer when a run passes it. */
+  private readonly hudBest: HTMLElement;
+  private readonly hudRecord: HTMLElement;
   private readonly hudCoins: HTMLElement;
   private readonly hudGain: HTMLElement;
   private readonly pauseSound: HTMLButtonElement;
@@ -256,6 +259,8 @@ export class Ui {
     );
     this.closeBtn = closeBtn;
     this.hudPct = h('span', { class: 'hud-pct' });
+    this.hudBest = h('div', { class: 'hud-best' });
+    this.hudRecord = h('div', { class: 'hud-record', text: 'NEW RECORD!' });
     this.hudCoins = h('span', { class: 'hud-coins-num' });
     this.hudGain = h('div', { class: 'hud-gain' });
     const flag = h('span', { class: 'hud-flag' });
@@ -309,9 +314,10 @@ export class Ui {
           h(
             'div',
             { class: 'hud-barrow' },
-            h('div', { class: 'hud-bar' }, this.hudBar, this.hudPct),
+            h('div', { class: 'hud-bar' }, this.hudBar, this.hudBest, this.hudPct),
             flag,
           ),
+          this.hudRecord,
         ),
         this.muteBtn,
         h(
@@ -665,7 +671,8 @@ export class Ui {
     this.handlers.onPreview(shooter ? this.playIndex : null);
   }
 
-  showHud(level: Level, index: number): void {
+  /** `best` is the shooter level's record (0..1), drawn on the bar until a run passes it. */
+  showHud(level: Level, index: number, best = 0): void {
     this.hideAll();
     const pos = this.indicesOf(level.mode).indexOf(index);
     this.hudName.textContent = `${pos + 1}. ${level.name}`;
@@ -677,6 +684,11 @@ export class Ui {
     this.hud.classList.toggle('shooter', pausable);
     this.shownCoins = this.shownGain = -1;
     this.setProgress(0);
+    // a record at 0 or 100% is no target: nothing reached yet, or the level already won
+    this.hudBest.hidden = best <= 0 || best >= 1;
+    this.hudBest.classList.remove('passed');
+    this.hudBest.style.left = `${best * 100}%`;
+    this.hudRecord.classList.remove('show');
     this.hud.hidden = false;
     this.hint.hidden = true;
     this.hand.hidden = true;
@@ -747,6 +759,14 @@ export class Ui {
       this.shownGain = gain;
       this.hudGain.textContent = gain > 0 ? `+${formatCount(gain)}` : '';
     }
+  }
+
+  /** The run has just gone past the level's record: the line lights up and the cheer pops. */
+  cheerRecord(): void {
+    this.hudBest.classList.add('passed');
+    this.hudRecord.classList.remove('show');
+    void this.hudRecord.offsetWidth; // restart the animation
+    this.hudRecord.classList.add('show');
   }
 
   setProgress(p: number): void {

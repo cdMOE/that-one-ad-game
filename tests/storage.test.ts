@@ -51,9 +51,13 @@ describe('progress records', () => {
     vi.stubGlobal('localStorage', fake);
     store.set(
       'that-one-ad-game:v2',
-      JSON.stringify({ progress: { a: 0.62, b: 'far', c: -1, d: 7 } }),
+      JSON.stringify({ progress: { a: 0.62, b: 'far', c: -1, d: 7 }, progressVersion: 2 }),
     );
     expect(loadSave().progress).toEqual({ a: 0.62, d: 1 });
+    // records of the old measure (a boss counted as one monster) are dropped, the rest stays
+    store.set('that-one-ad-game:v2', JSON.stringify({ progress: { a: 0.99 }, coins: 5 }));
+    expect(loadSave().progress).toEqual({});
+    expect(loadSave().coins).toBe(5 * COIN_SCALE);
     store.set('that-one-ad-game:v2', JSON.stringify({ coins: 5 }));
     expect(loadSave().progress).toEqual({}); // saves from before the records still load
     vi.unstubAllGlobals();

@@ -518,6 +518,36 @@ describe('StationarySim', () => {
     expect(sim.count).toBe(6);
   });
 
+  it('moves the progress bar through a boss fight by the health the boss loses', () => {
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 300,
+      monsters: [
+        { kind: 'grunt', count: 4, hp: 1, interval: 0.2 },
+        { kind: 'boss', count: 1, hp: 3000, interval: 1, delay: 4 },
+      ],
+    });
+    const sim = new StationarySim(level, mulberry32(1));
+    let beforeBoss = -1;
+    let atHalf = -1;
+    let leftAtHalf = 1;
+    run(sim, 60, (s) => {
+      towardsNearest(s);
+      const b = s.malive.findIndex((v, i) => v === 1 && s.mkind[i] === 4);
+      if (b < 0) return;
+      const left = s.mhp[b] / s.mmax[b];
+      if (left === 1) beforeBoss = s.progress;
+      if (left <= 0.5 && atHalf < 0) {
+        atHalf = s.progress;
+        leftAtHalf = left;
+      }
+    });
+    expect(sim.phase).toBe('won');
+    // the horde fills three quarters of the bar, the boss the last quarter as it goes down
+    expect(beforeBoss).toBeCloseTo(0.75, 2);
+    expect(atHalf).toBeCloseTo(0.75 + 0.25 * (1 - leftAtHalf), 5);
+    expect(atHalf).toBeGreaterThanOrEqual(0.875);
+  });
+
   it('is won as soon as the last monster is gone, even with blocks and power-ups left on the lane', () => {
     const level = withLane(
       [

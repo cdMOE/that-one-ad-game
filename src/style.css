@@ -971,6 +971,7 @@ body {
 }
 
 .hud.shooter .hud-mid {
+  position: relative;
   padding-top: 8px;
 }
 
@@ -996,6 +997,86 @@ body {
   text-shadow:
     0 2px 0 #0e1630,
     0 0 3px #0e1630;
+}
+
+/* the level's record: a line on the bar the run races towards, gold once it is passed */
+.hud-best,
+.hud-record {
+  display: none;
+}
+
+.hud.shooter .hud-best {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  margin-left: -2px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #0e1630;
+}
+
+.hud.shooter .hud-best[hidden] {
+  display: none;
+}
+
+.hud.shooter .hud-best.passed {
+  background: var(--gold-bright);
+  animation: best-passed 0.5s ease-out;
+}
+
+@keyframes best-passed {
+  0% {
+    transform: scaleY(1.8);
+    box-shadow: 0 0 12px 4px var(--gold-bright);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.hud.shooter .hud-record {
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--gold-bright);
+  text-shadow:
+    0 2px 0 #0e1630,
+    0 0 4px #0e1630;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud.shooter .hud-record.show {
+  animation: record-pop 1.8s ease-out forwards;
+}
+
+@keyframes record-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  25% {
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 .hud.shooter .hud-flag {

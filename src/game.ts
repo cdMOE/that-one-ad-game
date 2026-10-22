@@ -51,6 +51,8 @@ export class Game {
   private state: State = 'menu';
   private mode: GameMode | null = null;
   private levelIndex = 0;
+  /** The record this shooter run is racing (0..1); 0 when there is none or it was just beaten. */
+  private runRecord = 0;
   private backdrop: GameMode | null = null;
   /** The level standing ready behind the shooter screen (null: the menu demo plays instead). */
   private previewIndex: number | null = null;
@@ -197,8 +199,10 @@ export class Game {
     this.backdrop = null;
     this.previewIndex = null;
     this.state = 'playing';
-    this.ui.showHud(levels[index], index);
     const level = levels[index];
+    const record = level.mode === 'stationary' ? (this.save.progress[level.id] ?? 0) : 0;
+    this.runRecord = record < 1 ? record : 0;
+    this.ui.showHud(level, index, record);
     const firstOfMode = levels.findIndex((l) => l.mode === level.mode) === index;
     // only for a newcomer: a shooter run that got anywhere leaves a progress record behind
     if (firstOfMode && !this.save.completed[level.id] && !this.save.progress[level.id]) {
@@ -303,6 +307,12 @@ export class Game {
       active.update(dt);
       if (this.state === 'playing' && this.mode) {
         this.ui.setProgress(this.mode.progress);
+        // the moment a run gets further than ever: cheered on the spot, not only after the run
+        if (this.runRecord > 0 && this.mode.progress > this.runRecord) {
+          this.runRecord = 0;
+          this.ui.cheerRecord();
+          this.sfx.upgrade(12);
+        }
         if (levels[this.levelIndex].mode === 'stationary') {
           this.ui.setCoins(this.save.coins + this.mode.coinsEarned, this.mode.coinsEarned);
         }

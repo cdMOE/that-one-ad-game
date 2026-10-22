@@ -2,6 +2,13 @@ import { COIN_SCALE, noUpgrades, UPGRADE_KINDS, UPGRADES, type UpgradeLevels } f
 
 const KEY = 'that-one-ad-game:v2';
 
+/**
+ * How `SaveData.progress` is measured. Records of an older measure are dropped on load: since
+ * bosses count by their health, an old 99% stood for "reached the boss" and would be a record no
+ * run could beat until the boss was nearly down.
+ */
+const PROGRESS_VERSION = 2;
+
 export interface LevelResult {
   /** 1-3 stars, the best ever earned. */
   stars: number;
@@ -45,6 +52,7 @@ export function loadSave(): SaveData {
       coinScale?: unknown;
       upgrades?: Record<string, unknown>;
       progress?: Record<string, unknown>;
+      progressVersion?: unknown;
     };
     const completed: Record<string, LevelResult> = {};
     for (const [id, value] of Object.entries(parsed.completed ?? {})) {
@@ -58,7 +66,8 @@ export function loadSave(): SaveData {
       }
     }
     const progress: Record<string, number> = {};
-    for (const [id, value] of Object.entries(parsed.progress ?? {})) {
+    const records = parsed.progressVersion === PROGRESS_VERSION ? parsed.progress : undefined;
+    for (const [id, value] of Object.entries(records ?? {})) {
       if (typeof value === 'number' && value > 0) progress[id] = Math.min(1, value);
     }
     // saves from before the coin inflation (or a different scale) are converted, not lost
@@ -76,7 +85,10 @@ export function loadSave(): SaveData {
 
 export function writeSave(data: SaveData): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...data, coinScale: COIN_SCALE }));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ ...data, coinScale: COIN_SCALE, progressVersion: PROGRESS_VERSION }),
+    );
   } catch {
     // ignore: progress just will not persist
   }

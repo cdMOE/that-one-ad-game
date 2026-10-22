@@ -174,7 +174,10 @@ can **not** be won on the first run either: you lose, bank the coins, buy upgrad
 number of runs each. Monsters die to one bullet and come in the thousands; the wall comes from lane
 blocks that get thicker the deeper they sit (where weapon damage matters) and from the elites. A lost
 run shows how far it got, against the level's record, and what finished it (the horde or a boss
-volley).
+volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the line
+turns gold and NEW RECORD! pops. The bar counts ordinary monsters one each and elites by the health
+they lose (`progressShare`: a boss is a quarter of the bar, a miniboss a twentieth), so a boss
+fight moves it instead of parking it at 99%.
 
 **Stars** measure how much of the biggest squad of the run is still standing at the end (80% or more:
 three stars, 45% or more: two, otherwise one), so a run without bites and volleys earns three stars

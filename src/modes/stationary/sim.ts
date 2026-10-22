@@ -102,7 +102,17 @@ export interface EliteStats {
   calm: number;
   rageEvery: number;
   maxRage: number;
+  /**
+   * Share of the progress bar its health is worth, filled as it loses health (see `progress`). A
+   * boss is a fight of its own: counted as one monster among thousands, the bar would sit at 99%
+   * through all of it and a run that got the boss down to a sliver would look like one that did not
+   * scratch it.
+   */
+  progressShare: number;
 }
+
+/** The elites of a level fill at most this share of the progress bar; the horde fills the rest. */
+const ELITE_PROGRESS_MAX = 0.5;
 
 /** Every rage step makes an elite's volleys come this many times sooner. */
 export const RAGE_PACE = 0.8;
@@ -140,6 +150,7 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
       calm: 9,
       rageEvery: 4,
       maxRage: 4,
+      progressShare: 0.05,
     },
   },
   boss: {
@@ -160,6 +171,7 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
       calm: 12,
       rageEvery: 4,
       maxRage: 4,
+      progressShare: 0.25,
     },
   },
 };
@@ -420,8 +432,14 @@ export class StationarySim {
    */
   private readonly eliteQueue: Spawn[] = [];
   private eliteIndex = 0;
+  /** Ordinary monsters the level sends, and how many of them are dead or got through. */
   private readonly total: number;
   private done = 0;
+  /** Elite `progressShare`s are scaled by this so they fit in `ELITE_PROGRESS_MAX`. */
+  private readonly eliteScale: number;
+  /** Share of the bar all elites together fill, and how much of it their lost health has filled. */
+  private readonly eliteShare: number;
+  private eliteDone = 0;
 
   constructor(
     readonly level: StationaryLevel,
@@ -480,11 +498,20 @@ export class StationarySim {
         flash: 0,
       })),
     };
-    this.total = Math.max(1, this.queue.length + this.eliteQueue.length);
+    this.total = Math.max(1, this.queue.length);
+    let shares = 0;
+    for (const e of this.eliteQueue) shares += MONSTERS[e.kind].elite!.progressShare;
+    this.eliteScale = shares > ELITE_PROGRESS_MAX ? ELITE_PROGRESS_MAX / shares : 1;
+    this.eliteShare = this.queue.length === 0 ? 1 : shares * this.eliteScale;
   }
 
+  /**
+   * How far the run got (0..1): ordinary monsters count one each, an elite by the health it has
+   * lost (its `progressShare`), so a boss fight moves the bar as the boss goes down.
+   */
   get progress(): number {
-    return this.phase === 'won' ? 1 : Math.min(1, this.done / this.total);
+    if (this.phase === 'won') return 1;
+    return Math.min(1, (1 - this.eliteShare) * (this.done / this.total) + this.eliteDone);
   }
 
   /** Number of soldiers that are simulated and drawn (and fire). */
@@ -1092,10 +1119,15 @@ export class StationarySim {
     }
     if (monster >= 0) {
       const kind = MONSTER_KIND_BY_INDEX[this.mkind[monster]];
+      const elite = MONSTERS[kind].elite;
+      if (elite) {
+        const lost = Math.min(dmg, Math.max(0, this.mhp[monster])) / this.mmax[monster];
+        this.eliteDone += lost * elite.progressShare * this.eliteScale;
+      }
       this.mhp[monster] -= dmg;
       if (this.mhp[monster] <= 0) {
         this.malive[monster] = 0;
-        if (!this.mcalled[monster]) this.done++;
+        if (!this.mcalled[monster] && !elite) this.done++;
         this.kills++;
         this.coinsRaw += MONSTERS[kind].coins;
         this.hooks.coin?.(this.mx[monster], this.my[monster], MONSTERS[kind].coins);
