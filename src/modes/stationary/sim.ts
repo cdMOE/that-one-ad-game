@@ -1,7 +1,7 @@
 import { applyGate, clampCount } from '../../core/rules';
 import { COIN_SCALE } from '../../core/shop';
 import { gridSlotX, gridSlotY } from '../../core/swarm';
-import type { ItemDef, MonsterKind, StationaryLevel } from '../../levels/schema';
+import type { ItemDef, MonsterKind, StationaryLevel, SummonDef } from '../../levels/schema';
 import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from './weapons';
 
 /**
@@ -278,6 +278,8 @@ export interface SimHooks {
   blockBreak?(x: number, y: number): void;
   itemCollected?(x: number, y: number, def: ItemDef, delta: number): void;
   itemLost?(x: number, def: ItemDef): void;
+  /** An elite called `count` monsters of its horde to its side (see `SummonDef`). */
+  summon?(x: number, y: number, count: number): void;
   ended?(won: boolean): void;
 }
 
@@ -289,6 +291,7 @@ interface Spawn {
   spread: number;
   /** Set for formations: which column of its row this monster marches in. */
   slot?: { col: number; columns: number };
+  summons?: SummonDef;
 }
 
 /**
@@ -375,6 +378,17 @@ export class StationarySim {
   private readonly mcalm = new Float32Array(MAX_MONSTERS);
   /** Rage steps an elite has taken so far, 0 (calm) .. `EliteStats.maxRage`. */
   readonly mrage = new Uint8Array(MAX_MONSTERS);
+  /** The horde an elite calls, null for everything else (see `SummonDef`). */
+  private readonly msummons: (SummonDef | null)[] = new Array<SummonDef | null>(MAX_MONSTERS).fill(
+    null,
+  );
+  /** How many of its `SummonDef.at` health shares an elite has dropped past (and called for). */
+  private readonly mwave = new Uint8Array(MAX_MONSTERS);
+  /**
+   * 1 for a monster an elite called: it is not one the level sends, so it does not move the
+   * progress bar (calling a wave must not push the bar back), but it has to die for the win.
+   */
+  private readonly mcalled = new Uint8Array(MAX_MONSTERS);
   /**
    * When a run is lost with an elite on the field: health left (0..1) of the one in front, the
    * wall the run did not get past. How close it came, for the result screen; null otherwise.
@@ -437,6 +451,7 @@ export class StationarySim {
           x: s.x ?? 0,
           spread: s.spread ?? 1,
           ...(columns ? { slot: { col: i % columns, columns } } : {}),
+          ...(s.summons ? { summons: s.summons } : {}),
         });
       }
     }
@@ -552,17 +567,37 @@ export class StationarySim {
 
   // ---- fighting -----------------------------------------------------------
 
+  /** A free monster slot, or -1 when the pool is full (the last few are kept for elites). */
+  private freeSlot(elite: boolean): number {
+    const room = elite ? MAX_MONSTERS : MAX_MONSTERS - ELITE_RESERVE;
+    for (let i = 0; i < room; i++) if (!this.malive[i]) return i;
+    return -1;
+  }
+
+  /** Fills a slot with a fresh monster at (x, y). */
+  private place(slot: number, kind: MonsterKind, hp: number, x: number, y: number): void {
+    const stats = MONSTERS[kind];
+    // keep even the biggest monsters fully inside their own lane
+    const lo = this.monsterMinX + stats.radius;
+    const hi = this.monsterMaxX - stats.radius;
+    this.mx[slot] = Math.max(lo, Math.min(hi, x));
+    this.my[slot] = y;
+    this.mhp[slot] = hp;
+    this.mmax[slot] = hp;
+    this.mkind[slot] = MONSTER_KIND_INDEX[kind];
+    this.mstate[slot] = 0;
+    this.mcalm[slot] = stats.elite?.calm ?? 0;
+    this.mrage[slot] = 0;
+    this.msummons[slot] = null;
+    this.mwave[slot] = 0;
+    this.mcalled[slot] = 0;
+    this.malive[slot] = 1;
+  }
+
   /** Returns false when the monster pool is full (the spawn then waits for a free slot). */
   private spawn(s: Spawn): boolean {
-    let slot = -1;
     const stats = MONSTERS[s.kind];
-    const room = stats.elite ? MAX_MONSTERS : MAX_MONSTERS - ELITE_RESERVE;
-    for (let i = 0; i < room; i++) {
-      if (!this.malive[i]) {
-        slot = i;
-        break;
-      }
-    }
+    const slot = this.freeSlot(!!stats.elite);
     if (slot < 0) return false;
     const half = (this.monsterMaxX - this.monsterMinX) / 2;
     const mid = (this.monsterMinX + this.monsterMaxX) / 2;
@@ -573,24 +608,37 @@ export class StationarySim {
       : this.rng() * 2 - 1;
     // an elite always comes down the middle: the crowd then has the same room on both sides
     const x = stats.elite ? mid : mid + (s.x + across * s.spread) * half;
-    // keep even the biggest monsters fully inside their own lane
-    const lo = this.monsterMinX + stats.radius;
-    const hi = this.monsterMaxX - stats.radius;
-    this.mx[slot] = Math.max(lo, Math.min(hi, x));
     // a monster due before the level began (its walk-in starts early) is already on its way; one
     // held back by a full pool appears no closer than the old spawn line
     const lead = (SPAWN_FAR - ARENA.spawnTop) / walkInSpeed(stats);
     const late = Math.max(0, Math.min(lead, this.levelTime - s.t));
     const jitter = stats.elite ? 0 : this.rng() * (w ? 0.3 : 1.5);
-    this.my[slot] = SPAWN_FAR + jitter - walkInSpeed(stats) * late;
-    this.mhp[slot] = s.hp;
-    this.mmax[slot] = s.hp;
-    this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
-    this.mstate[slot] = 0;
-    this.mcalm[slot] = stats.elite?.calm ?? 0;
-    this.mrage[slot] = 0;
-    this.malive[slot] = 1;
+    this.place(slot, s.kind, s.hp, x, SPAWN_FAR + jitter - walkInSpeed(stats) * late);
+    if (s.summons) this.msummons[slot] = s.summons;
     return true;
+  }
+
+  /**
+   * Elite `i` calls `n` monsters of its horde: they appear in ranks right behind it, across the
+   * whole monster lane, and storm the squad around it. As many as the pool has room for.
+   */
+  private callHorde(i: number, n: number): void {
+    const h = this.msummons[i];
+    if (!h || n <= 0) return;
+    const r = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].radius;
+    const width = this.monsterMaxX - this.monsterMinX;
+    let called = 0;
+    for (let k = 0; k < n; k++) {
+      const slot = this.freeSlot(false);
+      if (slot < 0) break;
+      const col = k % h.columns;
+      const row = Math.floor(k / h.columns);
+      const x = this.monsterMinX + ((col + 0.5) / h.columns) * width + (this.rng() - 0.5) * 0.3;
+      this.place(slot, h.kind, h.hp, x, this.my[i] + r + 0.8 + row * 1.1 + this.rng() * 0.2);
+      this.mcalled[slot] = 1;
+      called++;
+    }
+    if (called > 0) this.hooks.summon?.(this.mx[i], this.my[i], called);
   }
 
   private updateFight(dt: number): void {
@@ -618,7 +666,7 @@ export class StationarySim {
       }
       if (y <= 0.5 + stats.radius * 0.6) {
         this.malive[i] = 0;
-        this.done++;
+        if (!this.mcalled[i]) this.done++;
         this.count = clampCount(this.count - stats.bite);
         this.hooks.bite?.(this.mx[i], Math.max(0, y), stats.bite);
         if (this.count <= 0) {
@@ -796,6 +844,9 @@ export class StationarySim {
         this.mrage[i]++;
         this.mcalm[i] = e.rageEvery;
         this.hooks.charge?.(this.mx[i], this.my[i]);
+        // and every rage step it sends one more rank of its horde
+        const h = this.msummons[i];
+        if (h) this.callHorde(i, h.columns);
       }
     }
     this.mtimer[i] -= dt;
@@ -1047,13 +1098,20 @@ export class StationarySim {
       this.mhp[monster] -= dmg;
       if (this.mhp[monster] <= 0) {
         this.malive[monster] = 0;
-        this.done++;
+        if (!this.mcalled[monster]) this.done++;
         this.kills++;
         this.coinsRaw += MONSTERS[kind].coins;
         this.hooks.coin?.(this.mx[monster], this.my[monster], MONSTERS[kind].coins);
         this.hooks.kill?.(this.mx[monster], this.my[monster], kind, MONSTERS[kind].radius);
       } else {
         this.hooks.hit?.(this.mx[monster], this.my[monster]);
+        // an elite calls its horde whenever its health drops past one of its marks
+        const h = this.msummons[monster];
+        while (h && this.mwave[monster] < h.at.length) {
+          if (this.mhp[monster] > h.at[this.mwave[monster]] * this.mmax[monster]) break;
+          this.mwave[monster]++;
+          this.callHorde(monster, h.count);
+        }
       }
       return true;
     }

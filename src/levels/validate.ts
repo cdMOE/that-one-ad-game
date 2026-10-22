@@ -3,11 +3,14 @@ import {
   LEVEL_MODES,
   MONSTER_KINDS,
   OBSTACLE_KINDS,
+  SUMMON_KINDS,
   UPGRADE_STATS,
   WEAPON_IDS,
   type ItemDef,
   type MonsterKind,
   type SpawnDef,
+  type SummonDef,
+  type SummonKind,
   type StationaryLevel,
   type LaneDef,
   type LaneElementDef,
@@ -246,6 +249,7 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
       'x',
       'spread',
       'columns',
+      'summons',
     ]);
     if (!o) return;
     const kind = r.oneOf<MonsterKind>(o.kind, `${p}.kind`, MONSTER_KINDS);
@@ -259,6 +263,12 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
       o.columns === undefined
         ? undefined
         : r.num(o.columns, `${p}.columns`, { min: 1, max: 12, int: true });
+    let summons: SummonDef | undefined;
+    if (o.summons !== undefined) {
+      if (kind !== undefined && kind !== 'miniboss' && kind !== 'boss')
+        r.fail(`${p}.summons`, 'only minibosses and bosses can call a horde');
+      summons = readSummons(r, o.summons, `${p}.summons`);
+    }
     if (
       kind !== undefined &&
       count !== undefined &&
@@ -267,12 +277,43 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
       delay !== undefined &&
       x !== undefined &&
       spread !== undefined &&
-      (o.columns === undefined || columns !== undefined)
+      (o.columns === undefined || columns !== undefined) &&
+      (o.summons === undefined || summons !== undefined)
     ) {
-      out.push({ kind, count, hp, interval, delay, x, spread, ...(columns ? { columns } : {}) });
+      out.push({
+        kind,
+        count,
+        hp,
+        interval,
+        delay,
+        x,
+        spread,
+        ...(columns ? { columns } : {}),
+        ...(summons ? { summons } : {}),
+      });
     }
   });
   return out;
+}
+
+function readSummons(r: Reader, v: unknown, path: string): SummonDef | undefined {
+  const o = r.obj(v, path, ['kind', 'hp', 'count', 'columns', 'at']);
+  if (!o) return undefined;
+  const kind = r.oneOf<SummonKind>(o.kind, `${path}.kind`, SUMMON_KINDS);
+  const hp = r.num(o.hp, `${path}.hp`, { above: 0, max: 1_000_000 });
+  const count = r.num(o.count, `${path}.count`, { min: 1, max: 120, int: true });
+  const columns = r.num(o.columns, `${path}.columns`, { min: 1, max: 12, int: true });
+  const at: number[] = [];
+  (r.arr(o.at, `${path}.at`, { min: 1, max: 10 }) ?? []).forEach((share, i) => {
+    const n = r.num(share, `${path}.at[${i}]`, { above: 0, max: 0.99 });
+    if (n === undefined) return;
+    if (at.length > 0 && n >= at[at.length - 1])
+      r.fail(`${path}.at[${i}]`, 'health shares must go down, highest first');
+    at.push(n);
+  });
+  if (kind === undefined || hp === undefined || count === undefined || columns === undefined)
+    return undefined;
+  return { kind, hp, count, columns, at };
 }
 
 function readItem(r: Reader, v: unknown, path: string): ItemDef | undefined {

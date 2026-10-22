@@ -448,7 +448,14 @@
       "interval": 1,
       "delay": 24.8,
       "x": -0.4,
-      "spread": 0.3
+      "spread": 0.3,
+      "summons": {
+        "kind": "grunt",
+        "hp": 1,
+        "count": 6,
+        "columns": 6,
+        "at": [0.5]
+      }
     },
     {
       "kind": "boss",
@@ -457,46 +464,14 @@
       "interval": 1,
       "delay": 77,
       "x": 0.4,
-      "spread": 0.3
-    },
-    {
-      "kind": "grunt",
-      "count": 36,
-      "hp": 5,
-      "interval": 1.3,
-      "delay": 88,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 9,
-      "hp": 1,
-      "interval": 2,
-      "delay": 92,
-      "columns": 3,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 36,
-      "hp": 6,
-      "interval": 1.1,
-      "delay": 96,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "tank",
-      "count": 2,
-      "hp": 260,
-      "interval": 4,
-      "delay": 100,
-      "x": 0.3,
-      "spread": 0.6
+      "spread": 0.3,
+      "summons": {
+        "kind": "grunt",
+        "hp": 5,
+        "count": 24,
+        "columns": 6,
+        "at": [0.75, 0.5, 0.25]
+      }
     }
   ]
 }

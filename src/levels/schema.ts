@@ -89,6 +89,26 @@ export interface SpawnDef {
    * whole row of this many monsters appears side by side, instead of one monster at a time.
    */
   columns?: number;
+  /** Only for minibosses and bosses: the horde it calls while it is on the field. */
+  summons?: SummonDef;
+}
+
+/** Monsters an elite can call to its side. */
+export const SUMMON_KINDS = ['grunt', 'runner', 'tank'] as const;
+export type SummonKind = (typeof SUMMON_KINDS)[number];
+
+/**
+ * The horde a miniboss or boss calls while it is on the field: a wave of `count` monsters in rows
+ * of `columns` around it whenever its health drops past one of the shares in `at`, and one row
+ * more on every rage step, so a long fight never thins out into a lonely duel.
+ */
+export interface SummonDef {
+  kind: SummonKind;
+  hp: number;
+  count: number;
+  columns: number;
+  /** Health shares (0..1, highest first) at which it calls a wave. */
+  at: number[];
 }
 
 export const UPGRADE_STATS = ['rate', 'damage', 'pellets'] as const;

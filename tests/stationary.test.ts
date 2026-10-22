@@ -211,6 +211,48 @@ describe('StationarySim', () => {
     expect(sim.count).toBe(0);
   });
 
+  it('an elite calls its horde as its health drops past each mark', () => {
+    const horde = { kind: 'grunt' as const, hp: 1, count: 6, columns: 6, at: [0.75, 0.5, 0.25] };
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 300,
+      monsters: [{ kind: 'boss', count: 1, hp: 4000, interval: 1, summons: horde }],
+    });
+    const sim = new StationarySim(level, mulberry32(1));
+    const marks: number[] = [];
+    sim.hooks.summon = (_x, _y, count) => {
+      const b = sim.malive.findIndex((v, i) => v === 1 && sim.mkind[i] === 4);
+      expect(count).toBe(horde.count);
+      marks.push(sim.mhp[b] / sim.mmax[b]);
+    };
+    let progress = 0;
+    run(sim, 60, (s) => {
+      towardsNearest(s);
+      // a called wave is extra work, never a step back on the progress bar
+      expect(s.progress).toBeGreaterThanOrEqual(progress);
+      progress = s.progress;
+    });
+    expect(sim.phase).toBe('won');
+    // each mark is called once, as soon as the boss's health drops past it
+    expect(marks).toHaveLength(horde.at.length);
+    for (const [k, at] of horde.at.entries()) expect(marks[k]).toBeLessThanOrEqual(at);
+    // and the whole horde had to die for the win
+    expect(sim.kills).toBe(1 + horde.at.length * horde.count);
+  });
+
+  it('a raging elite sends one more rank of its horde on every rage step', () => {
+    const horde = { kind: 'grunt' as const, hp: 1, count: 12, columns: 4, at: [0.5] };
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 100000,
+      monsters: [{ kind: 'miniboss', count: 1, hp: 1e9, interval: 1, summons: horde }],
+    });
+    const sim = new StationarySim(level, mulberry32(1));
+    sim.targetX = -5; // out of the way: nothing gets shot, the boss just stands and rages
+    const ranks: number[] = [];
+    sim.hooks.summon = (_x, _y, count) => ranks.push(count);
+    run(sim, 40);
+    expect(ranks).toEqual(new Array(MONSTERS.miniboss.elite!.maxRage).fill(horde.columns));
+  });
+
   it('elites hold their line and get angrier the longer they stand, until no lane is safe', () => {
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 30,
@@ -864,6 +906,28 @@ describe('stationary level validation', () => {
     expect(validateLevel({ ...ok, lane: { side: 'middle', elements: ok.lane.elements } }).ok).toBe(
       false,
     );
+  });
+
+  it('lets only elites call a horde, with health marks from high to low', () => {
+    const horde = { kind: 'grunt', hp: 2, count: 12, columns: 6, at: [0.75, 0.5, 0.25] };
+    const boss = { kind: 'boss', count: 1, hp: 5000, interval: 1, summons: horde };
+    const r = validateLevel({ ...ok, monsters: [boss] });
+    expect(r.ok && r.level.mode === 'stationary' ? r.level.monsters[0].summons : null).toEqual(
+      horde,
+    );
+    const errors = (data: unknown) => {
+      const res = validateLevel(data);
+      return res.ok ? '' : res.errors.join('\n');
+    };
+    expect(errors({ ...ok, monsters: [{ ...boss, kind: 'grunt' }] })).toContain(
+      'monsters[0].summons',
+    );
+    expect(
+      errors({ ...ok, monsters: [{ ...boss, summons: { ...horde, at: [0.5, 0.75] } }] }),
+    ).toContain('summons.at[1]');
+    expect(
+      errors({ ...ok, monsters: [{ ...boss, summons: { ...horde, kind: 'boss' } }] }),
+    ).toContain('summons.kind');
   });
 
   it('requires lane elements and at least one monster stream', () => {
