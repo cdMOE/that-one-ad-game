@@ -133,6 +133,19 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
     },
   },
 };
+/**
+ * Elites are slow, and on the long walk in from `SPAWN_FAR` at their own pace a boss would stand
+ * on the bridge from the first second, long before its turn. Beyond `ARENA.spawnTop` they march at
+ * this speed instead: a boss shows up at the horizon about ten seconds before it reaches the field,
+ * then slows down to its menacing walk.
+ */
+const ELITE_WALK_IN = 3;
+
+/** How fast a monster comes down the bridge beyond `ARENA.spawnTop` (see `ELITE_WALK_IN`). */
+function walkInSpeed(stats: MonsterStats): number {
+  return stats.elite ? Math.max(stats.speed, ELITE_WALK_IN) : stats.speed;
+}
+
 /** Most zones one volley can have; sizes the per-monster target storage. */
 export const MAX_ZONES = 3;
 /** Extra room, beyond the squad's own width, that a volley leaves free so it can be dodged. */
@@ -373,7 +386,7 @@ export class StationarySim {
       for (let i = 0; i < s.count; i++) {
         const columns = s.columns;
         const stats = MONSTERS[s.kind];
-        const lead = (SPAWN_FAR - ARENA.spawnTop) / stats.speed;
+        const lead = (SPAWN_FAR - ARENA.spawnTop) / walkInSpeed(stats);
         (stats.elite ? this.eliteQueue : this.queue).push({
           t: (s.delay ?? 0) + (columns ? Math.floor(i / columns) : i) * s.interval - lead,
           kind: s.kind,
@@ -514,10 +527,10 @@ export class StationarySim {
     this.mx[slot] = Math.max(lo, Math.min(hi, x));
     // a monster due before the level began (its walk-in starts early) is already on its way; one
     // held back by a full pool appears no closer than the old spawn line
-    const lead = (SPAWN_FAR - ARENA.spawnTop) / stats.speed;
+    const lead = (SPAWN_FAR - ARENA.spawnTop) / walkInSpeed(stats);
     const late = Math.max(0, Math.min(lead, this.levelTime - s.t));
     const jitter = stats.elite ? 0 : this.rng() * (w ? 0.3 : 1.5);
-    this.my[slot] = SPAWN_FAR + jitter - stats.speed * late;
+    this.my[slot] = SPAWN_FAR + jitter - walkInSpeed(stats) * late;
     this.mhp[slot] = s.hp;
     this.mmax[slot] = s.hp;
     this.mkind[slot] = MONSTER_KIND_INDEX[s.kind];
@@ -546,7 +559,7 @@ export class StationarySim {
       const stats = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]];
       const y = this.my[i];
       if (stats.elite) {
-        if (this.updateElite(i, stats.elite, stats.speed, dt)) return;
+        if (this.updateElite(i, stats, dt)) return;
         continue;
       }
       if (y <= 0.5 + stats.radius * 0.6) {
@@ -688,10 +701,22 @@ export class StationarySim {
    * One elite's step: walk in to the hold line, wait, announce a volley (see `aimVolley`), then
    * let it land. Returns true when the volley wiped out the squad.
    */
-  private updateElite(i: number, e: EliteStats, speed: number, dt: number): boolean {
+  private updateElite(i: number, stats: MonsterStats, dt: number): boolean {
+    const e = stats.elite as EliteStats;
+    // the walk in down the bridge is quick, the last stretch on the field slow
+    let y = this.my[i];
+    let left = dt;
+    const top = ARENA.spawnTop;
+    if (y > top) {
+      const fast = walkInSpeed(stats);
+      const step = Math.min(y - top, fast * left);
+      y -= step;
+      left -= step / fast;
+    }
+    y -= stats.speed * left;
     // also while holding: when the elite in front falls, the next one steps up
     const hold = this.holdLine(i, e);
-    this.my[i] = Math.max(hold, this.my[i] - speed * dt);
+    this.my[i] = Math.max(hold, y);
     if (this.mstate[i] === 0) {
       if (this.my[i] <= hold) {
         this.mstate[i] = 1;
