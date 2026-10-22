@@ -29,14 +29,17 @@ export const ARENA = { halfWidth: 6, spawnTop: 16 };
  * needs for the extra way, so it still crosses `spawnTop` exactly when the level schedules it.
  */
 export const SPAWN_FAR = 27;
-/** Distance between neighbouring soldiers; also the size of the formation grid. */
-export const SOLDIER_SPACING = 0.42;
 /**
- * Columns of the formation. The full squad fires a lane (5 x 0.42 = 2.1) narrower than the
+ * Distance between neighbouring soldiers; also the size of the formation grid. Wide enough that
+ * the big, close-up soldiers read as a loose group of people, not a block of helmets.
+ */
+export const SOLDIER_SPACING = 0.6;
+/**
+ * Columns of the formation. The full squad fires a lane (4 x 0.6 = 2.4) narrower than the
  * smallest big target (a tank is 2.5 wide to bullets, a miniboss 3.2, a block 3.6), so a squad
  * standing under one puts every bullet into it.
  */
-export const GRID_COLS = 6;
+export const GRID_COLS = 5;
 /** At most this many soldiers are simulated and drawn; bigger squads hit harder per bullet. */
 export const MAX_SHOOTERS = 40;
 /** Global pace of the shooter: everything (monsters, bullets, items) runs this much faster. */
@@ -175,6 +178,13 @@ export interface LaneState {
   /** Centre x of the upgrade lane. */
   x: number;
   width: number;
+  /**
+   * What a block covers across: everything on the lane's side of the divider, from the road's edge
+   * to the divider itself. A squad on that side can never shoot past a block, even when it stands
+   * at the very edge of the road.
+   */
+  blockLo: number;
+  blockHi: number;
   /** Front element first. */
   elements: LaneElement[];
 }
@@ -222,6 +232,26 @@ interface Spawn {
   spread: number;
   /** Set for formations: which column of its row this monster marches in. */
   slot?: { col: number; columns: number };
+}
+
+/**
+ * The prize at the far end of the upgrade lane, shown from the first second as the goal of the run:
+ * the last weapon on the lane, otherwise its biggest crowd multiplier (null if it has neither).
+ */
+export function laneJackpot<T extends { type: 'block' | 'item'; item?: ItemDef }>(
+  elements: readonly T[],
+): T | null {
+  let best: T | null = null;
+  for (const e of elements) {
+    const it = e.item;
+    if (e.type !== 'item' || !it) continue;
+    if (it.kind === 'weapon') best = e;
+    else if (it.kind === 'crowd' && it.op === 'x' && best?.item?.kind !== 'weapon') {
+      const cur = best?.item;
+      if (!cur || (cur.kind === 'crowd' && it.value >= cur.value)) best = e;
+    }
+  }
+  return best;
 }
 
 /** Closest approach of a bullet's segment to a circle; returns the segment parameter or -1. */
@@ -353,9 +383,15 @@ export class StationarySim {
     // the monster lane is everything on the other side of the gap
     this.monsterMinX = left ? laneX + edge : -ARENA.halfWidth + 0.4;
     this.monsterMaxX = left ? ARENA.halfWidth - 0.4 : laneX - edge;
+    // the divider stands in the middle of the gap between the two lanes
+    const divider = left
+      ? laneX + UPGRADE_LANE_WIDTH / 2 + LANE_GAP / 2
+      : laneX - UPGRADE_LANE_WIDTH / 2 - LANE_GAP / 2;
     this.lane = {
       x: laneX,
       width: UPGRADE_LANE_WIDTH,
+      blockLo: left ? -ARENA.halfWidth : divider,
+      blockHi: left ? divider : ARENA.halfWidth,
       elements: level.lane.elements.map((e, i) => ({
         type: e.type,
         y: LANE_HOLD_Y + i * LANE_SPACING,
@@ -867,7 +903,7 @@ export class StationarySim {
         const t = k / 4;
         const px = x0 + (x1 - x0) * t;
         const py = y0 + (y1 - y0) * t;
-        if (Math.abs(px - lane.x) <= lane.width / 2 && Math.abs(py - e.y) <= BLOCK_HEIGHT / 2) {
+        if (px >= lane.blockLo && px <= lane.blockHi && Math.abs(py - e.y) <= BLOCK_HEIGHT / 2) {
           if (t < bestT) {
             bestT = t;
             block = e;

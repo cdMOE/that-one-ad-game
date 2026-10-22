@@ -40,6 +40,8 @@ export class Game {
   private mode: GameMode | null = null;
   private levelIndex = 0;
   private backdrop: GameMode | null = null;
+  /** The level standing ready behind the shooter screen (null: the menu demo plays instead). */
+  private previewIndex: number | null = null;
   /** A paused shooter run: nothing moves until it is resumed or left. */
   private paused = false;
 
@@ -76,6 +78,7 @@ export class Game {
         onClose: () => (this.pausable() ? this.pause() : this.toMenu()),
         onResume: () => this.resume(),
         onBuy: (kind) => this.buy(kind),
+        onPreview: (i) => this.preview(i),
         onReset: () => {
           resetSave(this.save);
           this.ui.setData(levels, this.save, this.params.get('unlock') === 'all');
@@ -177,6 +180,7 @@ export class Game {
       return;
     }
     this.backdrop = null;
+    this.previewIndex = null;
     this.state = 'playing';
     this.ui.showHud(levels[index], index);
     const level = levels[index];
@@ -238,7 +242,24 @@ export class Game {
     this.mode?.dispose?.();
     this.mode = null;
     this.ui.showMenu();
+    this.previewIndex = null;
     this.backdrop = this.newDemo();
+  }
+
+  /**
+   * The shooter screen is the level itself: level `index` stands ready behind the upgrade cards,
+   * with the squad it will start with, and a tap starts it. `null` brings the menu demo back.
+   */
+  private preview(index: number | null): void {
+    if (index === this.previewIndex || this.state !== 'menu') return;
+    this.previewIndex = index;
+    if (index === null || !this.gl.supported) {
+      this.backdrop = this.newDemo();
+      return;
+    }
+    const mode = this.newMode(levels[index]);
+    if (mode instanceof StationaryMode) mode.startPreview();
+    this.backdrop = mode;
   }
 
   /**
@@ -295,13 +316,18 @@ export class Game {
     this.save.coins -= cost;
     this.save.upgrades[kind]++;
     writeSave(this.save);
+    // a bought soldier steps into the waiting squad at once
+    if (kind === 'soldiers' && this.previewIndex !== null) {
+      const index = this.previewIndex;
+      this.previewIndex = null;
+      this.preview(index);
+    }
   }
 
   private finishLevel(mode: GameMode): void {
     const won = mode.outcome === 'won';
     this.state = 'result';
     const level = levels[this.levelIndex];
-    const walletBefore = this.save.coins;
     // coins are kept even when the run is lost: that is what makes retrying worthwhile
     this.save.coins += mode.coinsEarned;
     let stars = 0;
@@ -334,7 +360,6 @@ export class Game {
       coins: mode.coinsEarned,
       upgradesAvailable: shooter,
       bonus,
-      walletBefore,
       ...(shooter ? { progress: { reached: mode.progress, bestBefore } } : {}),
       ...(mode.lossReason ? { lossReason: mode.lossReason } : {}),
     });

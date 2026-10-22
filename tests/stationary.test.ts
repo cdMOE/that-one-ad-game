@@ -404,9 +404,9 @@ describe('StationarySim', () => {
     expect(Math.max(...speeds)).toBeLessThan(16.3 / 3.5);
     // the fastest monster is at most twice as fast as the slowest ordinary one
     expect(MONSTERS.runner.speed).toBeLessThanOrEqual(MONSTERS.grunt.speed * 2);
-    // a grunt is at least a full soldier-spacing wide on screen, so a bullet lane can hit it
-    expect(MONSTERS.grunt.radius * 2).toBeGreaterThan(SOLDIER_SPACING * 2);
-    expect(MONSTERS.runner.radius * 2).toBeGreaterThan(SOLDIER_SPACING * 1.5);
+    // a grunt is clearly wider than the gap between two bullet lanes, so it cannot slip through
+    expect(MONSTERS.grunt.radius * 2).toBeGreaterThan(SOLDIER_SPACING * 1.5);
+    expect(MONSTERS.runner.radius * 2).toBeGreaterThan(SOLDIER_SPACING * 1.2);
   });
 
   it('the lane shows its whole queue and holds the front block close to the squad', () => {

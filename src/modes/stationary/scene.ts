@@ -23,7 +23,10 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   RepeatWrapping,
+  RingGeometry,
   Scene,
+  ShaderMaterial,
+  SphereGeometry,
   SRGBColorSpace,
   Vector3,
   type WebGLRenderer,
@@ -32,7 +35,7 @@ import { COLORS } from '../../config';
 import type { GlLayer } from '../../core/gl';
 import { PALETTE, type ParticleSystem, type Placer } from '../../core/particles';
 import type { Swarm } from '../../core/swarm';
-import type { ItemDef } from '../../levels/schema';
+import type { ItemDef, MonsterKind } from '../../levels/schema';
 import {
   gunGeometry,
   monsterGeometry,
@@ -50,6 +53,7 @@ import {
   MONSTERS,
   MONSTER_KIND_BY_INDEX,
   SPAWN_FAR,
+  laneJackpot,
   type LaneElement,
   type StationarySim,
 } from './sim';
@@ -66,35 +70,46 @@ import {
 
 /**
  * Camera rig: a low third-person camera behind the squad, looking down at `CAMERA_PITCH`, like
- * the crowd shooters from the ads. The arena (plus its walls) must fit `FIT_HALF_WIDTH` at the
- * squad's depth, and the squad sits `SQUAD_NDC` of the way from the screen centre to its bottom
- * edge: big and in front, with the road running off into the haze the horde walks out of.
+ * the crowd shooters from the ads. The screen shows `FIT_HALF_WIDTH` to each side at the squad's
+ * depth, less than the arena, so squad and horde are drawn big; the squad sits `SQUAD_NDC` of the
+ * way from the screen centre to its bottom edge, with the road running off into the haze the horde
+ * walks out of and room under it for the thumb.
  */
-const CAMERA_PITCH = (26 * Math.PI) / 180;
+const CAMERA_PITCH = (22 * Math.PI) / 180;
 const CAMERA_FOV = 60;
-const FIT_HALF_WIDTH = 5.6;
-const SQUAD_NDC = -0.3;
+const FIT_HALF_WIDTH = 4.8;
+const SQUAD_NDC = -0.15;
 /**
  * The camera is too close to show the whole arena at the squad's depth, so it follows the squad
  * sideways by this share of its x. Pointer and drag mappings account for it, so the squad stays
  * under the mouse and the finger.
  */
-const CAMERA_FOLLOW = 0.2;
+const CAMERA_FOLLOW = 0.35;
+/**
+ * In a window wider than the game column (desktop), the column shows the whole road instead, from
+ * about as far away as on a phone, and the camera holds still: nothing on the road ever leaves the
+ * column, so the labels drawn over it (only as wide as the column) are never cut off.
+ */
+const WIDE_FIT_HALF_WIDTH = 6.4;
 const SQUAD_EYE = 0.4;
 
 const FLOOR_NEAR = -10;
 /**
- * Haze: everything fades into the horizon colour between these distances from the camera. The
- * squad stands about 22 away, the spawn line about 36 and the far spawn about 45, so the horde and
- * the far end of the upgrade lane come out of the mist, as in the ad shooters.
+ * Haze: the road fades into the horizon colour between these two points of it (sim y). The camera
+ * moves with the screen size, so the fog is set from it in `resize`: monsters appear at
+ * `SPAWN_FAR` where the haze is total, and walk out of it until they are clear at `FOG_CLEAR_Y`.
+ * The band is kept short, so the field itself stays crisp and colourful (a long one washed the
+ * whole upper half of the screen out). Nothing pops out of thin air.
  */
-const FOG_NEAR = 30;
-const FOG_FAR = 56;
+const FOG_CLEAR_Y = SPAWN_FAR - 7;
+const FOG_SOLID_Y = SPAWN_FAR - 1;
 
-/** Sky gradient from the top of the screen down to the horizon; the fog fades into the horizon. */
+/** Sky colours overhead, a little above the horizon and at it; the fog fades into the horizon one. */
 const SKY_TOP = '#2f7fe0';
 const SKY_MID = '#78bdf2';
-const HORIZON = 0xcdeafb;
+/** Radius of the sky dome; inside the camera's far plane. */
+const SKY_RADIUS = 250;
+const HORIZON = 0xb3daf6;
 /** Cartoon outline colour and thickness (model units) for the squad and the horde. */
 const OUTLINE = 0x1b1e2c;
 const SOLDIER_OUTLINE = 0.03;
@@ -107,8 +122,22 @@ const MAX_DRAWN_BULLETS = 120;
 const POPUP_HEIGHT = 1.3;
 const MAX_ATTACKS = 12;
 const MAX_FLASHES = 6;
+/** How long a landed strike zone takes to fade out (seconds). */
+const ZONE_FADE = 0.35;
 
 const HOP_RATE = [5, 8.5, 3, 2.4, 1.8];
+/** How long the squad glows gold after a power-up, and how long its ground ring runs (seconds). */
+const GLOW_TIME = 0.45;
+const RING_TIME = 0.5;
+const MAX_RINGS = 3;
+/**
+ * A killed monster flashes white, turns grey, topples over and sinks into the road within this many
+ * seconds. At most `MAX_CORPSES` fall at once; past that the oldest one is dropped early.
+ */
+const DEATH_TIME = 0.45;
+const MAX_CORPSES = 80;
+/** The prize at the end of the upgrade lane is drawn this much bigger than the other power-ups. */
+export const JACKPOT_SCALE = 1.35;
 
 /** Writes a translation, yaw (about y), roll (about z) and scale into a column-major matrix. */
 function writeTRS(
@@ -200,6 +229,8 @@ interface ElementView {
   item?: ItemDef;
   /** Power-ups: what floats and turns over the pedestal (the gun, or a glowing column). */
   float?: Object3D;
+  /** Power-ups: the light column, hidden while it stands in the haze (it would glow white there). */
+  beam?: Mesh;
 }
 
 interface ZoneView {
@@ -222,6 +253,8 @@ export class ShooterScene implements Placer {
 
   readonly camera = new PerspectiveCamera(50, 0.6, 6, 300);
   private readonly scene = new Scene();
+  /** The sky dome; it travels with the camera. */
+  private sky!: Mesh;
   private readonly renderer: WebGLRenderer;
   private readonly disposables: Array<{ dispose(): void }> = [];
 
@@ -230,6 +263,8 @@ export class ShooterScene implements Placer {
   private tanHalfH = 0.3;
   /** Distance from the camera to the squad measured along the view axis. */
   private squadDepth = 20;
+  /** Share of the squad's x the camera follows (`CAMERA_FOLLOW`, or 0 in a wide window). */
+  private follow = CAMERA_FOLLOW;
   private baseCamY = 0;
   private baseCamZ = 0;
 
@@ -246,12 +281,36 @@ export class ShooterScene implements Placer {
     hull: InstancedMesh<BufferGeometry, Material>;
   }> = [];
   private readonly sparks: InstancedMesh<BufferGeometry, Material>;
+  /** Killed monsters on their way out: grey bodies, and the white flash they start with (per kind). */
+  private readonly corpseMeshes: Array<InstancedMesh<BufferGeometry, Material>> = [];
+  private readonly deathFlashes: Array<InstancedMesh<BufferGeometry, Material>> = [];
+  private readonly corpseX = new Float32Array(MAX_CORPSES);
+  private readonly corpseY = new Float32Array(MAX_CORPSES);
+  private readonly corpseR = new Float32Array(MAX_CORPSES);
+  private readonly corpseKind = new Uint8Array(MAX_CORPSES);
+  /** Time of death; -Infinity for a free slot. */
+  private readonly corpseT = new Float32Array(MAX_CORPSES).fill(-Infinity);
+  private corpseHead = 0;
+  private readonly corpseCount: number[] = [0, 0, 0, 0, 0];
+  private readonly flashCount: number[] = [0, 0, 0, 0, 0];
+  /** A gold shell over the whole squad right after it caught a power-up. */
+  private readonly squadShell: InstancedMesh<BufferGeometry, Material>;
+  private readonly squadShellMat: MeshBasicMaterial;
+  /** Gold rings that run over the ground from the squad when it catches a power-up. */
+  private readonly rings: Array<{ mesh: Mesh; mat: MeshBasicMaterial; start: number }> = [];
+  private glowStart = -Infinity;
+  /** Time of the last frame, so events between frames can be stamped. */
+  private now = 0;
   private readonly paletteRgb: Float32Array;
 
   private readonly elements = new Map<LaneElement, ElementView>();
   private readonly glow: Mesh;
   private readonly zones: ZoneView[] = [];
   private readonly flashPlanes: Array<{ mesh: Mesh; mat: MeshBasicMaterial }> = [];
+  /** Strike zones seen last frame, to notice the ones that landed since. */
+  private readonly lastAttacks: Array<{ x: number; lo: number; hi: number; y: number }> = [];
+  /** Landed strike zones on their way out. */
+  private readonly fadingZones: Array<{ lo: number; hi: number; top: number; start: number }> = [];
   private readonly tireMat: MeshLambertMaterial;
   private readonly tmp = new Vector3();
 
@@ -274,12 +333,30 @@ export class ShooterScene implements Placer {
       new MeshLambertMaterial({ vertexColors: true, flatShading: true }),
     ) as Material;
 
+    const glowMat = (color: number, opacity: number) =>
+      own(
+        new MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+          blending: AdditiveBlending,
+        }),
+      );
+    const flashMat = glowMat(0xffffff, 0.75);
+    const corpseMat = own(new MeshLambertMaterial({ color: 0x9aa0ab, flatShading: true }));
     for (const kind of MONSTER_KIND_BY_INDEX) {
       const geo = own(monsterGeometry(kind));
       const mesh = instanced(geo, unitMat, MAX_MONSTERS);
       this.monsterMeshes.push(mesh);
       this.scene.add(mesh);
       this.addOutline(mesh, own(outlineGeometry(geo)), own(this.outlineMaterial(MONSTER_OUTLINE)));
+      const corpses = instanced(geo, corpseMat, MAX_CORPSES);
+      this.corpseMeshes.push(corpses);
+      this.scene.add(corpses);
+      const flash = instanced(geo, flashMat, MAX_CORPSES);
+      this.deathFlashes.push(flash);
+      this.scene.add(flash);
     }
     const soldierGeo = own(soldierGeometry());
     this.soldiers = instanced(soldierGeo, unitMat, MAX_SHOOTERS);
@@ -289,6 +366,26 @@ export class ShooterScene implements Placer {
       own(outlineGeometry(soldierGeo)),
       own(this.outlineMaterial(SOLDIER_OUTLINE)),
     );
+    this.squadShellMat = glowMat(0xffc23a, 0);
+    this.squadShell = instanced(soldierGeo, this.squadShellMat, MAX_SHOOTERS);
+    this.squadShell.instanceMatrix = this.soldiers.instanceMatrix;
+    this.scene.add(this.squadShell);
+    const ringGeo = own(new RingGeometry(0.82, 1, 40).rotateX(-Math.PI / 2));
+    for (let i = 0; i < MAX_RINGS; i++) {
+      // plain blending: added onto the light road, gold would wash out to white
+      const mat = own(
+        new MeshBasicMaterial({
+          color: 0xffb800,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+        }),
+      );
+      const mesh = new Mesh(ringGeo, mat);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.rings.push({ mesh, mat, start: -Infinity });
+    }
 
     // blob shadows: a dark disc under every unit
     this.shadows = instanced(
@@ -386,9 +483,10 @@ export class ShooterScene implements Placer {
 
   private buildLights(): void {
     // bright midday light like the ad shooters: a blue sky above, a light road below
-    this.scene.add(new HemisphereLight(0xffffff, 0x8d939e, 1.9));
-    this.scene.add(new AmbientLight(0xffffff, 0.45));
-    const sun = new DirectionalLight(0xfff4e0, 2.3);
+    // less fill and more sun than a flat studio light: shapes and colours keep their contrast
+    this.scene.add(new HemisphereLight(0xffffff, 0x8d939e, 1.45));
+    this.scene.add(new AmbientLight(0xffffff, 0.25));
+    const sun = new DirectionalLight(0xfff4e0, 2.7);
     sun.position.set(-8, 16, 10);
     this.scene.add(sun);
   }
@@ -460,17 +558,50 @@ export class ShooterScene implements Placer {
     };
 
     // a blue sky that pales towards the horizon, and haze in the horizon's colour
-    this.scene.background = this.track(
-      canvasTexture([2, 256], (g) => {
-        const grad = g.createLinearGradient(0, 0, 0, 256);
-        grad.addColorStop(0, SKY_TOP);
-        grad.addColorStop(0.55, SKY_MID);
-        grad.addColorStop(1, `#${HORIZON.toString(16)}`);
-        g.fillStyle = grad;
-        g.fillRect(0, 0, 2, 256);
-      }),
+    // The sky is a dome around the camera, coloured by how high each direction points: exactly
+    // the haze colour at the horizon, deep blue overhead. A flat screen gradient reached the haze
+    // colour only at the bottom edge, so the fogged sea met blue sky in a hard line.
+    this.scene.background = new Color(HORIZON);
+    this.sky = new Mesh(
+      this.track(new SphereGeometry(SKY_RADIUS, 32, 16)),
+      this.track(
+        new ShaderMaterial({
+          side: BackSide,
+          depthTest: false,
+          depthWrite: false,
+          fog: false,
+          uniforms: {
+            top: { value: new Color(SKY_TOP) },
+            mid: { value: new Color(SKY_MID) },
+            horizon: { value: new Color(HORIZON) },
+          },
+          vertexShader: `
+            varying vec3 vDir;
+            void main() {
+              vDir = normalize(position);
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }`,
+          fragmentShader: `
+            uniform vec3 top;
+            uniform vec3 mid;
+            uniform vec3 horizon;
+            varying vec3 vDir;
+            void main() {
+              float h = max(normalize(vDir).y, 0.0);
+              // the camera looks down, so the top of the screen is only a few degrees up:
+              // a thin band of haze, then quickly into blue
+              vec3 c = mix(horizon, mid, smoothstep(0.0, 0.035, h));
+              c = mix(c, top, smoothstep(0.035, 0.16, h));
+              gl_FragColor = vec4(c, 1.0);
+              #include <colorspace_fragment>
+            }`,
+        }),
+      ),
     );
-    this.scene.fog = new Fog(HORIZON, FOG_NEAR, FOG_FAR);
+    this.sky.renderOrder = -1;
+    this.sky.frustumCulled = false;
+    this.scene.add(this.sky);
+    this.scene.fog = new Fog(HORIZON, 30, 56); // the real distances are set in `resize`
 
     // the sea under the bridge, with a few light ripples
     const sea = this.track(
@@ -490,39 +621,38 @@ export class ShooterScene implements Placer {
       }),
     );
     sea.repeat.set(90, 90);
-    const water = new Mesh(plane, this.track(new MeshBasicMaterial({ map: sea })));
+    // the sea stays clear of the haze all the way to the horizon, deep blue on both sides of the
+    // bridge as in the ad shooters; only the bridge itself fades into the distance
+    const water = new Mesh(plane, this.track(new MeshBasicMaterial({ map: sea, fog: false })));
     placeRect(water, -400, 400, -300, 500, -5);
     this.scene.add(water);
 
-    // the road: light grey anti-slip plates with a grid of studs, white edge lines
+    // the road: warm grey deck plates with fine anti-slip ribs across, calm enough that the
+    // squad and the horde stand out on it; white edge lines
     const half = ARENA.halfWidth + 0.3;
-    const studs = this.track(
+    const ribs = this.track(
       canvasTexture([64, 64], (g) => {
-        g.fillStyle = '#c3c7cf';
+        g.fillStyle = '#c8c2b7';
         g.fillRect(0, 0, 64, 64);
-        for (let y = 0; y < 2; y++) {
-          for (let x = 0; x < 2; x++) {
-            const cx = 16 + x * 32;
-            const cy = 16 + y * 32;
-            g.fillStyle = '#a9aeb8';
-            g.beginPath();
-            g.ellipse(cx, cy + 1.5, 7, 5, 0, 0, Math.PI * 2);
-            g.fill();
-            g.fillStyle = '#d6d9df';
-            g.beginPath();
-            g.ellipse(cx, cy - 1, 6, 4, 0, 0, Math.PI * 2);
-            g.fill();
-          }
+        for (let i = 0; i < 4; i++) {
+          const y = i * 16;
+          g.fillStyle = '#bdb6ab';
+          g.fillRect(0, y, 64, 2);
+          g.fillStyle = '#d0cac0';
+          g.fillRect(0, y + 2, 64, 1);
         }
+        // a faint seam where two plates meet
+        g.fillStyle = 'rgba(120, 112, 100, 0.25)';
+        g.fillRect(0, 0, 1, 64);
       }),
     );
-    studs.repeat.set((half * 2) / 0.9, length / 0.9);
-    const road = new Mesh(plane, this.track(new MeshLambertMaterial({ map: studs })));
+    ribs.repeat.set((half * 2) / 2.4, length / 1.2);
+    const road = new Mesh(plane, this.track(new MeshLambertMaterial({ map: ribs })));
     placeRect(road, -half, half, FLOOR_NEAR, end, 0);
     this.scene.add(road);
     // the deck, its top just under the road so the two never fight over the same depth
     box(lambert(0x8d939e), 0, -0.79, mid, half * 2 + 1.4, 1.5, length);
-    const railMat = lambert(0xdfe3ea);
+    const railMat = lambert(0xaab0ba);
     for (const side of [-1, 1]) {
       box(railMat, side * (half + 0.3), 0.12, mid, 0.6, 0.24, length); // kerb
       const edge = new Mesh(plane, solid(0xffffff));
@@ -553,8 +683,8 @@ export class ShooterScene implements Placer {
     this.scene.add(posts);
 
     // bridge pylons with stay cables down to the deck edges
-    const pylonMat = lambert(0x949ba6);
-    const cableMat = lambert(0xe9edf3);
+    const pylonMat = lambert(0x7b828e);
+    const cableMat = lambert(0xc9ced6);
     const cableGeo = this.track(new CylinderGeometry(0.035, 0.035, 1, 5).rotateX(Math.PI / 2));
     const towerX = half + 1.7;
     for (const py of PYLONS_Y) {
@@ -576,20 +706,15 @@ export class ShooterScene implements Placer {
     const mx0 = sim.monsterMinX - 0.2;
     const mx1 = sim.monsterMaxX + 0.2;
 
-    // a dark divider between the upgrade lane and the monsters, from a little ahead of the squad
-    // until it disappears in the haze
+    // a solid dark wall between the upgrade lane and the monsters, with a lighter cap, from a
+    // little ahead of the squad until it disappears in the haze: the two lanes read at a glance
     const left = sim.lane.x < 0;
     const laneEdge = sim.lane.x + (left ? 1 : -1) * (sim.lane.width / 2);
     const fieldEdge = left ? sim.monsterMinX : sim.monsterMaxX;
-    box(
-      lambert(0x2e333e),
-      (laneEdge + fieldEdge) / 2,
-      0.8,
-      -(SPAWN_FAR + 3.2) / 2,
-      0.16,
-      1.6,
-      SPAWN_FAR - 3.2,
-    );
+    const wallX = (laneEdge + fieldEdge) / 2;
+    const wallZ = -(SPAWN_FAR + 3.2) / 2;
+    box(lambert(0x565c68), wallX, 0.75, wallZ, 0.32, 1.5, SPAWN_FAR - 3.2);
+    box(lambert(0x9aa0ab), wallX, 1.54, wallZ, 0.38, 0.08, SPAWN_FAR - 3.2);
 
     // the line monsters bite at
     const bite = new Mesh(plane, solid(0xff4d6d, 0.45));
@@ -599,9 +724,11 @@ export class ShooterScene implements Placer {
 
   private buildLane(own: <T extends { dispose(): void }>(x: T) => T): void {
     const sim = this.sim;
-    const width = sim.lane.width;
     // blocks are piles of old tyres; power-ups float over glowing pedestals
-    const tireGeo = own(tireStackGeometry(width - 0.2, BLOCK_HEIGHT - 0.1, 1.2));
+    // a pile fills what it blocks: road edge to divider, so its look matches what it stops
+    const tireGeo = own(
+      tireStackGeometry(sim.lane.blockHi - sim.lane.blockLo - 0.3, BLOCK_HEIGHT - 0.1, 1.2),
+    );
     const colors: Record<ItemDef['kind'], string> = {
       crowd: '#3b9cff',
       upgrade: '#ffc23a',
@@ -621,8 +748,22 @@ export class ShooterScene implements Placer {
       weapon: own(this.beamMaterial(colors.weapon)),
     };
 
+    const jackpot = laneJackpot(sim.lane.elements);
+    // the prize at the far end shines through the haze: it is the goal you see from the start
+    const clear = <T extends MeshBasicMaterial | MeshLambertMaterial>(m: T): T => {
+      const c = own(m.clone() as T);
+      c.fog = false;
+      return c;
+    };
+    const jackpotPedestal = clear(pedestalMat);
+    const jackpotBeams = {
+      crowd: clear(beamMats.crowd),
+      upgrade: clear(beamMats.upgrade),
+      weapon: clear(beamMats.weapon),
+    };
     for (const e of sim.lane.elements) {
       const group = new Group();
+      if (e === jackpot) group.scale.setScalar(JACKPOT_SCALE);
       if (e.type === 'block') {
         // a clone shares the tyre shader, so a hit never swaps programs (no compile hitch)
         const bodyMat = own(this.tireMat.clone());
@@ -633,17 +774,24 @@ export class ShooterScene implements Placer {
         this.elements.set(e, { group, body, bodyMat });
       } else if (e.item) {
         const kind = e.item.kind;
-        group.add(new Mesh(pedestals[kind], pedestalMat));
-        const beam = new Mesh(beamGeo, beamMats[kind]);
+        const prize = e === jackpot;
+        const bodyMat = prize ? jackpotPedestal : pedestalMat;
+        group.add(new Mesh(pedestals[kind], bodyMat));
+        const beam = new Mesh(beamGeo, (prize ? jackpotBeams : beamMats)[kind]);
         beam.position.y = 1.05;
         group.add(beam);
         let float: Object3D | undefined;
         if (kind === 'weapon') {
-          float = new Mesh(gun, pedestalMat);
+          float = new Mesh(gun, bodyMat);
           float.position.y = 1.2;
           group.add(float);
         }
-        this.elements.set(e, { group, item: e.item, ...(float ? { float } : {}) });
+        this.elements.set(e, {
+          group,
+          item: e.item,
+          ...(float ? { float } : {}),
+          ...(prize ? {} : { beam }),
+        });
       }
       group.visible = false;
       this.scene.add(group);
@@ -720,7 +868,9 @@ export class ShooterScene implements Placer {
     const aspect = width / Math.max(1, height);
     const tanV = Math.tan((CAMERA_FOV * Math.PI) / 360);
     // framed for the game column; a wider window just shows more scenery to the sides
-    const depth = FIT_HALF_WIDTH / (tanV * aspect);
+    const wide = this.gl.width > width + 1;
+    this.follow = wide ? 0 : CAMERA_FOLLOW;
+    const depth = (wide ? WIDE_FIT_HALF_WIDTH : FIT_HALF_WIDTH) / (tanV * aspect);
     // the camera sits behind and above the squad point, along the (tilted) view axis
     const sinP = Math.sin(CAMERA_PITCH);
     const cosP = Math.cos(CAMERA_PITCH);
@@ -737,17 +887,21 @@ export class ShooterScene implements Placer {
     this.tanHalfV = tanV;
     this.tanHalfH = tanV * aspect;
     this.squadDepth = depth;
+    // the fog measures depth along the view axis; a step of y along the road adds y * cos(pitch)
+    const fog = this.scene.fog as Fog;
+    fog.near = depth + FOG_CLEAR_Y * cosP;
+    fog.far = depth + FOG_SOLID_Y * cosP;
     this.camera.updateMatrixWorld();
   }
 
   /** World x under a screen x (CSS px), as seen at the squad's depth. */
   screenToWorldX(px: number): number {
-    return (((px / this.width) * 2 - 1) * this.tanHalfH * this.squadDepth) / (1 - CAMERA_FOLLOW);
+    return (((px / this.width) * 2 - 1) * this.tanHalfH * this.squadDepth) / (1 - this.follow);
   }
 
   /** World distance that a horizontal drag of `px` CSS px covers at the squad's depth. */
   pxToWorld(px: number): number {
-    return ((px / this.width) * 2 * this.tanHalfH * this.squadDepth) / (1 - CAMERA_FOLLOW);
+    return ((px / this.width) * 2 * this.tanHalfH * this.squadDepth) / (1 - this.follow);
   }
 
   /** Projects the ground position (x, y) at `height` to the screen; results land in sx/sy/scale. */
@@ -766,6 +920,14 @@ export class ShooterScene implements Placer {
     this.placeAt(x, y, POPUP_HEIGHT);
   }
 
+  /** The squad caught a power-up: a gold ring runs over the ground from it and it glows gold. */
+  celebrate(x: number): void {
+    const ring = this.rings.reduce((a, b) => (a.start <= b.start ? a : b));
+    ring.start = this.now;
+    ring.mesh.position.set(x, 0.14, 0.3);
+    this.glowStart = this.now;
+  }
+
   // ---- per-frame sync ---------------------------------------------------------
 
   /** Mirrors the sim into the scene and draws it. `shakeX/Y` are in world units. */
@@ -778,8 +940,10 @@ export class ShooterScene implements Placer {
     shakeX: number,
     shakeY: number,
   ): void {
-    const follow = this.sim.squadX * CAMERA_FOLLOW;
+    this.now = time;
+    const follow = this.sim.squadX * this.follow;
     this.camera.position.set(follow + shakeX, this.baseCamY + shakeY, this.baseCamZ);
+    this.sky.position.copy(this.camera.position);
     this.camera.updateMatrixWorld();
 
     this.syncMonsters(time);
@@ -787,7 +951,9 @@ export class ShooterScene implements Placer {
     this.syncBullets();
     this.syncParticles(particles);
     this.syncLane(time);
-    this.syncZones(flashes);
+    this.syncZones(flashes, time);
+    this.syncRings(time);
+    this.syncCorpses(time);
     for (const o of this.outlines) o.hull.count = o.src.count;
     this.renderer.render(this.scene, this.camera);
   }
@@ -838,6 +1004,50 @@ export class ShooterScene implements Placer {
 
   private shadowFill = 0;
 
+  /** A monster died at (x, y): it starts its short fall (see `DEATH_TIME`). */
+  corpse(x: number, y: number, kind: MonsterKind, radius: number): void {
+    const c = this.corpseHead;
+    this.corpseHead = (c + 1) % MAX_CORPSES;
+    this.corpseX[c] = x;
+    this.corpseY[c] = y;
+    this.corpseR[c] = radius;
+    this.corpseKind[c] = MONSTER_KIND_BY_INDEX.indexOf(kind);
+    this.corpseT[c] = this.now;
+  }
+
+  private syncCorpses(time: number): void {
+    const counts = this.corpseCount;
+    const flashes = this.flashCount;
+    counts.fill(0);
+    flashes.fill(0);
+    const bodies = this.corpseMeshes.map((m) => m.instanceMatrix.array as Float32Array);
+    const shells = this.deathFlashes.map((m) => m.instanceMatrix.array as Float32Array);
+    for (let c = 0; c < MAX_CORPSES; c++) {
+      const a = (time - this.corpseT[c]) / DEATH_TIME;
+      if (!(a >= 0 && a < 1)) continue;
+      const k = this.corpseKind[c];
+      const x = this.corpseX[c];
+      const y = this.corpseY[c];
+      const r = this.corpseR[c];
+      // a quick pop, then it keels over to one side, shrinks and sinks into the road
+      const pop = a < 0.15 ? 1 + 0.15 * (a / 0.15) : 1.15;
+      const fall = Math.min(1, Math.max(0, (a - 0.12) / 0.45));
+      const roll = (c & 1 ? 1 : -1) * 1.4 * fall * (2 - fall);
+      const fade = Math.max(0, (a - 0.5) / 0.5);
+      const s = r * pop * (1 - 0.6 * fade);
+      const sink = -r * 0.9 * fade;
+      writeTRS(bodies[k], counts[k]++, x, sink, -y, 0, roll, s, s, s);
+      if (a < 0.2)
+        writeTRS(shells[k], flashes[k]++, x, sink, -y, 0, roll, s * 1.04, s * 1.04, s * 1.04);
+    }
+    for (let k = 0; k < this.corpseMeshes.length; k++) {
+      this.corpseMeshes[k].count = counts[k];
+      this.corpseMeshes[k].instanceMatrix.needsUpdate = true;
+      this.deathFlashes[k].count = flashes[k];
+      this.deathFlashes[k].instanceMatrix.needsUpdate = true;
+    }
+  }
+
   private syncSoldiers(time: number, player: Swarm, recoil: number): void {
     const sim = this.sim;
     const arr = this.soldiers.instanceMatrix.array as Float32Array;
@@ -846,15 +1056,18 @@ export class ShooterScene implements Placer {
     const moving = Math.min(1, Math.abs(sim.squadVx) / 4);
     const lean = Math.max(-0.3, Math.min(0.3, -sim.squadVx * 0.014));
     const n = player.n;
-    // a small squad is drawn bigger (one soldier would be a speck); a big one shrinks to its 1.3
-    const size = 1.3 + 0.55 / Math.sqrt(Math.max(1, n));
+    // a small squad is drawn bigger (one soldier would be a speck); a big one shrinks to its 1.6
+    const size = 1.6 + 0.7 / Math.sqrt(Math.max(1, n));
     const muzzleArr = this.muzzles.instanceMatrix.array as Float32Array;
     const flare = recoil * recoil;
     for (let i = 0; i < n; i++) {
-      const x = player.x[i];
-      const y = player.y[i];
+      // every soldier stands a little off its grid slot and turned its own way: a group of people,
+      // not a parade block (small enough that the bullets still leave from the gun)
+      const x = player.x[i] + (((i * 0.618) % 1) - 0.5) * 0.2;
+      const y = player.y[i] + (((i * 0.382 + 0.3) % 1) - 0.5) * 0.28;
+      const yaw = (((i * 0.7548) % 1) - 0.5) * 0.35;
       const bob = (Math.abs(Math.sin(time * 14 + i * 1.3)) * 0.06 * moving) as number;
-      writeTRS(arr, i, x, bob, -y + recoil * 0.12, 0, lean, size, size, size);
+      writeTRS(arr, i, x, bob, -y + recoil * 0.12, yaw, lean, size, size, size);
       writeTRS(shadowArr, shadowN++, x, 0.1, -y, 0, 0, 0.2 * size, 1, 0.2 * size);
       // the gun's muzzle sits at (0, 0.55, -0.76) in model space
       const m = flare * size * 0.55;
@@ -862,6 +1075,9 @@ export class ShooterScene implements Placer {
     }
     this.soldiers.count = n;
     this.soldiers.instanceMatrix.needsUpdate = true;
+    const glow = Math.max(0, 1 - (time - this.glowStart) / GLOW_TIME);
+    this.squadShellMat.opacity = 0.85 * glow;
+    this.squadShell.count = glow > 0 ? n : 0;
     this.muzzles.count = recoil > 0.05 ? n : 0;
     this.muzzles.instanceMatrix.needsUpdate = true;
     this.shadows.count = shadowN;
@@ -926,11 +1142,12 @@ export class ShooterScene implements Placer {
       if (view.bodyMat && e.type === 'block') {
         // a warm glow and a little knock back per hit; under steady fire it pulses, never strobes
         view.bodyMat.emissiveIntensity = 0.35 * e.flash;
-        g.position.set(sim.lane.x, 0, -e.y - 0.06 * e.flash);
+        g.position.set((sim.lane.blockLo + sim.lane.blockHi) / 2, 0, -e.y - 0.06 * e.flash);
         g.scale.set(1 + 0.03 * e.flash, 1 - 0.08 * e.flash, 1);
       } else {
         const front = k === 0;
         g.position.set(sim.lane.x, 0, -e.y);
+        if (view.beam) view.beam.visible = e.y < FOG_CLEAR_Y;
         if (view.float) {
           view.float.rotation.y = time * 1.8;
           view.float.position.y = 1.2 + Math.sin(time * 3 + k) * 0.08;
@@ -945,36 +1162,71 @@ export class ShooterScene implements Placer {
     });
   }
 
+  private syncRings(time: number): void {
+    for (const ring of this.rings) {
+      const age = (time - ring.start) / RING_TIME;
+      ring.mesh.visible = age >= 0 && age < 1;
+      if (!ring.mesh.visible) continue;
+      const r = 0.8 + 3.2 * (1 - (1 - age) * (1 - age)); // fast out, then easing
+      ring.mesh.scale.set(r, 1, r);
+      ring.mat.opacity = 0.9 * (1 - age);
+    }
+  }
+
+  /**
+   * One strike zone from the squad's row up to the elite at `top`: it fills up while `t` runs to 1,
+   * blinks white just before it lands, and is drawn at `k` of its strength (1 live, then fading).
+   */
+  private drawZone(z: ZoneView, lo: number, hi: number, top: number, t: number, k: number): void {
+    const bottom = -1.5;
+    z.group.visible = true;
+    placeRect(z.base, lo, hi, bottom, top, 0.14);
+    z.baseMat.opacity = (0.2 + 0.35 * t) * k;
+    const reach = (top - bottom) * t;
+    placeRect(z.fill, lo, hi, top - reach, top, 0.16);
+    z.fillMat.opacity = (0.3 + 0.4 * t) * k;
+    const w = 0.14;
+    placeRect(z.edges[0], lo, lo + w, bottom, top, 0.18);
+    placeRect(z.edges[1], hi - w, hi, bottom, top, 0.18);
+    placeRect(z.edges[2], lo, hi, top - w, top, 0.18);
+    placeRect(z.edges[3], lo, hi, bottom, bottom + w, 0.18);
+    z.edgeMat.opacity = 0.95 * k;
+    const white = k === 1 && t > 0.7 && Math.floor(t * 20) % 2 === 0;
+    const mid = (top + bottom) / 2;
+    const c0 = z.curtains[0];
+    const c1 = z.curtains[1];
+    c0.position.set(lo, 0.35, -mid);
+    c1.position.set(hi, 0.35, -mid);
+    c0.scale.set(1, 0.7, top - bottom);
+    c1.scale.set(1, 0.7, top - bottom);
+    z.edgeMat.color.setHex(white ? 0xffffff : 0xff5a6e);
+  }
+
   private syncZones(
     flashes: ReadonlyArray<{ x: number; half: number; life: number; hit: boolean }>,
+    time: number,
   ): void {
     const sim = this.sim;
-    const bottom = -1.5;
+    // a strike that just landed is gone from the sim; its zone fades out instead of popping away
+    for (const last of this.lastAttacks) {
+      if (!sim.attacks.some((a) => a.x === last.x)) {
+        this.fadingZones.push({ lo: last.lo, hi: last.hi, top: last.y, start: time });
+      }
+    }
+    this.lastAttacks.length = 0;
+    for (const a of sim.attacks) this.lastAttacks.push({ x: a.x, lo: a.lo, hi: a.hi, y: a.y });
+    while (this.fadingZones.length > 0 && time - this.fadingZones[0].start >= ZONE_FADE) {
+      this.fadingZones.shift();
+    }
+
     let n = 0;
     for (const a of sim.attacks) {
       if (n >= MAX_ATTACKS) break;
-      const z = this.zones[n++];
-      z.group.visible = true;
-      const top = a.y;
-      placeRect(z.base, a.lo, a.hi, bottom, top, 0.14);
-      z.baseMat.opacity = 0.2 + 0.35 * a.t;
-      const reach = (top - bottom) * a.t;
-      placeRect(z.fill, a.lo, a.hi, top - reach, top, 0.16);
-      z.fillMat.opacity = 0.3 + 0.4 * a.t;
-      const w = 0.14;
-      placeRect(z.edges[0], a.lo, a.lo + w, bottom, top, 0.18);
-      placeRect(z.edges[1], a.hi - w, a.hi, bottom, top, 0.18);
-      placeRect(z.edges[2], a.lo, a.hi, top - w, top, 0.18);
-      placeRect(z.edges[3], a.lo, a.hi, bottom, bottom + w, 0.18);
-      const white = a.t > 0.7 && Math.floor(a.t * 20) % 2 === 0;
-      const mid = (top + bottom) / 2;
-      const c0 = z.curtains[0];
-      const c1 = z.curtains[1];
-      c0.position.set(a.lo, 0.35, -mid);
-      c1.position.set(a.hi, 0.35, -mid);
-      c0.scale.set(1, 0.7, top - bottom);
-      c1.scale.set(1, 0.7, top - bottom);
-      z.edgeMat.color.setHex(white ? 0xffffff : 0xff5a6e);
+      this.drawZone(this.zones[n++], a.lo, a.hi, a.y, a.t, 1);
+    }
+    for (const f of this.fadingZones) {
+      if (n >= MAX_ATTACKS) break;
+      this.drawZone(this.zones[n++], f.lo, f.hi, f.top, 1, 1 - (time - f.start) / ZONE_FADE);
     }
     for (; n < MAX_ATTACKS; n++) this.zones[n].group.visible = false;
 

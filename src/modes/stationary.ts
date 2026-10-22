@@ -8,7 +8,7 @@ import { Swarm } from '../core/swarm';
 import type { ItemDef, StationaryLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
 import { monsterTop } from './stationary/models';
-import { ShooterScene } from './stationary/scene';
+import { JACKPOT_SCALE, ShooterScene } from './stationary/scene';
 import {
   ARENA,
   MAX_MONSTERS,
@@ -18,6 +18,7 @@ import {
   SOLDIER_SPACING,
   StationarySim,
   BLOCK_HEIGHT,
+  laneJackpot,
   type LaneElement,
 } from './stationary/sim';
 import { WEAPONS, itemLabel } from './stationary/weapons';
@@ -59,9 +60,15 @@ export class StationaryMode implements GameMode {
   private introShown = false;
   /** Attract mode behind the menu: plays itself, silently. */
   private demo = false;
+  /** The shooter screen: the level stands ready behind the cards, nothing moves until it starts. */
+  private preview = false;
   private readonly coinMul: number;
   /** Coins flying from a kill up to the coin counter in the HUD (screen px, 0..1 progress). */
   private readonly flyingCoins: Array<{ x: number; y: number; t: number }> = [];
+  /** Seconds until the next coin value may pop up over a kill (masses die every frame). */
+  private coinLabelWait = 0;
+  /** The prize at the end of the upgrade lane: its caption shows from the start. */
+  private readonly jackpot: LaneElement | null;
   /** What cost soldiers last: if the run is lost, that is what finished it. */
   private lastBlow: 'horde' | 'volley' | null = null;
 
@@ -100,6 +107,12 @@ export class StationaryMode implements GameMode {
           particles.burst(x, y, amount > 100 ? 6 : 1, 4, Pc.Gold, 0.45, 0.2);
           sfx.coin();
           this.launchCoin(x, y);
+          // and says what it is worth where it dropped: every big one, a few of the small ones
+          if (!this.demo && (amount > 100 || this.coinLabelWait <= 0)) {
+            this.coinLabelWait = 0.12;
+            const worth = Math.max(1, Math.round(amount * this.coinMul));
+            popups.add(x, y, `+${formatCount(worth)}`, COLORS.gold, amount > 100 ? 0.9 : 0.6);
+          }
         },
         shot: (x, y) => {
           sfx.shoot();
@@ -112,7 +125,8 @@ export class StationaryMode implements GameMode {
           if (Math.random() < 0.2) particles.burst(x, y, 1, 3, Pc.Enemy, 0.25, 0.12);
           sfx.pop();
         },
-        kill: (x, y, kind) => {
+        kill: (x, y, kind, radius) => {
+          this.scene.corpse(x, y, kind, radius);
           const big = kind === 'boss' || kind === 'miniboss' || kind === 'tank';
           if (big) {
             particles.burst(
@@ -165,6 +179,7 @@ export class StationaryMode implements GameMode {
         },
         itemCollected: (_x, _y, def) => {
           const label = itemLabel(def);
+          this.scene.celebrate(this.sim.squadX);
           particles.burst(this.sim.squadX, 1, 24, 6, Pc.Good, 0.6, 0.18);
           popups.add(this.sim.squadX, 3, label.title, COLORS.player, 1.3);
           sfx.gate(true);
@@ -206,6 +221,7 @@ export class StationaryMode implements GameMode {
     );
 
     this.scene = new ShooterScene(ctx.gl, this.sim, ctx.particles.cap);
+    this.jackpot = laneJackpot(this.sim.lane.elements);
     this.shownCount = this.sim.count;
     this.player.setSize(this.sim.shooters);
     this.player.useGrid(this.sim.cols);
@@ -221,6 +237,12 @@ export class StationaryMode implements GameMode {
     this.player.setSize(this.sim.shooters);
     this.player.useGrid(this.sim.cols);
     this.player.snap(0, 0, SOLDIER_SPACING);
+  }
+
+  /** Turns this run into the backdrop of the shooter screen: the level as it will start, waiting. */
+  startPreview(): void {
+    this.preview = true;
+    this.introShown = true;
   }
 
   /** Where the demo squad wants to be: under the power-ups, otherwise under the nearest monster. */
@@ -276,16 +298,23 @@ export class StationaryMode implements GameMode {
     }
     this.recoil *= Math.exp(-12 * dt);
     this.pillPop *= Math.exp(-7 * dt);
+    this.coinLabelWait -= dt;
     for (const c of this.flyingCoins) c.t += dt * 1.6;
     while (this.flyingCoins.length > 0 && this.flyingCoins[0].t >= 1) this.flyingCoins.shift();
 
     // steering: keys > mouse position > finger drag
     const drag = input.consumeDrag();
     input.consumeTap();
-    const limit = ARENA.halfWidth;
-    this.sim.snapSquad = !this.demo && input.axis === 0 && input.usesMouse;
+    // the target never runs past where the squad can stand: dragging beyond the edge and back
+    // must move the squad at once, not first unwind an invisible overshoot
+    const limit = ARENA.halfWidth - this.sim.halfWidth();
+    // finger and mouse both put the squad exactly where they say (keys still glide), so a phone
+    // steers as snappily as a desktop
+    this.sim.snapSquad = !this.demo && input.axis === 0;
     if (this.demo) {
       this.sim.targetX += (this.autopilotX() - this.sim.targetX) * Math.min(1, 4 * dt);
+    } else if (this.preview) {
+      // stands ready: the pointer over the cards must not move it
     } else if (input.axis !== 0) {
       this.sim.targetX += input.axis * KEY_SPEED * dt;
     } else if (input.usesMouse) {
@@ -295,7 +324,7 @@ export class StationaryMode implements GameMode {
     }
     this.sim.targetX = Math.max(-limit, Math.min(limit, this.sim.targetX));
 
-    this.sim.update(dt);
+    if (!this.preview) this.sim.update(dt);
     for (const f of this.flashes) f.life -= dt;
     while (this.flashes.length > 0 && this.flashes[0].life <= 0) this.flashes.shift();
 
@@ -364,7 +393,7 @@ export class StationaryMode implements GameMode {
     this.drawMonsterLabels(g);
     this.drawSquadCounter(g);
     popups.drawPlaced(g, this.scene);
-    if (!this.demo) {
+    if (!this.demo && !this.preview) {
       this.drawWeaponLabel(g);
       this.drawFlyingCoins(g);
     }
@@ -383,7 +412,10 @@ export class StationaryMode implements GameMode {
     }
     sc.placeAt(sumX / p.n, backY - 1.1, 0.1);
     const fontPx = Math.round(Math.max(14, sc.scale * 0.8) * 1.05 * (1 + 0.3 * this.pillPop));
-    drawPill(g, formatCount(this.shownCount), sc.sx, sc.sy, SQUAD_BLUE, fontPx);
+    // the close camera can put a squad at the road's edge half off screen; its number stays on
+    const margin = fontPx * 1.3;
+    const x = Math.max(margin, Math.min(this.ctx.camera.width - margin, sc.sx));
+    drawPill(g, formatCount(this.shownCount), x, sc.sy, SQUAD_BLUE, fontPx);
   }
 
   /** Coins on their way to the counter at the top right, along a short arc. */
@@ -454,7 +486,8 @@ export class StationaryMode implements GameMode {
     g.textBaseline = 'middle';
     g.lineJoin = 'round';
     sim.lane.elements.forEach((e, k) => {
-      if (k >= LANE_LABELS) return;
+      // the prize at the far end keeps its caption all the way: it is the goal of the run
+      if (k >= LANE_LABELS && e !== this.jackpot) return;
       if (e.type === 'item' && e.item) this.drawItemLabel(g, e, e.item);
       else this.drawBlockLabel(g, e);
     });
@@ -463,9 +496,12 @@ export class StationaryMode implements GameMode {
   private drawItemLabel(g: CanvasRenderingContext2D, e: LaneElement, def: ItemDef): void {
     const sc = this.scene;
     // over the light column of the pedestal (the weapon floats a little lower, inside it)
-    sc.placeAt(this.sim.lane.x, e.y, def.kind === 'weapon' ? 2.1 : 1.6);
+    const lift = e === this.jackpot ? JACKPOT_SCALE : 1;
+    sc.placeAt(this.sim.lane.x, e.y, (def.kind === 'weapon' ? 2.1 : 1.6) * lift);
     const label = itemLabel(def);
-    const titlePx = Math.round(Math.max(13, sc.scale * (label.title.length > 5 ? 0.42 : 0.62)));
+    // the far-off prize gets a bigger minimum, so it still reads out in the haze
+    const minPx = e === this.jackpot ? 18 : 13;
+    const titlePx = Math.round(Math.max(minPx, sc.scale * (label.title.length > 5 ? 0.42 : 0.62)));
     drawBigNumber(g, label.title, sc.sx, sc.sy, titlePx, ITEM_FILL[def.kind]);
     const subPx = Math.round(Math.max(8, titlePx * 0.36));
     g.font = `900 ${subPx}px ${FONT}`;
@@ -480,7 +516,7 @@ export class StationaryMode implements GameMode {
     const sc = this.scene;
     const lane = this.sim.lane;
     // big orange numbers on the front of the pile, like the obstacles in the ad shooters
-    sc.placeAt(lane.x, o.y - BLOCK_HEIGHT / 2, 0.6);
+    sc.placeAt((lane.blockLo + lane.blockHi) / 2, o.y - BLOCK_HEIGHT / 2, 0.6);
     const fontPx = Math.round(Math.max(14, sc.scale * 0.95));
     drawBigNumber(g, formatCount(Math.ceil(o.hp)), sc.sx, sc.sy, fontPx, BLOCK_FILL);
   }

@@ -140,6 +140,18 @@ const LOOKS: Record<MonsterKind, Look> = {
   boss: { body: COLORS.boss, dark: COLORS.bossDark, w: 1.05, h: 1, eye: 1 },
 };
 
+/**
+ * Elites are drawn this much bigger than their collision body, so they tower over the horde like
+ * the bosses in the ad shooters. Bullets still use the body (plus its forgiving hit margin).
+ */
+const LOOK_SCALE: Record<MonsterKind, number> = {
+  grunt: 1,
+  runner: 1,
+  tank: 1,
+  miniboss: 1.2,
+  boss: 1.25,
+};
+
 function crown(y: number, size: number): BufferGeometry[] {
   const out: BufferGeometry[] = [
     part(new CylinderGeometry(0.5 * size, 0.58 * size, 0.28 * size, 8), GOLD, { y }),
@@ -167,7 +179,10 @@ function crown(y: number, size: number): BufferGeometry[] {
   return out;
 }
 
-/** A monster with a unit-sized collision body (radius 1); scale it by the real radius. */
+/**
+ * A monster with a unit-sized collision body (radius 1); scale it by the real radius. Elites come
+ * out bigger than their body (`LOOK_SCALE`).
+ */
 export function monsterGeometry(kind: MonsterKind): BufferGeometry {
   const look = LOOKS[kind];
   const cy = 1; // body centre height: the blob sits on the ground
@@ -280,24 +295,26 @@ export function monsterGeometry(kind: MonsterKind): BufferGeometry {
       }
       break;
   }
-  return merge(parts);
+  const grow = LOOK_SCALE[kind];
+  return merge(parts).scale(grow, grow, grow);
 }
 
 /** Height of a monster's head top in model units, to hang the HP label over it. */
 export function monsterTop(kind: MonsterKind): number {
   const h = LOOKS[kind].h;
   const crowned = kind === 'miniboss' || kind === 'boss';
-  return 2 * h + (crowned ? 0.9 : kind === 'grunt' ? 0.3 : 0);
+  return (2 * h + (crowned ? 0.9 : kind === 'grunt' ? 0.3 : 0)) * LOOK_SCALE[kind];
 }
 
 // ---- lane props -------------------------------------------------------------
 
 /**
- * A lane block as stacks of old tyres, like the obstacles in the ad shooters: `stacks` piles of
- * three side by side, filling `width` and `depth` (ground units). Feet on y = 0, `height` tall.
+ * A lane block as stacks of old tyres, like the obstacles in the ad shooters: piles of three side
+ * by side (as many as fit, at least three), filling `width` and `depth` (ground units). Feet on
+ * y = 0, `height` tall.
  */
 export function tireStackGeometry(width: number, depth: number, height: number): BufferGeometry {
-  const stacks = 3;
+  const stacks = Math.max(3, Math.round(width / depth));
   const r = Math.min(depth / 2, width / (stacks * 2));
   const layers = 3;
   const h = height / layers;

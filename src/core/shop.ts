@@ -29,8 +29,9 @@ export type UpgradeLevels = Record<UpgradeKind, number>;
  * Every permanent upgrade has a cap, so the strongest possible squad is a known quantity.
  *
  * Prices are the dial for how long the campaign takes: `npm run simulate:campaign` shows the
- * runs per level. The rule of thumb is that the next upgrade is one or two runs away, so every
- * run buys something or visibly fills the bar towards it.
+ * runs per level. The rule of thumb is that every run buys at least one upgrade, and a good run
+ * several: even a weak first run pays for a damage or fire rate level, and prices climb slowly
+ * enough that the payout keeps up with them.
  */
 export interface UpgradeInfo {
   title: string;
@@ -49,8 +50,8 @@ export interface UpgradeInfo {
 export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   damage: {
     title: 'Damage',
-    baseCost: 60 * COIN_SCALE,
-    costGrowth: 1.45,
+    baseCost: 40 * COIN_SCALE,
+    costGrowth: 1.42,
     maxLevel: 10,
     perLevel: 0.2,
     unit: 'percent',
@@ -58,8 +59,8 @@ export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   },
   rate: {
     title: 'Fire rate',
-    baseCost: 60 * COIN_SCALE,
-    costGrowth: 1.45,
+    baseCost: 40 * COIN_SCALE,
+    costGrowth: 1.42,
     maxLevel: 10,
     perLevel: 0.1,
     unit: 'percent',
@@ -67,8 +68,8 @@ export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   },
   soldiers: {
     title: 'Soldiers',
-    baseCost: 150 * COIN_SCALE,
-    costGrowth: 2.1,
+    baseCost: 120 * COIN_SCALE,
+    costGrowth: 1.9,
     maxLevel: 5,
     perLevel: 1,
     unit: 'count',
@@ -76,8 +77,8 @@ export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   },
   coins: {
     title: 'Coins',
-    baseCost: 80 * COIN_SCALE,
-    costGrowth: 1.6,
+    baseCost: 50 * COIN_SCALE,
+    costGrowth: 1.5,
     maxLevel: 5,
     perLevel: 0.25,
     unit: 'percent',
