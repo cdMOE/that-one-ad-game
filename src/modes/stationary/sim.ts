@@ -844,9 +844,9 @@ export class StationarySim {
         this.mrage[i]++;
         this.mcalm[i] = e.rageEvery;
         this.hooks.charge?.(this.mx[i], this.my[i]);
-        // and every rage step it sends one more rank of its horde
+        // and every rage step it sends half a wave more of its horde
         const h = this.msummons[i];
-        if (h) this.callHorde(i, h.columns);
+        if (h) this.callHorde(i, Math.ceil(h.count / 2));
       }
     }
     this.mtimer[i] -= dt;

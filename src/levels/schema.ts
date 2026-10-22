@@ -99,7 +99,7 @@ export type SummonKind = (typeof SUMMON_KINDS)[number];
 
 /**
  * The horde a miniboss or boss calls while it is on the field: a wave of `count` monsters in rows
- * of `columns` around it whenever its health drops past one of the shares in `at`, and one row
+ * of `columns` around it whenever its health drops past one of the shares in `at`, and half a wave
  * more on every rage step, so a long fight never thins out into a lonely duel.
  */
 export interface SummonDef {

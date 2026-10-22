@@ -239,7 +239,7 @@ describe('StationarySim', () => {
     expect(sim.kills).toBe(1 + horde.at.length * horde.count);
   });
 
-  it('a raging elite sends one more rank of its horde on every rage step', () => {
+  it('a raging elite sends half a wave of its horde on every rage step', () => {
     const horde = { kind: 'grunt' as const, hp: 1, count: 12, columns: 4, at: [0.5] };
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 100000,
@@ -250,7 +250,7 @@ describe('StationarySim', () => {
     const ranks: number[] = [];
     sim.hooks.summon = (_x, _y, count) => ranks.push(count);
     run(sim, 40);
-    expect(ranks).toEqual(new Array(MONSTERS.miniboss.elite!.maxRage).fill(horde.columns));
+    expect(ranks).toEqual(new Array(MONSTERS.miniboss.elite!.maxRage).fill(horde.count / 2));
   });
 
   it('elites hold their line and get angrier the longer they stand, until no lane is safe', () => {
