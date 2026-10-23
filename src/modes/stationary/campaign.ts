@@ -65,22 +65,23 @@ export interface CampaignTarget {
  * anywhere (shop, weapons, a level) that shifts the curve fails there instead of in a playtest.
  */
 export const CAMPAIGN: Readonly<Record<string, CampaignTarget>> = {
-  // `good` is set around the user's third playtest (3/5/6/2/6 runs), which they found right
+  // `good` is set around the user's third and fourth playtests (3/5/6/2/6 and 3/4/8/2/6 runs); the
+  // casual model clears the two breathers in a run or two, which is what a breather is for
   'stationary-01': {
     runs: { good: [3, 5], casual: [5, 8] },
     role: 'tutorial: horde, boss, a little further each run',
   },
   'stationary-02': {
-    runs: { good: [3, 5], casual: [3, 7] },
-    role: 'heavy crates and SPREAD: the upgrades bought show',
+    runs: { good: [3, 5], casual: [1, 5] },
+    role: 'heavy crates and the TRIPLE SHOT: the upgrades bought show',
   },
   'stationary-03': {
     runs: { good: [6, 8], casual: [10, 15] },
     role: 'the first real wall: blocks that grow',
   },
   'stationary-04': {
-    runs: { good: [2, 3], casual: [3, 7] },
-    role: 'power fantasy: armed from the start, a flood that melts',
+    runs: { good: [2, 3], casual: [2, 6] },
+    role: 'mass against mass: the biggest squad against a flood three times as big',
   },
   'stationary-05': {
     runs: { good: [6, 9], casual: [12, 18] },

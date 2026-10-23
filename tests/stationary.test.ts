@@ -476,6 +476,23 @@ describe('StationarySim', () => {
     expect(volleysAfter).toBeGreaterThan(0);
   });
 
+  it('a miniboss fires through the horde', () => {
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 600,
+      monsters: [
+        { kind: 'miniboss', count: 1, hp: 1000000, interval: 1, x: 0.5, spread: 0 },
+        { kind: 'grunt', count: 240, hp: 1000000, interval: 0.12, delay: 10 },
+      ],
+    });
+    const sim = new StationarySim(level, mulberry32(2));
+    sim.targetX = sim.lane.x;
+    sim.snapSquad = true;
+    const announced: number[] = [];
+    sim.hooks.telegraph = () => announced.push(sim.hordeNear);
+    for (let i = 0; i < 30 * 40 && sim.phase !== 'lost'; i++) sim.update(1 / 30);
+    expect(announced.some((n) => n >= HORDE_HOLD)).toBe(true);
+  });
+
   it('a volley costs the squad once, even when it stands in two zones', () => {
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 20,
@@ -731,6 +748,18 @@ describe('StationarySim', () => {
     const sim = new StationarySim(level, mulberry32(1));
     run(sim, 5, (s) => (s.targetX = 5)); // never shoots it
     expect(sim.lane.elements[0].hp).toBeGreaterThan(130);
+  });
+
+  it('a growing block stops growing while it is shot, and at twice its hit points', () => {
+    const level = withLane([{ type: 'block', hp: 1000, grow: 500 }], {
+      monsters: [{ kind: 'grunt', count: 1, hp: 1, interval: 1, delay: 500 }],
+    });
+    const shot = new StationarySim(level, mulberry32(1));
+    run(shot, 10, (s) => (s.targetX = s.lane.x));
+    expect(shot.lane.elements[0].hp).toBeLessThan(1000);
+    const left = new StationarySim(level, mulberry32(1));
+    run(left, 30, (s) => (s.targetX = 5));
+    expect(left.lane.elements[0].hp).toBeCloseTo(2000);
   });
 
   it('remembers the biggest squad of the run, also after bites (stars compare against it)', () => {

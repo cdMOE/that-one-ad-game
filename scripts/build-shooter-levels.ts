@@ -37,8 +37,13 @@ interface LevelSpec {
    * longer, as dense as ever (default 1: the boss reaches its line at about 52 s).
    */
   tempo?: number;
-  /** Monsters of the opening and middle phase, relative to the template (more, each softer). */
+  /**
+   * Monsters of the horde relative to the template: the opening and middle phase, and with `sway`
+   * also the pulses (wider and deeper walls).
+   */
   crowd?: number;
+  /** Health of every grunt and runner of the horde, relative to `k` (default 1): a softer swarm. */
+  swarm?: number;
   /** Health of the end-phase pulses, first and last, before `k`. */
   pulseHp?: [number, number];
   /** The end-phase pulses come one side at a time, left, right, left: a flood that sloshes. */
@@ -69,20 +74,20 @@ const LEVELS: LevelSpec[] = [
     summons: { kind: 'grunt', hp: 20, count: 32, columns: 8, at: [0.75, 0.5, 0.25] },
   },
   {
-    // heavy crates: few, thick blocks with big rewards, and SPREAD: the shots fan out, the tanks
-    // that come in pairs all through the level fall to it. No miniboss: the breather after the
-    // tutorial, the tank pairs are its small walls
+    // heavy crates: few, thick blocks with big rewards, and the TRIPLE SHOT right with the minigun:
+    // the shots fan out wide, the tanks that come in pairs all through the level fall to it. No
+    // miniboss: the breather after the tutorial, the tank pairs are its small walls
     file: '12-heavy-crates',
     id: 'stationary-02',
     name: 'Heavy Crates',
-    k: 3.969,
-    boss: 1.6,
+    k: 6.8,
+    boss: 0.9,
     side: 'left',
     tempo: 0.95,
-    opening: 'B8 +2 B60 +2 B230 rifle x2',
-    ladder: 'B350 minigun +3 B1400 s+1 B3000 +5 B5500 r+0.15 B9000 +6 B14000 +8 B21000 +10',
+    opening: 'B8 +2 B30 +2 B90 rifle x2',
+    ladder: 'B100 minigun s+2 B1400 +3 B3000 +5 B5500 r+0.15 B9000 +6 B14000 +8 B21000 +10',
     miniboss: null,
-    summons: { kind: 'tank', hp: 40, count: 4, columns: 4, at: [0.66, 0.33] },
+    summons: { kind: 'tank', hp: 90, count: 6, columns: 6, at: [0.66, 0.33] },
     extra: [tank(2, 30, 1.5, 20, -0.3), tank(2, 45, 1.5, 32, 0.3), tank(2, 60, 1.5, 42, -0.3)],
   },
   {
@@ -93,20 +98,20 @@ const LEVELS: LevelSpec[] = [
     file: '13-growing-pains',
     id: 'stationary-03',
     name: 'Growing Pains',
-    k: 8.2,
+    k: 9,
     boss: 0.75,
     side: 'right',
     tempo: 1.15,
     opening: 'B10 +2 B80 +2 B310 rifle +3',
     ladder:
-      'B400 minigun +3 G900 d+0.25 G1500 +3 G2200 d+0.25 G3000 +4 G4000 r+0.15 G5200 +4 G6600 +5 G8200 +6',
+      'B250 minigun +3 G800 d+0.25 G1150 +3 G1600 d+0.25 G2200 +3 G3000 r+0.15 G3900 +4 G5000 +4 G6400 +5 G8200 +6',
     runnersAt: 0.8,
     summons: { kind: 'grunt', hp: 20, count: 32, columns: 8, at: [0.75, 0.5, 0.25] },
     extra: [
       {
         kind: 'miniboss',
         count: 1,
-        hp: 1500,
+        hp: 900,
         interval: 1,
         delay: 48,
         x: 0,
@@ -116,21 +121,24 @@ const LEVELS: LevelSpec[] = [
     ],
   },
   {
-    // the flood: armed from the start, rewards raining down every few seconds, nearly twice as
-    // many monsters, each softer, sloshing from side to side; no miniboss, a short boss fight
+    // the flood: armed from the start, rewards raining down every few seconds and a second x2 that
+    // makes the biggest squad of the game, against three times as many monsters, each a fraction
+    // as tough, the end phase as full-width walls sloshing from side to side: mass against mass,
+    // the breather before the chapter boss. No miniboss, a short boss fight
     file: '14-flood',
     id: 'stationary-04',
     name: 'The Flood',
-    k: 29,
-    boss: 0.35,
+    k: 33,
+    boss: 0.65,
     side: 'left',
     weapon: 'rifle',
     tempo: 0.95,
     opening: 'B12 +3 B60 minigun x2',
     ladder:
-      'B120 +2 B200 +2 B320 +3 B500 +3 B750 r+0.15 B1100 +3 B1600 +4 B2300 +4 B3200 r+0.15 B4500 +5 B6200 +6',
-    crowd: 1.8,
-    pulseHp: [3, 4],
+      'B120 +2 B250 x2 B400 +3 B600 r+0.15 B900 +3 B1300 +4 B1900 +4 B2700 r+0.15 B3800 +5 B5200 +6 B7000 +6',
+    crowd: 3,
+    swarm: 1,
+    pulseHp: [4, 16],
     sway: true,
     miniboss: null,
     summons: { kind: 'grunt', hp: 12, count: 24, columns: 8, at: [0.75, 0.5, 0.25] },
@@ -141,7 +149,7 @@ const LEVELS: LevelSpec[] = [
     file: '15-big-boss',
     id: 'stationary-05',
     name: 'Big Boss',
-    k: 42,
+    k: 44,
     side: 'right',
     tempo: 1.1,
     opening: 'B15 +2 B120 +2 B400 rifle +3',
@@ -165,8 +173,11 @@ const LEVELS: LevelSpec[] = [
 
 /** The highest block the level schema allows; that far down the lane no run gets anyway. */
 const MAX_BLOCK = 1_000_000;
-/** A growing block (`G` token) gains this share of its health every second it stands in front. */
-const GROW_SHARE = 0.03;
+/**
+ * A growing block (`G` token) gains this share of its health every second it stands in front
+ * without being hit (the sim lets it grow only then, up to twice its health).
+ */
+const GROW_SHARE = 0.01;
 
 /** Rounds to two significant digits, so the files read like designed numbers. */
 function nice(x: number): number {
@@ -261,16 +272,26 @@ function opening(crowd: number, tempo: number): SpawnDef[] {
  * seconds. Eight pulses of three rows, 0.6 s apart, 3 s of breather (`tempo` times as many, from
  * `tempo` times later). With `sway` each pulse comes down one side, the next one the other.
  */
-function pulses([hp0, hp1]: [number, number], tempo: number, sway: boolean): SpawnDef[] {
+function pulses(
+  [hp0, hp1]: [number, number],
+  tempo: number,
+  sway: boolean,
+  crowd: number,
+): SpawnDef[] {
   const out: SpawnDef[] = [];
   const count = Math.max(2, Math.round(8 * tempo));
-  const rows = 3;
+  // a swaying pulse is a wall: `crowd` times as many, as deep as it is wide
+  const rows = sway ? Math.round(3 * Math.sqrt(crowd)) : 3;
+  const cols = Math.min(10, Math.round(6 * Math.sqrt(crowd)));
   const interval = 0.6;
   let t = 50 * tempo;
   for (let i = 0; i < count; i++) {
     const hp = hp0 + ((hp1 - hp0) * i) / (count - 1);
     if (sway) {
-      out.push(grunt(rows * 6, hp, interval, round2(t), 6, 0.55, i % 2 === 0 ? -0.45 : 0.45));
+      // as wide as it gets while one edge of the field stays free, the free edge switching sides
+      const spread = Math.min(0.8, (0.55 * cols) / 6);
+      const x = (i % 2 === 0 ? -1 : 1) * (1 - spread);
+      out.push(grunt(rows * cols, hp, interval, round2(t), cols, round2(spread), round2(x)));
     } else {
       out.push(grunt(rows * 3, hp, interval, round2(t), 3, 0.5, -0.5));
       out.push(grunt(rows * 3, hp, interval, round2(t + 0.3), 3, 0.5, 0.5));
@@ -288,7 +309,7 @@ function build(spec: LevelSpec): StationaryLevel {
   const miniboss = spec.miniboss === undefined ? 300 : spec.miniboss;
   const template: SpawnDef[] = [
     ...opening(spec.crowd ?? 1, tempo),
-    ...pulses(spec.pulseHp ?? [5, 7], tempo, spec.sway ?? false),
+    ...pulses(spec.pulseHp ?? [5, 7], tempo, spec.sway ?? false, spec.crowd ?? 1),
     // tanks come between the pulses, not with the boss: the boss is the one wall at the end
     tank(3, 195, 1.5, at(57)),
     tank(3, 300, 1.4, at(66)),
@@ -312,8 +333,10 @@ function build(spec: LevelSpec): StationaryLevel {
     hp: hp(s.hp),
     ...(s.mix ? { mix: s.mix.map((p) => ({ ...p, hp: hp(p.hp) })) } : {}),
   });
+  const swarm = spec.swarm ?? 1;
   const monsters = template.map((m) => {
-    const scaled: SpawnDef = { ...m, hp: hp(m.hp) };
+    const soft = m.kind === 'grunt' || m.kind === 'runner' ? swarm : 1;
+    const scaled: SpawnDef = { ...m, hp: hp(m.hp * soft) };
     if (m.summons) scaled.summons = summons(m.summons);
     if (m.kind === 'runner' && spec.runnersAt !== undefined) {
       scaled.x = spec.runnersAt;

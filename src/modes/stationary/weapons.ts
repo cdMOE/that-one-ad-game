@@ -25,10 +25,11 @@ export interface WeaponStats {
 
 /**
  * Fan (radians) of a shot with more than one pellet when the weapon has none of its own: the
- * pellets of a SPREAD power-up fan out where you can see them, into the next columns of the horde,
- * instead of stacking on one line.
+ * pellets of a TRIPLE SHOT fan out wide where you can see them, into the columns next to the
+ * soldier's, instead of stacking on one line. Into a lane block only the middle one hits, so it
+ * thins the horde three times as fast and not the lane.
  */
-const PELLET_FAN = 0.12;
+const PELLET_FAN = 0.36;
 
 export const WEAPONS: Record<WeaponId, WeaponStats> = {
   pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, speed: 20 },
@@ -80,7 +81,11 @@ export function itemLabel(c: ItemDef): { title: string; sub: string } {
     case 'crowd':
       return { title: gateLabel(c), sub: 'SOLDIERS' };
     case 'upgrade':
-      if (c.stat === 'pellets') return { title: `+${Math.round(c.value)}`, sub: 'SPREAD' };
+      if (c.stat === 'pellets') {
+        return Math.round(c.value) === 2
+          ? { title: 'TRIPLE', sub: 'SHOT' }
+          : { title: `+${Math.round(c.value)}`, sub: 'SPREAD' };
+      }
       return {
         title: `+${Math.round(c.value * 100)}%`,
         sub: c.stat === 'rate' ? 'FIRE RATE' : 'DAMAGE',

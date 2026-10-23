@@ -134,7 +134,10 @@ export type LaneElementDef =
   | {
       type: 'block';
       hp: number;
-      /** Extra hit points the block gains every second while it is the front block (default 0). */
+      /**
+       * Extra hit points the block gains every second while it is the front block and nothing has
+       * hit it for a second, up to twice its starting hit points (default 0).
+       */
       grow?: number;
     }
   | { type: 'item'; item: ItemDef };

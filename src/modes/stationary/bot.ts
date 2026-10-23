@@ -92,6 +92,12 @@ export interface Pilot {
    * monster among many and walks through.
    */
   focus?: boolean;
+  /**
+   * Finishes a lane block it could break in this many seconds of fire before it turns to anything
+   * else but a horde on top of the squad. Without it the bot leaves a block at 1% for a miniboss
+   * that just walked in, and a growing block grows back while it is gone.
+   */
+  finishWithin?: number;
 }
 
 /**
@@ -128,6 +134,7 @@ export const GOOD: Pilot = {
   lineOfFire: true,
   engageAt: 11,
   focus: true,
+  finishWithin: 0.6,
 };
 
 /** Pilots by name, for the scripts. */
@@ -324,6 +331,10 @@ function fieldTarget(sim: StationarySim, pilot: Pilot): number {
     }
   }
   const front = sim.lane.elements[0];
+  if (front && nearestY >= 3 && front.type === 'block' && pilot.finishWithin) {
+    const w = effectiveWeapon(sim.weapon);
+    if (front.hp <= w.damage * w.rate * sim.count * pilot.finishWithin) return sim.lane.x;
+  }
   if (!front || danger >= 3 || nearestY < 3) return bestX;
   // quiet moment: a boss standing in the field is worth more than the next block
   const elite = nearestElite(sim);

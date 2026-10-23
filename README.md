@@ -142,8 +142,8 @@ bites the squad, wherever the squad is, so you have to sweep between both lanes.
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `weapon`     | `pistol`, `rifle`, `minigun`, `laser` (its shots go through the horde); each soldier carries one. Squads above 40 still hit harder per bullet.                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `lane`       | `side` (`left`/`right`) and `elements`, listed front first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `elements[]` | `{ "type": "block", "hp", "grow"? }` or `{ "type": "item", "item": ... }`. `grow` = HP gained per second while it is the front block.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`: SPREAD, the shots fan out) or `weapon`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `elements[]` | `{ "type": "block", "hp", "grow"? }` or `{ "type": "item", "item": ... }`. `grow` = HP gained per second while it is the front block and has not been hit for a second (up to twice its HP).                                                                                                                                                                                                                                                                                                                                                                               |
+| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`: extra shots in a wide fan, +2 is the TRIPLE SHOT) or `weapon`                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `monsters[]` | Streams: `kind` (`grunt`, `runner`, `tank`, `miniboss`, `boss`), `count` (up to 2000), `hp`, `interval` seconds apart, optional `delay` (from level start). Times say when a monster enters the field; it sets off from the haze earlier, so it arrives on time. `columns` turns the stream into marching ranks: every `interval` seconds a whole row of that many monsters enters side by side. `x` (-1..1) and `spread` (0..1) say where in the monster lane they enter (default: the whole lane); a narrow formation (small `spread`) is easy for one soldier to cover. |
 
 The level is won as soon as the last monster is dead (or has bitten); blocks and power-ups still on
@@ -177,11 +177,12 @@ level can **not** be won on the first run either: you lose, bank the coins, buy 
 again. They are meant to take a number of runs each, rising in waves (see `CAMPAIGN` below), and
 each has a face of its own: its own lane, its own pace and one new thing. Heavy Crates is a
 breather after the tutorial (few thick crates with big rewards, an `x2` right after the rifle,
-SPREAD that fans the shots out, tanks in pairs and no miniboss), Growing Pains the first real wall
-(blocks that grow while they stand in front, DAMAGE as the reward, runners down the far flank, a
-second miniboss that calls them, the longest level), The Flood a power fantasy (armed from the
-start, a reward every few seconds, nearly twice as many monsters, each softer, sloshing from side
-to side) and Big Boss the chapter boss (two minibosses on guard, a boss that calls every kind of
+the TRIPLE SHOT right with the minigun, a wide fan that melts the tank pairs, no miniboss, the boss
+and its tanks as the wall), Growing Pains the first real wall (blocks that grow back while nobody
+shoots them, DAMAGE as the reward, runners down the far flank, a second miniboss that calls them,
+the longest level), The Flood mass against mass (armed from the start, a reward every few seconds,
+a second `x2` for the biggest squad of the game, three times as many monsters, the end phase as
+full-width walls sloshing from side to side) and Big Boss the chapter boss (two minibosses on guard, a boss that calls every kind of
 monster at once, and the LASER as the prize a strong run reaches just before the boss). A
 lost run shows how far it got, against the level's record, and what finished it (the horde or a
 boss volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the
@@ -220,9 +221,9 @@ field: there is no queue, no breather, and two bosses can be out at once. They w
 line well inside the field (`holdY` in `sim.ts`) and never bite. Instead they stay until you kill
 them and fire volleys at intervals: red zones light up, and a moment later they land, costing a share of your soldiers (once per volley) unless
 you have slid out of all of them. A boss fight comes in phases: while a horde stands on the field in
-front of the elites (enough to bite `HORDE_HOLD` soldiers, a tank counts as four), they hold their
-fire, and once it clears they open fire at once, so you fight the horde, then dodge and hit the boss,
-never both at full strength. The first zone is aimed at your squad with a chance (`aimedChance`),
+front of the boss (enough to bite `HORDE_HOLD` soldiers, a tank counts as four), it holds its fire,
+and once it clears it opens fire at once, so you fight the horde, then dodge and hit the boss, never
+both at full strength. A miniboss fires through the horde: it is where you learn to dodge. The first zone is aimed at your squad with a chance (`aimedChance`),
 otherwise it lands at random, and the boss adds a second random zone (`zones`); a volley always
 leaves a gap the squad fits into. The upgrade lane is never struck. Everything else (grunts, runners, tanks)
 still walks down and bites. Bullets have a limited range (`BULLET_RANGE` in `sim.ts`): they reach

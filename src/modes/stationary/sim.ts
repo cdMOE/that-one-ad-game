@@ -124,6 +124,8 @@ export interface EliteStats {
    * scratch it.
    */
   progressShare: number;
+  /** It holds its fire while a horde crowds the field (see `HORDE_HOLD`). */
+  hordePhases: boolean;
 }
 
 /** The elites of a level fill at most this share of the progress bar; the horde fills the rest. */
@@ -134,9 +136,9 @@ export const RAGE_PACE = 0.8;
 
 /**
  * A boss fight comes in phases, never horde and volleys at full strength at once: while the horde
- * on the field in front of the elites (closer than `HORDE_FIELD_Y`, its own or the level's) could
- * bite at least `HORDE_HOLD` soldiers (a tank counts as four grunts), they hold their fire, and
- * the squad deals with the horde.
+ * on the field in front of the boss (closer than `HORDE_FIELD_Y`, its own or the level's) could
+ * bite at least `HORDE_HOLD` soldiers (a tank counts as four grunts), it holds its fire, and the
+ * squad deals with the horde (only elites with `hordePhases`; a miniboss always fires).
  * Once the field clears they open fire within `HORDE_REFIRE` of their volley interval: dodge and
  * hit the boss. A volley already announced still lands. Health marks and rage steps call the next
  * wave, so a fight that drags never thins out into a lonely duel either.
@@ -179,6 +181,9 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
       rageEvery: 4,
       maxRage: 4,
       progressShare: 0.05,
+      // a miniboss fires through the horde: it is where the squad learns to dodge, and it often
+      // arrives into a crowd that would keep it silent until it dies
+      hordePhases: false,
     },
   },
   boss: {
@@ -200,6 +205,7 @@ export const MONSTERS: Record<MonsterKind, MonsterStats> = {
       rageEvery: 4,
       maxRage: 4,
       progressShare: 0.25,
+      hordePhases: true,
     },
   },
 };
@@ -252,6 +258,13 @@ export const MAX_MONSTERS = 1000;
  * squad of drawn soldiers on a maxed minigun over a whole bullet range, so none is lost unseen.
  */
 export const MAX_BULLETS = 1600;
+/**
+ * A growing block only grows once nothing has hit it for this many seconds, so shooting it always
+ * makes progress: it punishes a squad that leaves the lane alone, not one that is too weak.
+ */
+const GROW_IDLE = 1;
+/** And never past this many times the hit points it started with. */
+const GROW_CAP = 2;
 /** Shots one soldier may fire in one step: a long frame (up to `MAX_FRAME`) still fires them all. */
 const MAX_SHOTS_PER_STEP = 6;
 /** Monsters are sorted into horizontal slabs of this height so bullets only test nearby ones. */
@@ -268,6 +281,10 @@ export interface LaneElement {
   hp: number;
   maxHp: number;
   grow: number;
+  /** Most hit points growing can bring it to (see `GROW_CAP`). */
+  growCap: number;
+  /** Seconds since a bullet last hit it (see `GROW_IDLE`). */
+  idle: number;
   item?: ItemDef;
   /** 1 right after a hit, decays in the view. */
   flash: number;
@@ -590,6 +607,8 @@ export class StationarySim {
         hp: e.type === 'block' ? e.hp : 0,
         maxHp: e.type === 'block' ? e.hp : 0,
         grow: e.type === 'block' ? (e.grow ?? 0) : 0,
+        growCap: e.type === 'block' ? e.hp * GROW_CAP : 0,
+        idle: 0,
         ...(e.type === 'item' ? { item: e.item } : {}),
         flash: 0,
       })),
@@ -1004,8 +1023,8 @@ export class StationarySim {
         if (h) this.callHorde(i, Math.ceil(h.count / 2), true);
       }
     }
-    // horde phase: it holds its fire while the horde is in front of it (see `HORDE_HOLD`)
-    if (this.mstate[i] === 1 && this.hordeNear >= HORDE_HOLD) {
+    // horde phase: the boss holds its fire while the horde is in front of it (see `HORDE_HOLD`)
+    if (e.hordePhases && this.mstate[i] === 1 && this.hordeNear >= HORDE_HOLD) {
       this.mtimer[i] = Math.max(this.mtimer[i] - dt, e.interval * HORDE_REFIRE);
       return false;
     }
@@ -1104,8 +1123,11 @@ export class StationarySim {
     for (let k = 0; k < els.length; k++) {
       const e = els[k];
       if (e.type === 'block' && k === 0 && e.grow > 0) {
-        e.hp += e.grow * dt;
-        e.maxHp = Math.max(e.maxHp, e.hp);
+        e.idle += dt;
+        if (e.idle >= GROW_IDLE && e.hp < e.growCap) {
+          e.hp = Math.min(e.growCap, e.hp + e.grow * dt);
+          e.maxHp = Math.max(e.maxHp, e.hp);
+        }
       }
       // a block never comes closer than the hold line, even while a power-up in front of it
       // is still falling, so it cannot jump back up once it becomes the front element
@@ -1258,6 +1280,7 @@ export class StationarySim {
     if (block) {
       block.hp -= dmg;
       block.flash = 1;
+      block.idle = 0;
       this.hooks.blockHit?.(this.bx[i], block.y - BLOCK_HEIGHT / 2);
       if (block.hp <= 0) {
         lane.elements.splice(lane.elements.indexOf(block), 1);
