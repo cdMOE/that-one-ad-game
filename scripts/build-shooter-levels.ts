@@ -99,7 +99,7 @@ const LEVELS: LevelSpec[] = [
     file: '13-growing-pains',
     id: 'stationary-03',
     name: 'Growing Pains',
-    k: 9.8,
+    k: 10.4,
     boss: 0.75,
     side: 'right',
     tempo: 1.15,

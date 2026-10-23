@@ -224,8 +224,17 @@ function walkInSpeed(stats: MonsterStats): number {
 
 /** Most zones one volley can have; sizes the per-monster target storage. */
 export const MAX_ZONES = 3;
-/** Extra room, beyond the squad's own width, that a volley leaves free so it can be dodged. */
-const SAFE_MARGIN = 0.6;
+/**
+ * Extra room, beyond the squad's own width, that a volley leaves free so it can be dodged. No open
+ * stretch of a volley is narrower than that: what looks free is safe (see `aimVolley`).
+ */
+export const SAFE_MARGIN = 0.6;
+/**
+ * Half the width of a soldier to a strike: a little narrower than the ~0.25 it is drawn (see
+ * `soldierGeometry`), like the hitbox of a shmup ship, so a squad that only brushes the edge of a
+ * zone with a shoulder gets away with it.
+ */
+export const STRIKE_BODY = 0.2;
 
 export const MONSTER_KIND_BY_INDEX: MonsterKind[] = ['grunt', 'runner', 'tank', 'miniboss', 'boss'];
 const MONSTER_KIND_INDEX: Record<MonsterKind, number> = {
@@ -510,6 +519,12 @@ export class StationarySim {
   /** Centres of the announced zones, `MAX_ZONES` slots per monster. */
   private readonly mtarget = new Float32Array(MAX_MONSTERS * MAX_ZONES);
   private readonly mzones = new Uint8Array(MAX_MONSTERS);
+  /**
+   * What an announced volley was planned for, kept until it lands: where it may strike (two slots
+   * per monster, see `strikeField`), and the squad's `strikeReach` then.
+   */
+  private readonly mfield = new Float32Array(MAX_MONSTERS * 2);
+  private readonly mreach = new Float32Array(MAX_MONSTERS);
   /** Strikes that are lit up right now (rebuilt every step). */
   readonly attacks: Attack[] = [];
   /** Soldiers the horde in front of the elites could bite this step (see `HORDE_HOLD`). */
@@ -646,6 +661,11 @@ export class StationarySim {
   /** Half the width of the formation, used to keep it inside the arena. */
   halfWidth(): number {
     return ((this.cols - 1) / 2) * SOLDIER_SPACING + 0.35;
+  }
+
+  /** How far the squad reaches to each side for a strike: its outer soldiers' `STRIKE_BODY`. */
+  strikeReach(): number {
+    return ((this.cols - 1) / 2) * SOLDIER_SPACING + STRIKE_BODY;
   }
 
   /** World position of soldier `i` (0 = front row). */
@@ -851,7 +871,7 @@ export class StationarySim {
       if (stats?.elite && this.mstate[i] === 2) {
         const t = 1 - Math.max(0, this.mtimer[i]) / stats.elite.telegraph;
         const half = stats.elite.halfWidth;
-        const [minX, maxX] = this.strikeField(i, stats.elite);
+        const [minX, maxX] = this.volleyField(i);
         for (let z = 0; z < this.mzones[i]; z++) {
           const x = this.mtarget[i * MAX_ZONES + z];
           const lo = Math.max(x - half, minX);
@@ -977,6 +997,14 @@ export class StationarySim {
   }
 
   /**
+   * Where the announced volley of elite `i` may strike: the `strikeField` it was planned for, even
+   * when the elite rages into full rage before it lands (a zone must not grow under the squad).
+   */
+  private volleyField(i: number): [number, number] {
+    return [this.mfield[2 * i], this.mfield[2 * i + 1]];
+  }
+
+  /**
    * One elite's step: walk in to the hold line, wait, announce a volley (see `aimVolley`), then
    * let it land. Returns true when the volley wiped out the squad.
    */
@@ -1040,17 +1068,19 @@ export class StationarySim {
       return false;
     }
     // only the monster field is struck: a squad standing in the upgrade lane is out of reach,
-    // until the elite is in full rage
-    const reach = this.halfWidth();
+    // until the elite is in full rage. The squad is judged as wide as it was when the volley was
+    // announced: a power-up that widens it during the warning must not push it out of its gap.
+    // Brushing a zone's edge is not a hit (see `STRIKE_BODY`).
+    const reach = Math.min(this.strikeReach(), this.mreach[i]);
     const zones = this.mzones[i];
-    const [minX, maxX] = this.strikeField(i, e);
+    const [minX, maxX] = this.volleyField(i);
     const caught: boolean[] = [];
     let hit = false;
     for (let z = 0; z < zones; z++) {
       const x = this.mtarget[i * MAX_ZONES + z];
       const lo = Math.max(x - e.halfWidth, minX);
       const hi = Math.min(x + e.halfWidth, maxX);
-      const inside = this.squadX + reach >= lo && this.squadX - reach <= hi;
+      const inside = this.squadX + reach > lo && this.squadX - reach < hi;
       caught.push(inside);
       hit ||= inside;
     }
@@ -1080,34 +1110,65 @@ export class StationarySim {
   /**
    * Picks the zones of a volley: `zones` of them, one more for every second rage step. The first
    * one is aimed at the squad with chance `aimedChance`, otherwise (and for all further zones) it
-   * lands at random where the elite may strike (see `strikeField`). A zone that would leave no gap
-   * the squad fits into is dropped, so a volley can always be dodged.
+   * lands at random where the elite may strike (see `strikeField`).
+   *
+   * What looks free is safe: every open stretch of road a volley leaves, between two zones or
+   * between a zone and the road's edge, is wide enough for the squad and `SAFE_MARGIN`. A zone
+   * that would leave a narrower one slides the shortest way to a spot where it touches its
+   * neighbour (or the edge) or leaves a real gap; one that finds no such spot, or that would leave
+   * no gap the squad fits into at all, is dropped, so a volley can always be dodged. Only the
+   * strip beside the strike field that no zone can reach (the road's edge, the upgrade lane) may
+   * be narrower: it is never struck.
    */
   private aimVolley(i: number, e: EliteStats): void {
     const [minX, maxX] = this.strikeField(i, e);
+    this.mfield[2 * i] = minX;
+    this.mfield[2 * i + 1] = maxX;
+    this.mreach[i] = this.strikeReach();
     const aimed = this.rng() < e.aimedChance;
     const need = 2 * this.halfWidth() + SAFE_MARGIN;
-    const zones: number[] = [];
-    const leavesRoom = (extra: number): boolean => {
-      const spans = [...zones, extra]
-        .map((x) => [Math.max(x - e.halfWidth, minX), Math.min(x + e.halfWidth, maxX)])
+    const half = e.halfWidth;
+    const wall = ARENA.halfWidth;
+    // the widest open stretch the zones `xs` leave, or -1 when one of them is a sliver
+    const room = (xs: number[]): number => {
+      const spans = xs
+        .map((x) => [Math.max(x - half, minX), Math.min(x + half, maxX)])
         .sort((a, b) => a[0] - b[0]);
+      spans.push([wall, wall]);
       // the upgrade lane is never struck, so the free room counts all the way to the arena wall
-      let cursor = -ARENA.halfWidth;
+      let cursor = -wall;
+      let widest = 0;
       for (const [lo, hi] of spans) {
-        if (lo - cursor >= need) return true;
+        const open = lo - cursor;
+        const struck = lo > minX && cursor < maxX;
+        if (struck && open > 1e-4 && open < need) return -1;
+        widest = Math.max(widest, open);
         cursor = Math.max(cursor, hi);
       }
-      return ARENA.halfWidth - cursor >= need;
+      return widest;
     };
+    const zones: number[] = [];
     const count = Math.min(e.zones + Math.floor(this.mrage[i] / 2), MAX_ZONES);
     for (let z = 0; z < count; z++) {
-      // the very first zone is allowed to hit the squad whatever the room, a lone strike can be dodged
-      const x =
+      const want =
         z === 0 && aimed
           ? Math.max(minX, Math.min(maxX, this.squadX))
           : minX + this.rng() * (maxX - minX);
-      if (z === 0 || leavesRoom(x)) zones.push(x);
+      // where it may go: where it wants, snug against a neighbour or the road's edge, or a squad's
+      // width (and margin) away from one
+      const spots = [want, minX + half, maxX - half, -wall + need + half, wall - need - half];
+      for (const x of zones) {
+        spots.push(x + 2 * half, x - 2 * half, x + 2 * half + need, x - 2 * half - need);
+      }
+      let best = Infinity;
+      for (const x of spots) {
+        if (x < minX || x > maxX || Math.abs(x - want) >= Math.abs(best - want)) continue;
+        // the very first zone is allowed to hit the squad whatever the room: a lone strike can
+        // always be dodged
+        const r = room([...zones, x]);
+        if (r >= 0 && (z === 0 || r >= need)) best = x;
+      }
+      if (Number.isFinite(best)) zones.push(best);
     }
     this.mzones[i] = zones.length;
     for (let z = 0; z < zones.length; z++) this.mtarget[i * MAX_ZONES + z] = zones[z];

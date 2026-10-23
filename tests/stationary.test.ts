@@ -16,8 +16,10 @@ import {
   MAX_SHOOTERS,
   MONSTERS,
   MONSTER_KIND_BY_INDEX,
+  SAFE_MARGIN,
   SOLDIER_SPACING,
   SPAWN_FAR,
+  STRIKE_BODY,
   StationarySim,
 } from '../src/modes/stationary/sim';
 import {
@@ -391,19 +393,22 @@ describe('StationarySim', () => {
       const sim = new StationarySim(level, () => 0); // rng 0: every volley is aimed
       const strikes: Array<{ hit: boolean; lost: number }> = [];
       sim.hooks.strike = (_x, _h, hit, lost) => strikes.push({ hit, lost });
-      let announcedAt = NaN;
+      let announced: { lo: number; hi: number } | null = null;
       sim.targetX = 3;
       for (let i = 0; i < 30 * 60 && strikes.length === 0; i++) {
-        if (sim.attacks.length > 0 && Number.isNaN(announcedAt)) {
-          announcedAt = sim.attacks[0].x;
+        if (sim.attacks.length > 0 && !announced) {
+          announced = sim.attacks[0];
           if (dodge) sim.targetX = sim.monsterMinX - 2; // slide away into the lane
         }
         sim.update(1 / 30);
       }
-      return { strike: strikes[0], announcedAt, sim };
+      return { strike: strikes[0], announced: announced!, sim };
     };
     const stay = play(false);
-    expect(stay.announcedAt).toBeCloseTo(3, 0); // aimed where the squad stood
+    // aimed where the squad stood, and slid out to the road's edge: centred on the squad it would
+    // have left a strip beside it that looks free but is too narrow for the squad
+    expect(stay.announced.lo).toBeLessThan(3 + stay.sim.strikeReach());
+    expect(stay.announced.hi).toBeCloseTo(stay.sim.monsterMaxX, 3);
     expect(stay.strike.hit).toBe(true);
     expect(stay.strike.lost).toBe(Math.ceil(20 * MONSTERS.boss.elite!.damage));
     expect(stay.sim.count).toBe(20 - stay.strike.lost);
@@ -444,6 +449,89 @@ describe('StationarySim', () => {
       widest = Math.max(widest, ARENA.halfWidth - cursor);
       expect(widest).toBeGreaterThanOrEqual(2 * sim.halfWidth());
     }
+  });
+
+  it('what looks free is safe: no volley leaves an open strip the squad does not fit into', () => {
+    let volleys = 0;
+    let multi = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const kind = seed % 2 ? 'boss' : 'miniboss';
+      const size = [1, 2, 3, 4, 5, 20][seed % 6]; // one to five columns
+      const level = withLane([], {
+        startCount: size,
+        lane: { side: seed % 3 ? 'left' : 'right', elements: [{ type: 'block', hp: 1000000 }] },
+        monsters: [{ kind, count: 1, hp: 1000000, interval: 1, x: 0.5, spread: 0 }],
+      });
+      const sim = new StationarySim(level, mulberry32(seed));
+      const wander = mulberry32(seed + 1000);
+      sim.snapSquad = true;
+      let announced = 0;
+      sim.hooks.telegraph = () => announced++;
+      // a minute in front of the elite, through all its rage steps, wandering so that aimed zones
+      // land everywhere, right up to the road's edges
+      for (let k = 0; k < 30 * 60 && sim.phase !== 'lost'; k++) {
+        if (k % 20 === 0) sim.targetX = -6 + 12 * wander();
+        if (sim.count > 0) sim.count = size; // never worn down: the squad keeps its width
+        const before = announced;
+        sim.update(1 / 30);
+        if (announced === before) continue;
+        const elite = sim.malive.findIndex((v) => v === 1);
+        const full = sim.mrage[elite] >= MONSTERS[kind].elite!.maxRage;
+        // where its zones may land; beyond that, a strip no zone can reach is never struck
+        const minX = full ? -ARENA.halfWidth : sim.monsterMinX;
+        const maxX = full ? ARENA.halfWidth : sim.monsterMaxX;
+        const need = 2 * sim.halfWidth() + SAFE_MARGIN;
+        const spans = sim.attacks.map((a) => [a.lo, a.hi]).sort((a, b) => a[0] - b[0]);
+        spans.push([ARENA.halfWidth, ARENA.halfWidth]);
+        let cursor = -ARENA.halfWidth;
+        for (const [lo, hi] of spans) {
+          const open = lo - cursor;
+          // two zones (or a zone and the edge) touch, or leave a gap the squad fits into
+          if (lo > minX + 1e-3 && cursor < maxX - 1e-3 && open > 1e-3) {
+            expect(open).toBeGreaterThanOrEqual(need - 1e-3);
+          }
+          cursor = Math.max(cursor, hi);
+        }
+        volleys++;
+        if (sim.attacks.length > 1) multi++;
+      }
+    }
+    expect(volleys).toBeGreaterThan(1000);
+    expect(multi).toBeGreaterThan(400);
+  });
+
+  it('a strike hits the squad it covers, not one that brushes its edge, and as wide as it was', () => {
+    // where the outer soldier stands, against the zone's near edge, and how many soldiers then
+    const strike = (offset: number, grownTo = 0) => {
+      const level = withLane([{ type: 'block', hp: 1000000 }], {
+        startCount: 20,
+        monsters: [{ kind: 'boss', count: 1, hp: 1000000, interval: 1, x: 0.5, spread: 0 }],
+      });
+      // never aimed, and the random zones land at the far edge of the field
+      const sim = new StationarySim(level, () => 0.99);
+      if (grownTo) sim.count = 2;
+      sim.snapSquad = true;
+      sim.targetX = sim.monsterMinX - 2;
+      let hit: boolean | null = null;
+      sim.hooks.strike = (_x, _h, caught) => (hit = hit || caught);
+      for (let i = 0; i < 30 * 60 && hit === null; i++) {
+        if (sim.attacks.length > 0 && sim.squadX < sim.monsterMinX) {
+          const lo = Math.min(...sim.attacks.map((a) => a.lo));
+          const outer = ((sim.cols - 1) / 2) * SOLDIER_SPACING;
+          sim.targetX = lo - outer + offset;
+          if (grownTo) sim.count = grownTo; // a power-up widens it during the warning
+        }
+        sim.update(1 / 30);
+      }
+      return hit;
+    };
+    // a soldier is drawn about 0.25 to each side of where it stands, its hitbox is narrower
+    expect(STRIKE_BODY).toBeLessThan(0.25);
+    expect(strike(-STRIKE_BODY - 0.01)).toBe(false); // a shoulder in the zone: grazed, not hit
+    expect(strike(-STRIKE_BODY + 0.05)).toBe(true);
+    expect(strike(0)).toBe(true);
+    // grown from two columns to five during the warning: judged by the two it planned with
+    expect(strike(-STRIKE_BODY - 0.01, 20)).toBe(false);
   });
 
   it('an elite holds its fire while a horde is in front of it, and opens fire once it clears', () => {
