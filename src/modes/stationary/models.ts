@@ -120,6 +120,13 @@ const GOLD = COLORS.gold;
 const GOLD_DARK = '#e0a21f';
 const EYE = '#ffffff';
 const PUPIL = '#10142b';
+const TOOTH = '#ffffff';
+const TUSK = '#f4ecd8';
+const TONGUE = '#ff5d73';
+const MOUTH = '#2a0a14';
+
+/** Fangs: two teeth hanging from a slit. Tusks: two pointing up. Jaws: a wide-open mouth. */
+type Mouth = 'fangs' | 'tusks' | 'jaws';
 
 interface Look {
   body: string;
@@ -127,17 +134,52 @@ interface Look {
   /** Body proportions (unit sphere stretched). */
   w: number;
   h: number;
-  /** Eye size relative to the unit body; bigger eyes read friendlier. */
+  /** Eye size relative to the unit body. */
   eye: number;
+  /** Brow thickness: the elites frown harder. */
+  brow: number;
+  mouth: Mouth;
 }
 
 const LOOKS: Record<MonsterKind, Look> = {
   // the horde is red, like the enemies in the ad shooters: it pops against the blue squad
-  grunt: { body: '#ec3b45', dark: '#9e1b27', w: 1, h: 0.95, eye: 1 },
-  runner: { body: '#ff7a2e', dark: '#b2441a', w: 0.88, h: 1.1, eye: 1.05 },
-  tank: { body: '#c22747', dark: '#6e1028', w: 1.08, h: 0.92, eye: 0.9 },
-  miniboss: { body: '#7bd84f', dark: '#2f8a2a', w: 1.02, h: 1, eye: 1 },
-  boss: { body: COLORS.boss, dark: COLORS.bossDark, w: 1.05, h: 1, eye: 1 },
+  grunt: { body: '#ec3b45', dark: '#9e1b27', w: 1, h: 0.95, eye: 1, brow: 1, mouth: 'fangs' },
+  runner: {
+    body: '#ff7a2e',
+    dark: '#b2441a',
+    w: 0.88,
+    h: 1.1,
+    eye: 1.05,
+    brow: 1,
+    mouth: 'fangs',
+  },
+  tank: {
+    body: '#c22747',
+    dark: '#6e1028',
+    w: 1.08,
+    h: 0.92,
+    eye: 0.9,
+    brow: 1.15,
+    mouth: 'tusks',
+  },
+  miniboss: {
+    body: '#7bd84f',
+    dark: '#2f8a2a',
+    w: 1.02,
+    h: 1,
+    eye: 1,
+    brow: 1.35,
+    mouth: 'jaws',
+  },
+  boss: {
+    body: COLORS.boss,
+    dark: COLORS.bossDark,
+    w: 1.05,
+    h: 1,
+    eye: 1,
+    brow: 1.5,
+    mouth: 'jaws',
+  },
 };
 
 /**
@@ -179,6 +221,84 @@ function crown(y: number, size: number): BufferGeometry[] {
   return out;
 }
 
+/** A tooth: a white pyramid with a flat face to the camera, its tip down or up. */
+function tooth(
+  x: number,
+  y: number,
+  z: number,
+  len: number,
+  rad: number,
+  down: boolean,
+  color = TOOTH,
+  rz = 0,
+) {
+  return part(new ConeGeometry(rad, len, 4), color, {
+    x,
+    y,
+    z,
+    ry: Math.PI / 4,
+    rz: (down ? Math.PI : 0) + rz,
+  });
+}
+
+/**
+ * The mouth, on the front of the body just under the eyes: a dark slit with fangs for the horde,
+ * tusks for the tank, wide-open jaws with a tongue for the elites. Big and simple, so it still
+ * reads when a grunt is twenty pixels wide.
+ */
+function mouth(look: Look): BufferGeometry[] {
+  const { w, h } = look;
+  const jaws = look.mouth === 'jaws';
+  const tilt = ((jaws ? 0 : 6) * Math.PI) / 180; // how far above the body centre
+  const my = h * (1 + Math.sin(tilt));
+  const mz = w * Math.cos(tilt); // the body's surface there
+  const half = (jaws ? 0.42 : 0.34) * w;
+  const tall = jaws ? 0.24 : 0.11;
+  const edge = (x: number) => tall * Math.sqrt(1 - (x / half) ** 2);
+  const out = [
+    part(ball(1, jaws ? 1 : 0), MOUTH, {
+      y: my,
+      z: mz - 0.07,
+      sx: half,
+      sy: tall,
+      sz: 0.14,
+      rx: -tilt,
+    }),
+  ];
+  switch (look.mouth) {
+    case 'fangs':
+      for (const side of [-1, 1]) out.push(tooth(side * 0.15 * w, my - 0.07, mz, 0.24, 0.09, true));
+      break;
+    case 'tusks':
+      for (const side of [-1, 1]) {
+        out.push(
+          tooth(side * 0.25 * w, my + 0.02, mz - 0.01, 0.28, 0.085, false, TUSK, -side * 0.25),
+        );
+      }
+      break;
+    case 'jaws':
+      out.push(
+        part(ball(0.2, 1), TONGUE, {
+          y: my - tall * 0.5,
+          z: mz - 0.03,
+          sx: 1.25,
+          sy: 0.5,
+          sz: 0.6,
+        }),
+      );
+      for (let i = 0; i < 4; i++) {
+        const x = (i - 1.5) * 0.19 * w;
+        out.push(tooth(x, my + edge(x) - 0.08, mz - 0.02, 0.17, 0.065, true));
+      }
+      for (const side of [-1, 1]) {
+        const x = side * 0.22 * w;
+        out.push(tooth(x, my - edge(x) + 0.1, mz - 0.02, 0.22, 0.075, false));
+      }
+      break;
+  }
+  return out;
+}
+
 /**
  * A monster with a unit-sized collision body (radius 1); scale it by the real radius. Elites come
  * out bigger than their body (`LOOK_SCALE`).
@@ -201,21 +321,34 @@ export function monsterGeometry(kind: MonsterKind): BufferGeometry {
     part(ball(0.28, 0), look.dark, { x: -0.42 * look.w, y: 0.14, z: 0.32, sy: 0.6, sz: 1.2 }),
     part(ball(0.28, 0), look.dark, { x: 0.42 * look.w, y: 0.14, z: 0.32, sy: 0.6, sz: 1.2 }),
   ];
-  // big googly eyes on the front, set high on the body because the camera looks down on it
+  // big eyes on the front, set high on the body because the camera looks down on it
   const lift = (38 * Math.PI) / 180;
   const ey = cy * look.h + Math.sin(lift) * 0.82 * look.h;
   const ez = Math.cos(lift) * 0.82 * look.w;
+  const brow = look.brow;
   for (const side of [-1, 1]) {
     const ex = side * 0.34 * look.w;
+    // small pupils glaring down at the squad, a little cross-eyed
+    const gaze = new Vector3(-side * 0.18, -0.4, 1).normalize().multiplyScalar(0.25 * r);
     parts.push(
       part(ball(0.33 * r, kind === 'grunt' || kind === 'runner' ? 0 : 1), EYE, {
         x: ex,
         y: ey,
         z: ez,
       }),
-      part(ball(0.17 * r, 0), PUPIL, { x: ex * 0.92, y: ey + 0.03, z: ez + 0.25 * r }),
+      part(ball(0.13 * r, 0), PUPIL, { x: ex + gaze.x, y: ey + gaze.y, z: ez + gaze.z }),
+      // the angry brow: a dark slab over the top of the eye with its inner end low, so the
+      // pair makes a V. It is what turns the face from cute to mean.
+      part(box((0.5 + 0.1 * brow) * r, 0.12 * brow, 0.18), PUPIL, {
+        x: ex - side * 0.04,
+        y: ey + (0.24 + 0.03 * brow) * r,
+        z: ez + 0.2 * r,
+        rx: -lift,
+        rz: side * (0.32 + 0.1 * brow),
+      }),
     );
   }
+  parts.push(...mouth(look));
 
   const top = cy * look.h * 2;
   switch (kind) {
