@@ -65,28 +65,29 @@ export interface CampaignTarget {
  * anywhere (shop, weapons, a level) that shifts the curve fails there instead of in a playtest.
  */
 export const CAMPAIGN: Readonly<Record<string, CampaignTarget>> = {
+  // `good` is set around the user's third playtest (3/5/6/2/6 runs), which they found right
   'stationary-01': {
-    runs: { good: [4, 6], casual: [5, 8] },
+    runs: { good: [3, 5], casual: [5, 8] },
     role: 'tutorial: horde, boss, a little further each run',
   },
   'stationary-02': {
-    runs: { good: [2, 4], casual: [2, 5] },
-    role: 'breather: the upgrades bought show',
+    runs: { good: [3, 5], casual: [3, 7] },
+    role: 'heavy crates and SPREAD: the upgrades bought show',
   },
   'stationary-03': {
     runs: { good: [6, 8], casual: [10, 15] },
-    role: 'the first real wall',
+    role: 'the first real wall: blocks that grow',
   },
   'stationary-04': {
-    runs: { good: [2, 3], casual: [4, 7] },
-    role: 'power fantasy: a flood that melts',
+    runs: { good: [2, 3], casual: [3, 7] },
+    role: 'power fantasy: armed from the start, a flood that melts',
   },
   'stationary-05': {
-    runs: { good: [8, 10], casual: [14, 20] },
-    role: 'chapter boss',
-    // since power-ups fly in and bosses fight in phases (horde, then volleys), the casual model
-    // takes 11-14 runs here: those two changes help a weaker reader most, and it reaches the
-    // level with a bigger wallet. Open until a casual playtest says whether that is right.
+    runs: { good: [6, 9], casual: [12, 18] },
+    role: 'chapter boss, the laser as its prize',
+    // the casual model takes about 10 runs here: power-ups that fly in and boss fights in phases
+    // help a weaker reader most, and it reaches the level with a bigger wallet. Open until a
+    // casual playtest says whether that is right.
     pending: ['casual'],
   },
 };

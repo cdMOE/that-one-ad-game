@@ -59,6 +59,7 @@ import {
   type LaneElement,
   type StationarySim,
 } from './sim';
+import { WEAPONS } from './weapons';
 
 /**
  * The 3D view of the shooter: a Three.js scene that mirrors the state of a `StationarySim`.
@@ -141,6 +142,8 @@ const BULLET_LOOKS = [
   { at: 2.5, core: 0xff5a2a, glow: 0xff3a10, opacity: 0.34, size: 1.8 },
   { at: 3.1, core: 0xffbf1a, glow: 0xffc21f, opacity: 0.4, size: 2.05 },
 ];
+/** The laser has its own look whatever the damage: long, thin, hot red beams. */
+const LASER_LOOK = { at: 0, core: 0xff2d55, glow: 0xff0a3c, opacity: 0.4, size: 1.1 };
 const WHITE = new Color(0xffffff);
 const POPUP_HEIGHT = 1.3;
 const MAX_ATTACKS = 12;
@@ -1373,7 +1376,9 @@ export class ShooterScene implements Placer {
     const mul = this.sim.weapon.damageMul;
     let k = 0;
     while (k + 1 < BULLET_LOOKS.length && mul >= BULLET_LOOKS[k + 1].at - 1e-6) k++;
-    const look = BULLET_LOOKS[k];
+    const laser = WEAPONS[this.sim.weapon.id].pierce === true;
+    if (laser) k = BULLET_LOOKS.length;
+    const look = laser ? LASER_LOOK : BULLET_LOOKS[k];
     if (k !== this.bulletLook) {
       this.bulletLook = k;
       (this.bullets.material as MeshBasicMaterial).color.setHex(look.core);
@@ -1388,9 +1393,11 @@ export class ShooterScene implements Placer {
   private syncBullets(): void {
     const sim = this.sim;
     const size = this.syncBulletLook();
-    // thicker and longer, the glow a little more so: it reads as a tracer streak
-    const tw = size;
-    const tl = 1 + (size - 1) * 1.4;
+    // thicker and longer, the glow a little more so: it reads as a tracer streak; a laser shot is a
+    // long thin beam
+    const laser = WEAPONS[sim.weapon.id].pierce === true;
+    const tw = laser ? 0.7 : size;
+    const tl = laser ? 4 : 1 + (size - 1) * 1.4;
     const arr = this.bullets.instanceMatrix.array as Float32Array;
     const glow = this.bulletGlow.instanceMatrix.array as Float32Array;
     let alive = 0;

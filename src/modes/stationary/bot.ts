@@ -7,6 +7,7 @@ import {
   type UpgradeLevels,
 } from '../../core/shop';
 import type { StationaryLevel } from '../../levels/schema';
+import { effectiveWeapon } from './weapons';
 import {
   ARENA,
   GAME_SPEED,
@@ -83,6 +84,14 @@ export interface Pilot {
    * until it is almost on top of the squad.
    */
   engageAt?: number;
+  /**
+   * Reads the field as fire, not as heads: every bullet line of the squad hits the first monster
+   * in its path, and a monster needs as many lines as it takes to kill it before it bites. So it
+   * centres the whole squad on a tank walking in instead of grazing it with one flank, and spreads
+   * its lines over a crowd of grunts that one line each kills. Without it a tank counts as one
+   * monster among many and walks through.
+   */
+  focus?: boolean;
 }
 
 /**
@@ -105,9 +114,11 @@ export const SHARP: Pilot = {
  */
 export const CASUAL: Pilot = { aimEvery: 6, reaction: 0.6, wobble: 0.5, careful: true };
 /**
- * A strong player who knows the game, calibrated against the user's logged playtest: with the same
- * upgrades it wins where they won (all 17 runs of the first playthrough), gets as far where they
- * lost and earns the same coins. Its hand is a mouse hand, but what makes it strong is the reading.
+ * A strong player who knows the game, calibrated against the user's logged playtests: with the
+ * same upgrades it wins where they won (all 22 runs of the third playthrough), gets as far where
+ * they lost and earns the same coins. Its hand is a mouse hand, but what makes it strong is the
+ * reading: it counts the field as the bites its fire can prevent (`focus`), so a tank is never a
+ * quiet moment and a horde wider than the squad is cleared one group at a time.
  */
 export const GOOD: Pilot = {
   aimEvery: 3,
@@ -115,7 +126,8 @@ export const GOOD: Pilot = {
   wobble: 0.25,
   careful: true,
   lineOfFire: true,
-  engageAt: 10,
+  engageAt: 11,
+  focus: true,
 };
 
 /** Pilots by name, for the scripts. */
@@ -226,6 +238,61 @@ function crowdScore(sim: StationarySim, cx: number, pilot: Pilot, elites: number
 }
 
 /**
+ * `crowdScore` for a `focus` pilot: the bites the squad's fire from `cx` would prevent. Every
+ * bullet line deals `lineDps`, so by the time a monster would bite, each line has a budget of
+ * damage. The monsters are handed to the lines that reach them nearest first, each line spending
+ * its budget on them one after another (a column of grunts eats one line's fire in turn), and a
+ * monster counts with what it would bite once the lines on it can kill it in time. Lines blocked
+ * by an elite in front reach nothing behind it. So it puts the whole squad on a tank, and with
+ * two groups wider than the squad it clears one fully instead of grazing both.
+ */
+function fireScore(sim: StationarySim, cx: number, elites: number[]): number {
+  const w = effectiveWeapon(sim.weapon);
+  // what one line of soldiers deals per second (game time): all the rows of one column fire along it
+  const lineDps = (w.damage * w.rate * Math.max(1, w.pellets) * sim.count) / Math.max(1, sim.cols);
+  const lineX: number[] = [];
+  const reach: number[] = [];
+  for (let c = 0; c < sim.cols; c++) {
+    const x = cx + (c - (sim.cols - 1) / 2) * SOLDIER_SPACING;
+    lineX.push(x);
+    // how far up the line goes before an elite soaks it up
+    let y = 13;
+    for (const e of elites) {
+      const r = MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[e]]].radius + HIT_FORGIVENESS;
+      if (Math.abs(sim.mx[e] - x) <= r) y = Math.min(y, sim.my[e]);
+    }
+    reach.push(y);
+  }
+  const order: number[] = [];
+  for (let i = 0; i < MAX_MONSTERS; i++) {
+    if (sim.malive[i] && sim.my[i] < 13 && !elites.includes(i)) order.push(i);
+  }
+  order.sort((a, b) => sim.my[a] - sim.my[b]);
+  const spent = lineX.map(() => 0);
+  let score = 0;
+  for (const i of order) {
+    const stats = MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]];
+    const r = stats.radius + HIT_FORGIVENESS;
+    const ttb = Math.max(0.2, (sim.my[i] - 0.8) / stats.speed);
+    const on: number[] = [];
+    let budget = 0;
+    for (let l = 0; l < lineX.length; l++) {
+      if (Math.abs(sim.mx[i] - lineX[l]) > r || sim.my[i] >= reach[l]) continue;
+      on.push(l);
+      budget += Math.max(0, lineDps * ttb - spent[l]);
+    }
+    if (on.length === 0) continue;
+    const hp = sim.mhp[i];
+    // its health is drawn from the lines on it, evenly; whatever they cannot pay leaves it alive.
+    // A laser line goes through it and hits everything behind at full strength as well
+    if (!w.pierce) for (const l of on) spent[l] += hp / on.length;
+    const bite = Math.max(1, stats.bite) / (sim.my[i] + 1);
+    score += budget >= hp ? bite : 0.2 * bite * (budget / hp);
+  }
+  return score;
+}
+
+/**
  * Monsters come down in masses, so it stands where its fire reaches most of the crowd whenever
  * they are close; otherwise it goes to the upgrade lane to shoot the front block, or shoots a boss
  * that is waiting on the field. Power-ups come to the squad on their own.
@@ -238,7 +305,9 @@ function fieldTarget(sim: StationarySim, pilot: Pilot): number {
   for (let i = 0; i < MAX_MONSTERS; i++) {
     if (!sim.malive[i]) continue;
     if (sim.my[i] < nearestY) nearestY = sim.my[i];
-    if (sim.my[i] < engageAt) danger++;
+    // with `focus` a tank is no quiet moment: it counts as the four soldiers it would bite
+    if (sim.my[i] < engageAt)
+      danger += pilot.focus ? MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].bite : 1;
     if (sim.my[i] <= ARENA.spawnTop && MONSTERS[MONSTER_KIND_BY_INDEX[sim.mkind[i]]].elite) {
       elites.push(i);
     }
@@ -246,8 +315,9 @@ function fieldTarget(sim: StationarySim, pilot: Pilot): number {
   // try a few positions across the monster lane
   let bestX = (sim.monsterMinX + sim.monsterMaxX) / 2;
   let bestScore = 0;
-  for (let cx = sim.monsterMinX; cx <= sim.monsterMaxX + 0.01; cx += 0.7) {
-    const score = crowdScore(sim, cx, pilot, elites);
+  const step = pilot.focus ? 0.35 : 0.7;
+  for (let cx = sim.monsterMinX; cx <= sim.monsterMaxX + 0.01; cx += step) {
+    const score = pilot.focus ? fireScore(sim, cx, elites) : crowdScore(sim, cx, pilot, elites);
     if (score > bestScore) {
       bestScore = score;
       bestX = cx;

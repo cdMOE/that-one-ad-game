@@ -120,6 +120,29 @@ describe('weapons', () => {
     expect(e.rate).toBeCloseTo(3.3);
     expect(e.damage).toBeCloseTo(1.25);
     expect(e.pellets).toBe(3);
+    // more than one pellet fans out where you can see it; one pellet flies dead straight
+    expect(e.spread).toBeGreaterThan(0);
+    expect(effectiveWeapon(newWeaponState('minigun')).spread).toBe(0);
+  });
+
+  it('a laser shot goes through the horde, other bullets stop at the first monster', () => {
+    const damaged = (weapon: 'laser' | 'rifle') => {
+      const level = withLane([{ type: 'block', hp: 1000000 }], {
+        weapon,
+        monsters: [{ kind: 'grunt', count: 5, hp: 10000, interval: 0.25, x: 0, spread: 0 }],
+      });
+      const sim = new StationarySim(level, mulberry32(1));
+      sim.snapSquad = true;
+      run(sim, 4, (s) => {
+        const m = s.malive.findIndex((v) => v === 1);
+        if (m >= 0) s.targetX = s.mx[m];
+      });
+      let n = 0;
+      for (let i = 0; i < sim.malive.length; i++) if (sim.malive[i] && sim.mhp[i] < 10000) n++;
+      return n;
+    };
+    expect(damaged('rifle')).toBe(1);
+    expect(damaged('laser')).toBe(5);
   });
 
   it('labels power-ups', () => {
@@ -268,6 +291,40 @@ describe('StationarySim', () => {
     for (const [k, at] of horde.at.entries()) expect(marks[k]).toBeLessThanOrEqual(at);
     // and the whole horde had to die for the win
     expect(sim.kills).toBe(1 + horde.at.length * horde.count);
+  });
+
+  it('a mixed horde brings its other kinds in the rows behind the main one', () => {
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 300,
+      monsters: [
+        {
+          kind: 'boss',
+          count: 1,
+          hp: 4000,
+          interval: 1,
+          summons: {
+            kind: 'grunt',
+            hp: 1,
+            count: 6,
+            columns: 6,
+            at: [0.5],
+            mix: [{ kind: 'tank', hp: 1, count: 2 }],
+          },
+        },
+      ],
+    });
+    const sim = new StationarySim(level, mulberry32(1));
+    let called = 0;
+    const kinds = new Set<string>();
+    sim.hooks.summon = (_x, _y, count) => {
+      called = count;
+      for (let i = 0; i < sim.malive.length; i++) {
+        if (sim.malive[i]) kinds.add(MONSTER_KIND_BY_INDEX[sim.mkind[i]]); // the boss and its wave
+      }
+    };
+    run(sim, 60, towardsNearest);
+    expect(called).toBe(8);
+    expect([...kinds].sort()).toEqual(['boss', 'grunt', 'tank']);
   });
 
   it('a raging elite sends half a wave of its horde on every rage step', () => {

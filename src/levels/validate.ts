@@ -10,6 +10,7 @@ import {
   type MonsterKind,
   type SpawnDef,
   type SummonDef,
+  type SummonPart,
   type SummonKind,
   type StationaryLevel,
   type LaneDef,
@@ -297,7 +298,7 @@ function readSpawns(r: Reader, v: unknown, path: string): SpawnDef[] {
 }
 
 function readSummons(r: Reader, v: unknown, path: string): SummonDef | undefined {
-  const o = r.obj(v, path, ['kind', 'hp', 'count', 'columns', 'at']);
+  const o = r.obj(v, path, ['kind', 'hp', 'count', 'columns', 'at', 'mix']);
   if (!o) return undefined;
   const kind = r.oneOf<SummonKind>(o.kind, `${path}.kind`, SUMMON_KINDS);
   const hp = r.num(o.hp, `${path}.hp`, { above: 0, max: 1_000_000 });
@@ -311,9 +312,22 @@ function readSummons(r: Reader, v: unknown, path: string): SummonDef | undefined
       r.fail(`${path}.at[${i}]`, 'health shares must go down, highest first');
     at.push(n);
   });
+  const mix: SummonPart[] = [];
+  if (o.mix !== undefined) {
+    (r.arr(o.mix, `${path}.mix`, { min: 1, max: 3 }) ?? []).forEach((part, i) => {
+      const pp = `${path}.mix[${i}]`;
+      const q = r.obj(part, pp, ['kind', 'hp', 'count']);
+      if (!q) return;
+      const k = r.oneOf<SummonKind>(q.kind, `${pp}.kind`, SUMMON_KINDS);
+      const h = r.num(q.hp, `${pp}.hp`, { above: 0, max: 1_000_000 });
+      const c = r.num(q.count, `${pp}.count`, { min: 1, max: 60, int: true });
+      if (k !== undefined && h !== undefined && c !== undefined)
+        mix.push({ kind: k, hp: h, count: c });
+    });
+  }
   if (kind === undefined || hp === undefined || count === undefined || columns === undefined)
     return undefined;
-  return { kind, hp, count, columns, at };
+  return { kind, hp, count, columns, at, ...(mix.length > 0 ? { mix } : {}) };
 }
 
 function readItem(r: Reader, v: unknown, path: string): ItemDef | undefined {
@@ -372,7 +386,8 @@ function readLane(r: Reader, v: unknown, path: string): LaneDef | undefined {
       const b = r.obj(el, ep, ['type', 'hp', 'grow']);
       if (!b) return;
       const hp = r.num(b.hp, `${ep}.hp`, { min: 1, max: 1_000_000, int: true });
-      const grow = b.grow === undefined ? 0 : r.num(b.grow, `${ep}.grow`, { min: 0, max: 1000 });
+      const grow =
+        b.grow === undefined ? 0 : r.num(b.grow, `${ep}.grow`, { min: 0, max: 1_000_000 });
       if (hp !== undefined && grow !== undefined) elements.push({ type: 'block', hp, grow });
     } else if (type === 'item') {
       const it = r.obj(el, ep, ['type', 'item']);

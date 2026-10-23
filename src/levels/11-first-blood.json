@@ -32,19 +32,7 @@
       { "type": "block", "hp": 8300 },
       { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
       { "type": "block", "hp": 10000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
-      { "type": "block", "hp": 13000 },
-      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
-      { "type": "block", "hp": 16000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
-      { "type": "block", "hp": 19000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
-      { "type": "block", "hp": 24000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 6 } },
-      { "type": "block", "hp": 30000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 8 } },
-      { "type": "block", "hp": 40000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 10 } }
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } }
     ]
   },
   "monsters": [

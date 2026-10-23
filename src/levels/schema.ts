@@ -61,7 +61,7 @@ export interface RunnerLevel extends LevelBase {
 
 // ---- stationary (shooter) mode ------------------------------------------
 
-export const WEAPON_IDS = ['pistol', 'rifle', 'minigun'] as const;
+export const WEAPON_IDS = ['pistol', 'rifle', 'minigun', 'laser'] as const;
 export type WeaponId = (typeof WEAPON_IDS)[number];
 
 export const MONSTER_KINDS = ['grunt', 'runner', 'tank', 'miniboss', 'boss'] as const;
@@ -97,6 +97,13 @@ export interface SpawnDef {
 export const SUMMON_KINDS = ['grunt', 'runner', 'tank'] as const;
 export type SummonKind = (typeof SUMMON_KINDS)[number];
 
+/** Further monsters of a horde wave beside its main kind (see `SummonDef.mix`). */
+export interface SummonPart {
+  kind: SummonKind;
+  hp: number;
+  count: number;
+}
+
 /**
  * The horde a miniboss or boss calls while it is on the field: a wave of `count` monsters in rows
  * of `columns` around it whenever its health drops past one of the shares in `at`, and half a wave
@@ -109,6 +116,8 @@ export interface SummonDef {
   columns: number;
   /** Health shares (0..1, highest first) at which it calls a wave. */
   at: number[];
+  /** Other kinds in every wave, in the rows behind the main kind: a mixed horde. */
+  mix?: SummonPart[];
 }
 
 export const UPGRADE_STATS = ['rate', 'damage', 'pellets'] as const;

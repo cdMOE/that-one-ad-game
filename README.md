@@ -140,10 +140,10 @@ bites the squad, wherever the squad is, so you have to sweep between both lanes.
 
 | Field        | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `weapon`     | `pistol`, `rifle`, `minigun`; each soldier carries one. Squads above 40 still hit harder per bullet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `weapon`     | `pistol`, `rifle`, `minigun`, `laser` (its shots go through the horde); each soldier carries one. Squads above 40 still hit harder per bullet.                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `lane`       | `side` (`left`/`right`) and `elements`, listed front first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `elements[]` | `{ "type": "block", "hp", "grow"? }` or `{ "type": "item", "item": ... }`. `grow` = HP gained per second while it is the front block.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`) or `weapon`                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `item`       | `crowd` (a gate effect like `+1` or `x2`), `upgrade` (`rate`, `damage`, `pellets`: SPREAD, the shots fan out) or `weapon`                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `monsters[]` | Streams: `kind` (`grunt`, `runner`, `tank`, `miniboss`, `boss`), `count` (up to 2000), `hp`, `interval` seconds apart, optional `delay` (from level start). Times say when a monster enters the field; it sets off from the haze earlier, so it arrives on time. `columns` turns the stream into marching ranks: every `interval` seconds a whole row of that many monsters enters side by side. `x` (-1..1) and `spread` (0..1) say where in the monster lane they enter (default: the whole lane); a narrow formation (small `spread`) is easy for one soldier to cover. |
 
 The level is won as soon as the last monster is dead (or has bitten); blocks and power-ups still on
@@ -165,7 +165,7 @@ Every shooter level pays 40% more per kill and per block than the one before
 buys the coin bonus. The coin bonus is +10% per level (+61% maxed): a nice extra, not a must. Only the current shooter level
 is played: the strip at the top of the shooter screen shows the campaign but picks nothing (a lost
 run pays anyway, so an old level has nothing to offer). Once every level is beaten, PLAY replays the
-last one at half pay. Every level starts with the pistol; the rifle and the minigun wait on its lane.
+last one at half pay. Every level but The Flood starts with the pistol; the rifle and the minigun wait on its lane.
 `npm run simulate:campaign` prints the runs per level and the longest stretch without a purchase.
 
 **The first shooter level teaches the loop** in about five runs. Like the ads, it starts with a
@@ -174,11 +174,15 @@ bit before the halfway mark, but pays for the first few upgrades; with them ever
 further: through the horde, to the boss, the boss bar a little lower each time, then the win. Its
 lane is long enough that the winning run still has blocks to smash until the end. Every later
 level can **not** be won on the first run either: you lose, bank the coins, buy upgrades and try
-again. They are meant to take a number of runs each, rising in waves (see `CAMPAIGN` below): Heavy
-Crates is a breather after the tutorial (an `x2` right after the rifle, tanks, a boss that calls
-tanks), Growing Pains the first real wall (runners down the far flank, a second miniboss that calls
-them), The Flood a power fantasy (nearly twice as many monsters, each softer, and a short boss
-fight), and Big Boss the chapter boss (a second miniboss in the end phase, the toughest horde). A
+again. They are meant to take a number of runs each, rising in waves (see `CAMPAIGN` below), and
+each has a face of its own: its own lane, its own pace and one new thing. Heavy Crates is a
+breather after the tutorial (few thick crates with big rewards, an `x2` right after the rifle,
+SPREAD that fans the shots out, tanks in pairs and no miniboss), Growing Pains the first real wall
+(blocks that grow while they stand in front, DAMAGE as the reward, runners down the far flank, a
+second miniboss that calls them, the longest level), The Flood a power fantasy (armed from the
+start, a reward every few seconds, nearly twice as many monsters, each softer, sloshing from side
+to side) and Big Boss the chapter boss (two minibosses on guard, a boss that calls every kind of
+monster at once, and the LASER as the prize a strong run reaches just before the boss). A
 lost run shows how far it got, against the level's record, and what finished it (the horde or a
 boss volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the
 line turns gold and NEW RECORD! pops. The bar counts ordinary monsters one each and elites by the
@@ -268,8 +272,9 @@ exactly the upgrades it had, over several seeds (`--pilot=good,casual`, `--seeds
 should get about as far and earn about as much. A log only says something about the level versions
 it was played on: after the levels change, play a new one.
 
-`npm run build:shooter-levels` writes the five shooter level files from one template (the lane
-ladder, the pulses, the boss) plus a flavour and a toughness per level (`scripts/build-shooter-levels.ts`).
+`npm run build:shooter-levels` writes the five shooter level files from one template (the opening
+crowd, the pulses, the boss) plus each level's own lane, pace and toughness `k`
+(`scripts/build-shooter-levels.ts`).
 Tune the numbers there, not in the JSON files, which it overwrites; then check the result with
 `npm run simulate:campaign`.
 

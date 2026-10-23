@@ -20,180 +20,166 @@
       { "type": "block", "hp": 38000 },
       { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
       { "type": "block", "hp": 63000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "damage", "value": 0.25 } },
       { "type": "block", "hp": 92000 },
-      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "item", "item": { "kind": "weapon", "weapon": "laser" } },
       { "type": "block", "hp": 130000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
       { "type": "block", "hp": 170000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
-      { "type": "block", "hp": 220000 },
-      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
-      { "type": "block", "hp": 280000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
-      { "type": "block", "hp": 340000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
-      { "type": "block", "hp": 420000 },
-      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
-      { "type": "block", "hp": 530000 },
       { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
-      { "type": "block", "hp": 650000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
-      { "type": "block", "hp": 800000 },
+      { "type": "block", "hp": 230000 },
       { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 6 } },
-      { "type": "block", "hp": 1000000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 8 } },
-      { "type": "block", "hp": 1000000 },
-      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 10 } }
+      { "type": "block", "hp": 320000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 8 } }
     ]
   },
   "monsters": [
     {
       "kind": "grunt",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 1.8,
-      "delay": 5,
+      "delay": 5.5,
       "columns": 2,
       "spread": 0.34,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 1.75,
-      "delay": 13,
+      "delay": 14.3,
       "columns": 2,
       "spread": 0.34,
       "x": -0.59
     },
     {
       "kind": "runner",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 3.5,
-      "delay": 15,
+      "delay": 16.5,
       "columns": 3,
       "spread": 0.6,
       "x": 0.29
     },
     {
       "kind": "grunt",
-      "count": 9,
+      "count": 10,
       "hp": 42,
       "interval": 1.66,
-      "delay": 21,
+      "delay": 23.1,
       "columns": 3,
       "spread": 0.51,
       "x": 0.44
     },
     {
       "kind": "grunt",
-      "count": 9,
+      "count": 10,
       "hp": 42,
       "interval": 1.66,
-      "delay": 21.64,
+      "delay": 23.8,
       "columns": 3,
       "spread": 0.51,
       "x": -0.44
     },
     {
       "kind": "runner",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 3.33,
-      "delay": 23,
+      "delay": 25.3,
       "columns": 3,
       "spread": 0.6,
       "x": -0.22
     },
     {
       "kind": "grunt",
-      "count": 16,
+      "count": 18,
       "hp": 42,
       "interval": 1.55,
-      "delay": 29,
+      "delay": 31.9,
       "columns": 4,
       "spread": 0.69,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 16,
+      "count": 18,
       "hp": 42,
       "interval": 1.55,
-      "delay": 29.57,
+      "delay": 32.53,
       "columns": 4,
       "spread": 0.69,
       "x": 0
     },
     {
       "kind": "runner",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 3.1,
-      "delay": 31,
+      "delay": 34.1,
       "columns": 3,
       "spread": 0.6,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 20,
+      "count": 22,
       "hp": 84,
       "interval": 1.41,
-      "delay": 37,
+      "delay": 40.7,
       "columns": 5,
       "spread": 0.86,
       "x": -0.13
     },
     {
       "kind": "grunt",
-      "count": 20,
+      "count": 22,
       "hp": 84,
       "interval": 1.41,
-      "delay": 37.5,
+      "delay": 41.25,
       "columns": 5,
       "spread": 0.86,
       "x": 0.13
     },
     {
       "kind": "runner",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 2.83,
-      "delay": 39,
+      "delay": 42.9,
       "columns": 3,
       "spread": 0.6,
       "x": 0.07
     },
     {
       "kind": "grunt",
-      "count": 30,
+      "count": 33,
       "hp": 84,
       "interval": 1.26,
-      "delay": 45,
+      "delay": 49.5,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 30,
+      "count": 33,
       "hp": 84,
       "interval": 1.26,
-      "delay": 45.45,
+      "delay": 50,
       "columns": 6,
       "spread": 1,
       "x": 0
     },
     {
       "kind": "runner",
-      "count": 6,
+      "count": 7,
       "hp": 42,
       "interval": 2.52,
-      "delay": 47,
+      "delay": 51.7,
       "columns": 3,
       "spread": 0.6,
       "x": 0
@@ -203,7 +189,7 @@
       "count": 3,
       "hp": 2900,
       "interval": 1.5,
-      "delay": 46,
+      "delay": 50.6,
       "x": 0.3,
       "spread": 0.6
     },
@@ -212,7 +198,7 @@
       "count": 9,
       "hp": 210,
       "interval": 0.6,
-      "delay": 50,
+      "delay": 55,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -222,7 +208,7 @@
       "count": 9,
       "hp": 210,
       "interval": 0.6,
-      "delay": 50.3,
+      "delay": 55.3,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
@@ -232,7 +218,7 @@
       "count": 9,
       "hp": 220,
       "interval": 0.6,
-      "delay": 54.8,
+      "delay": 59.8,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -242,7 +228,7 @@
       "count": 9,
       "hp": 220,
       "interval": 0.6,
-      "delay": 55.1,
+      "delay": 60.1,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
@@ -252,7 +238,7 @@
       "count": 3,
       "hp": 42,
       "interval": 0.6,
-      "delay": 55.8,
+      "delay": 60.8,
       "columns": 3,
       "spread": 0.6,
       "x": 0
@@ -262,7 +248,7 @@
       "count": 9,
       "hp": 230,
       "interval": 0.6,
-      "delay": 59.6,
+      "delay": 64.6,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -272,17 +258,47 @@
       "count": 9,
       "hp": 230,
       "interval": 0.6,
-      "delay": 59.9,
+      "delay": 64.9,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 240,
+      "interval": 0.6,
+      "delay": 69.4,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 240,
+      "interval": 0.6,
+      "delay": 69.7,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "runner",
+      "count": 3,
+      "hp": 42,
+      "interval": 0.6,
+      "delay": 70.4,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
     },
     {
       "kind": "grunt",
       "count": 9,
       "hp": 250,
       "interval": 0.6,
-      "delay": 64.4,
+      "delay": 74.2,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -292,27 +308,17 @@
       "count": 9,
       "hp": 250,
       "interval": 0.6,
-      "delay": 64.7,
+      "delay": 74.5,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
-    },
-    {
-      "kind": "runner",
-      "count": 3,
-      "hp": 42,
-      "interval": 0.6,
-      "delay": 65.4,
-      "columns": 3,
-      "spread": 0.6,
-      "x": 0
     },
     {
       "kind": "grunt",
       "count": 9,
       "hp": 260,
       "interval": 0.6,
-      "delay": 69.2,
+      "delay": 79,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -322,27 +328,7 @@
       "count": 9,
       "hp": 260,
       "interval": 0.6,
-      "delay": 69.5,
-      "columns": 3,
-      "spread": 0.5,
-      "x": 0.5
-    },
-    {
-      "kind": "grunt",
-      "count": 9,
-      "hp": 270,
-      "interval": 0.6,
-      "delay": 74,
-      "columns": 3,
-      "spread": 0.5,
-      "x": -0.5
-    },
-    {
-      "kind": "grunt",
-      "count": 9,
-      "hp": 270,
-      "interval": 0.6,
-      "delay": 74.3,
+      "delay": 79.3,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
@@ -352,7 +338,7 @@
       "count": 3,
       "hp": 42,
       "interval": 0.6,
-      "delay": 75,
+      "delay": 80,
       "columns": 3,
       "spread": 0.6,
       "x": 0
@@ -360,9 +346,9 @@
     {
       "kind": "grunt",
       "count": 9,
-      "hp": 280,
+      "hp": 270,
       "interval": 0.6,
-      "delay": 78.8,
+      "delay": 83.8,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -370,9 +356,9 @@
     {
       "kind": "grunt",
       "count": 9,
-      "hp": 280,
+      "hp": 270,
       "interval": 0.6,
-      "delay": 79.1,
+      "delay": 84.1,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
@@ -380,9 +366,9 @@
     {
       "kind": "grunt",
       "count": 9,
-      "hp": 290,
+      "hp": 280,
       "interval": 0.6,
-      "delay": 83.6,
+      "delay": 88.6,
       "columns": 3,
       "spread": 0.5,
       "x": -0.5
@@ -390,9 +376,9 @@
     {
       "kind": "grunt",
       "count": 9,
-      "hp": 290,
+      "hp": 280,
       "interval": 0.6,
-      "delay": 83.9,
+      "delay": 88.9,
       "columns": 3,
       "spread": 0.5,
       "x": 0.5
@@ -402,17 +388,37 @@
       "count": 3,
       "hp": 42,
       "interval": 0.6,
-      "delay": 84.6,
+      "delay": 89.6,
       "columns": 3,
       "spread": 0.6,
       "x": 0
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 290,
+      "interval": 0.6,
+      "delay": 93.4,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 290,
+      "interval": 0.6,
+      "delay": 93.7,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
     },
     {
       "kind": "tank",
       "count": 3,
       "hp": 8200,
       "interval": 1.5,
-      "delay": 57,
+      "delay": 62.7,
       "x": 0.3,
       "spread": 0.6
     },
@@ -421,7 +427,7 @@
       "count": 3,
       "hp": 13000,
       "interval": 1.4,
-      "delay": 66,
+      "delay": 72.6,
       "x": 0.3,
       "spread": 0.6
     },
@@ -430,7 +436,7 @@
       "count": 1,
       "hp": 17000,
       "interval": 1,
-      "delay": 58,
+      "delay": 63.8,
       "x": -0.4,
       "spread": 0.3
     },
@@ -439,7 +445,7 @@
       "count": 1,
       "hp": 13000,
       "interval": 1,
-      "delay": 24.8,
+      "delay": 27.28,
       "x": -0.4,
       "spread": 0.3
     },
@@ -448,10 +454,20 @@
       "count": 1,
       "hp": 170000,
       "interval": 1,
-      "delay": 77,
+      "delay": 84.7,
       "x": 0.4,
       "spread": 0.3,
-      "summons": { "kind": "grunt", "hp": 840, "count": 24, "columns": 8, "at": [0.75, 0.5, 0.25] }
+      "summons": {
+        "kind": "grunt",
+        "hp": 840,
+        "count": 16,
+        "columns": 8,
+        "at": [0.75, 0.5, 0.25],
+        "mix": [
+          { "kind": "runner", "hp": 500, "count": 8 },
+          { "kind": "tank", "hp": 6300, "count": 2 }
+        ]
+      }
     }
   ]
 }

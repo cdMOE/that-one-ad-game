@@ -113,7 +113,7 @@ for (const n of names) {
 const runsAt = (n: ProfileName, i: number) =>
   (seeded.get(n) ?? []).map((c) => (c[i].won ? c[i].runs : Infinity));
 console.log(
-  `\nmedian of ${CAMPAIGN_SEEDS.length} campaigns\n${'level'.padEnd(17)}${names.map((n) => `${n} (spread) target`.padEnd(26)).join('')}${names.length > 1 ? 'ratio' : ''}`,
+  `\nmedian of ${CAMPAIGN_SEEDS.length} campaigns\n${'level'.padEnd(17)}${names.map((n) => `${n} (spread) target boss`.padEnd(30)).join('')}${names.length > 1 ? 'ratio' : ''}`,
 );
 const first = results.get(names[0]) ?? [];
 const totals = new Map<ProfileName, number>();
@@ -126,7 +126,11 @@ for (const [i, p] of first.entries()) {
     const off = range && (mid < range[0] || mid > range[1]) ? '*' : ' ';
     const show = (x: number) => (Number.isFinite(x) ? String(x) : 'lost');
     const spread = `(${show(Math.min(...runs))}-${show(Math.max(...runs))})`;
-    return `${show(mid)}${off} ${spread} ${range ? `${range[0]}-${range[1]}` : '-'}`.padEnd(26);
+    const fights = (seeded.get(n) ?? []).map((c) => c[i].bossFight ?? NaN).filter((x) => x >= 0);
+    const fight = fights.length ? ` ${median(fights).toFixed(0)}s` : '';
+    return `${show(mid)}${off} ${spread} ${range ? `${range[0]}-${range[1]}` : '-'}${fight}`.padEnd(
+      30,
+    );
   });
   const ratio =
     names.length > 1
@@ -136,5 +140,5 @@ for (const [i, p] of first.entries()) {
 }
 const total = (n: ProfileName) => totals.get(n) ?? 0;
 console.log(
-  `${'total'.padEnd(17)}${names.map((n) => String(total(n)).padEnd(26)).join('')}${names.length > 1 ? `x${(total(names[names.length - 1]) / total(names[0])).toFixed(1)}` : ''}`,
+  `${'total'.padEnd(17)}${names.map((n) => String(total(n)).padEnd(30)).join('')}${names.length > 1 ? `x${(total(names[names.length - 1]) / total(names[0])).toFixed(1)}` : ''}`,
 );

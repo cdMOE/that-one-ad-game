@@ -16,7 +16,19 @@ export interface WeaponStats {
   spread: number;
   /** Bullet speed in world units per second. */
   speed: number;
+  /**
+   * The bullet goes through the horde, hurting every monster on its way, and only stops at an
+   * elite or a lane block.
+   */
+  pierce?: boolean;
 }
+
+/**
+ * Fan (radians) of a shot with more than one pellet when the weapon has none of its own: the
+ * pellets of a SPREAD power-up fan out where you can see them, into the next columns of the horde,
+ * instead of stacking on one line.
+ */
+const PELLET_FAN = 0.12;
 
 export const WEAPONS: Record<WeaponId, WeaponStats> = {
   pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, speed: 20 },
@@ -29,6 +41,8 @@ export const WEAPONS: Record<WeaponId, WeaponStats> = {
     spread: 0,
     speed: 26,
   },
+  // the prize of the last level: fewer, heavier shots that cut through the whole column
+  laser: { name: 'Laser', rate: 5, damage: 1.6, pellets: 1, spread: 0, speed: 40, pierce: true },
 };
 
 /** The squad's current weapon plus upgrades collected so far. */
@@ -50,6 +64,7 @@ export function effectiveWeapon(w: WeaponState): WeaponStats {
     rate: base.rate * w.rateMul,
     damage: base.damage * w.damageMul,
     pellets: base.pellets + w.extraPellets,
+    spread: base.spread || (base.pellets + w.extraPellets > 1 ? PELLET_FAN : 0),
   };
 }
 
@@ -65,7 +80,7 @@ export function itemLabel(c: ItemDef): { title: string; sub: string } {
     case 'crowd':
       return { title: gateLabel(c), sub: 'SOLDIERS' };
     case 'upgrade':
-      if (c.stat === 'pellets') return { title: `+${Math.round(c.value)}`, sub: 'PELLETS' };
+      if (c.stat === 'pellets') return { title: `+${Math.round(c.value)}`, sub: 'SPREAD' };
       return {
         title: `+${Math.round(c.value * 100)}%`,
         sub: c.stat === 'rate' ? 'FIRE RATE' : 'DAMAGE',

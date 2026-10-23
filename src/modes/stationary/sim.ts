@@ -5,6 +5,7 @@ import type {
   ItemDef,
   MonsterKind,
   StationaryLevel,
+  SummonKind,
   SummonDef,
   WeaponId,
 } from '../../levels/schema';
@@ -506,6 +507,9 @@ export class StationarySim {
   readonly bvx = new Float32Array(MAX_BULLETS);
   readonly bvy = new Float32Array(MAX_BULLETS);
   readonly bdmg = new Float32Array(MAX_BULLETS);
+  /** Piercing bullets (the laser) fly on through the horde; `blast` is the monster hit last. */
+  private readonly bpierce = new Uint8Array(MAX_BULLETS);
+  private readonly blast = new Int16Array(MAX_BULLETS);
   readonly blife = new Float32Array(MAX_BULLETS);
 
   private readonly fireAcc = new Float32Array(MAX_SHOOTERS);
@@ -749,14 +753,22 @@ export class StationarySim {
     if (!h || n <= 0) return;
     const r = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].radius;
     const width = this.monsterMaxX - this.monsterMinX;
+    // the main kind in front, a mixed horde's other kinds in the rows behind it, each as big a
+    // share of its full count as this wave is of the main one
+    const wave: Array<{ kind: SummonKind; hp: number }> = [];
+    for (let k = 0; k < n; k++) wave.push({ kind: h.kind, hp: h.hp });
+    for (const part of h.mix ?? []) {
+      const m = Math.ceil((part.count * n) / h.count);
+      for (let k = 0; k < m; k++) wave.push({ kind: part.kind, hp: part.hp });
+    }
     let called = 0;
-    for (let k = 0; k < n; k++) {
+    for (const [k, w] of wave.entries()) {
       const slot = this.freeSlot(false);
       if (slot < 0) break;
       const col = k % h.columns;
       const row = Math.floor(k / h.columns);
       const x = this.monsterMinX + ((col + 0.5) / h.columns) * width + (this.rng() - 0.5) * 0.3;
-      this.place(slot, h.kind, h.hp, x, this.my[i] + r + 0.8 + row * 1.1 + this.rng() * 0.2);
+      this.place(slot, w.kind, w.hp, x, this.my[i] + r + 0.8 + row * 1.1 + this.rng() * 0.2);
       this.mcalled[slot] = 1;
       called++;
     }
@@ -1158,6 +1170,8 @@ export class StationarySim {
           this.by[b] = y + this.bvy[b] * age;
           this.bdmg[b] = perBullet;
           this.blife[b] = BULLET_RANGE / w.speed - age;
+          this.bpierce[b] = w.pierce ? 1 : 0;
+          this.blast[b] = -1;
         }
       }
       this.hooks.shot?.(x, y);
@@ -1214,6 +1228,7 @@ export class StationarySim {
     for (let k = this.bucketStart[b0]; k < this.bucketStart[b1 + 1]; k++) {
       const m = this.bucketItems[k];
       if (!this.malive[m]) continue; // killed earlier this step
+      if (m === this.blast[i]) continue; // a piercing bullet does not hit the same one twice
       const r = MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[m]]].radius + HIT_FORGIVENESS;
       const t = segmentCircle(x0, y0, x1, y1, this.mx[m], this.my[m], r);
       if (t >= 0 && t < bestT) {
@@ -1261,6 +1276,9 @@ export class StationarySim {
         this.eliteDone += lost * elite.progressShare * this.eliteScale;
       }
       this.mhp[monster] -= dmg;
+      // a piercing bullet flies on through the horde, an elite still stops it
+      const through = this.bpierce[i] === 1 && !elite;
+      if (through) this.blast[i] = monster;
       if (this.mhp[monster] <= 0) {
         this.malive[monster] = 0;
         if (!this.mcalled[monster] && !elite) this.done++;
@@ -1280,7 +1298,7 @@ export class StationarySim {
           this.callHorde(monster, h.count);
         }
       }
-      return true;
+      return !through;
     }
     return false;
   }
