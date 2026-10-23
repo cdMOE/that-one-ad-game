@@ -114,7 +114,7 @@ export interface SummonDef {
 export const UPGRADE_STATS = ['rate', 'damage', 'pellets'] as const;
 export type UpgradeStat = (typeof UPGRADE_STATS)[number];
 
-/** A power-up on the lane; the squad catches it by moving underneath it. */
+/** A power-up on the lane; it flies to the squad once no block stands in front of it. */
 export type ItemDef =
   | { kind: 'crowd'; op: GateEffect['op']; value: number }
   | { kind: 'upgrade'; stat: UpgradeStat; value: number }

@@ -131,6 +131,12 @@ export class Sfx {
     this.tone(260 + Math.random() * 120, 0.09, 'triangle', 0.14, 90);
   }
 
+  /** A short, sharp double beep: you are standing where something is about to land. */
+  alarm(): void {
+    this.tone(1240, 0.06, 'square', 0.1);
+    this.tone(1240, 0.06, 'square', 0.1, undefined, 0.09);
+  }
+
   boom(): void {
     this.noise(0.35, 0.6, 700);
     this.tone(110, 0.3, 'sine', 0.5, 40);

@@ -55,6 +55,7 @@ import {
   MONSTER_KIND_BY_INDEX,
   SPAWN_FAR,
   laneJackpot,
+  type FlyingItem,
   type LaneElement,
   type StationarySim,
 } from './sim';
@@ -158,8 +159,37 @@ const MAX_RINGS = 3;
  */
 const DEATH_TIME = 0.45;
 const MAX_CORPSES = 80;
+/**
+ * A monster that reaches the squad does not just vanish: it rears up, lunges at the front row and
+ * snaps (the first `BITE_SNAP` of `BITE_TIME`), then flashes red and is gulped away. At most
+ * `MAX_BITERS` lunge at once; past that the oldest one is dropped early.
+ */
+const BITE_TIME = 0.34;
+const BITE_SNAP = 0.5;
+const MAX_BITERS = 48;
+/** The soldiers within `HURT_REACH` of a bite flash red and flinch for `HURT_TIME` seconds. */
+const HURT_TIME = 0.22;
+const HURT_REACH = 1.1;
 /** The prize at the end of the upgrade lane is drawn this much bigger than the other power-ups. */
 export const JACKPOT_SCALE = 1.35;
+
+/**
+ * Where a power-up on its way to the squad is (see `ITEM_FLIGHT`): a high arc from where it left
+ * the lane to the squad's front row, quick off the pedestal and easing into the squad; `size` is
+ * its scale, shrinking as it lands.
+ */
+export function flightPos(
+  f: FlyingItem,
+  squadX: number,
+): { x: number; y: number; h: number; size: number } {
+  const p = 1 - (1 - f.t) * (1 - f.t);
+  return {
+    x: f.x + (squadX - f.x) * p,
+    y: f.y + (0.6 - f.y) * p,
+    h: Math.sin(f.t * Math.PI) * 2.4,
+    size: 1 - 0.45 * f.t,
+  };
+}
 
 /** Writes a translation, yaw (about y), roll (about z) and scale into a column-major matrix. */
 function writeTRS(
@@ -253,6 +283,8 @@ interface ElementView {
   float?: Object3D;
   /** Power-ups: the light column, hidden while it stands in the haze (it would glow white there). */
   beam?: Mesh;
+  /** The prize at the far end of the lane (drawn bigger, see `JACKPOT_SCALE`). */
+  prize?: boolean;
 }
 
 interface ZoneView {
@@ -262,9 +294,12 @@ interface ZoneView {
   edges: Mesh[];
   /** Translucent walls along the two long sides, so the zone is visible from a low angle too. */
   curtains: Mesh[];
+  /** A bright strip where the zone crosses the squad's row: "this is where you stand". */
+  foot: Mesh;
   baseMat: MeshBasicMaterial;
   fillMat: MeshBasicMaterial;
   edgeMat: MeshBasicMaterial;
+  footMat: MeshBasicMaterial;
 }
 
 export class ShooterScene implements Placer {
@@ -333,6 +368,22 @@ export class ShooterScene implements Placer {
   private corpseHead = 0;
   private readonly corpseCount: number[] = [0, 0, 0, 0, 0];
   private readonly flashCount: number[] = [0, 0, 0, 0, 0];
+  /** Monsters lunging at the squad (see `BITE_TIME`), and the red flash they end in (per kind). */
+  private readonly biterMeshes: Array<InstancedMesh<BufferGeometry, Material>> = [];
+  private readonly biterFlashes: Array<InstancedMesh<BufferGeometry, Material>> = [];
+  private readonly biterX = new Float32Array(MAX_BITERS);
+  /** Where along the squad's front row it lands. */
+  private readonly biterTX = new Float32Array(MAX_BITERS);
+  private readonly biterY = new Float32Array(MAX_BITERS);
+  private readonly biterR = new Float32Array(MAX_BITERS);
+  private readonly biterKind = new Uint8Array(MAX_BITERS);
+  /** Time of the bite; -Infinity for a free slot. */
+  private readonly biterT = new Float32Array(MAX_BITERS).fill(-Infinity);
+  private biterHead = 0;
+  private readonly biterCount: number[] = [0, 0, 0, 0, 0];
+  private readonly biterFlashCount: number[] = [0, 0, 0, 0, 0];
+  /** A red shell over the soldiers a bite just hit (see `HURT_TIME`). */
+  private readonly hurtShell: InstancedMesh<BufferGeometry, Material>;
   /** A gold shell over the whole squad right after it caught a power-up. */
   private readonly squadShell: InstancedMesh<BufferGeometry, Material>;
   private readonly squadShellMat: MeshBasicMaterial;
@@ -386,12 +437,27 @@ export class ShooterScene implements Placer {
       );
     const flashMat = glowMat(0xffffff, 0.75);
     const corpseMat = own(new MeshLambertMaterial({ color: 0x9aa0ab, flatShading: true }));
+    // plain blending: added onto a green or purple monster, red would wash out to a pale smear
+    const redMat = (opacity: number) =>
+      own(
+        new MeshBasicMaterial({ color: 0xff2a3a, transparent: true, opacity, depthWrite: false }),
+      );
+    const biteMat = redMat(0.8);
+    const monsterOutlineMat = own(this.outlineMaterial(MONSTER_OUTLINE));
     for (const kind of MONSTER_KIND_BY_INDEX) {
       const geo = own(monsterGeometry(kind));
+      const outlineGeo = own(outlineGeometry(geo));
       const mesh = instanced(geo, unitMat, MAX_MONSTERS);
       this.monsterMeshes.push(mesh);
       this.scene.add(mesh);
-      this.addOutline(mesh, own(outlineGeometry(geo)), own(this.outlineMaterial(MONSTER_OUTLINE)));
+      this.addOutline(mesh, outlineGeo, monsterOutlineMat);
+      const biters = instanced(geo, unitMat, MAX_BITERS);
+      this.biterMeshes.push(biters);
+      this.scene.add(biters);
+      this.addOutline(biters, outlineGeo, monsterOutlineMat);
+      const bite = instanced(geo, biteMat, MAX_BITERS);
+      this.biterFlashes.push(bite);
+      this.scene.add(bite);
       const corpses = instanced(geo, corpseMat, MAX_CORPSES);
       this.corpseMeshes.push(corpses);
       this.scene.add(corpses);
@@ -411,6 +477,8 @@ export class ShooterScene implements Placer {
     this.squadShell = instanced(soldierGeo, this.squadShellMat, MAX_SHOOTERS);
     this.squadShell.instanceMatrix = this.soldiers.instanceMatrix;
     this.scene.add(this.squadShell);
+    this.hurtShell = instanced(soldierGeo, redMat(0.75), MAX_SHOOTERS);
+    this.scene.add(this.hurtShell);
     const ringGeo = own(new RingGeometry(0.82, 1, 40).rotateX(-Math.PI / 2));
     for (let i = 0; i < MAX_RINGS; i++) {
       // plain blending: added onto the light road, gold would wash out to white
@@ -859,7 +927,7 @@ export class ShooterScene implements Placer {
           group,
           item: e.item,
           ...(float ? { float } : {}),
-          ...(prize ? {} : { beam }),
+          ...(prize ? { prize } : { beam }),
         });
       }
       group.visible = false;
@@ -889,14 +957,20 @@ export class ShooterScene implements Placer {
         );
       const baseMat = mk(0.2);
       const fillMat = mk(0.3);
+      const footMat = mk(0.6);
+      // the outline is drawn over everything: a horde standing in the zone, or a squad firing
+      // tracers through it, must never hide where it will land
       const edgeMat = mk(0.95);
+      edgeMat.depthTest = false;
       const base = new Mesh(plane, baseMat);
       const fill = new Mesh(plane, fillMat);
+      const foot = new Mesh(plane, footMat);
       const group = new Group();
-      group.add(base, fill);
+      group.add(base, fill, foot);
       const edges: Mesh[] = [];
       for (let k = 0; k < 4; k++) {
         const edge = new Mesh(plane, edgeMat);
+        edge.renderOrder = 10;
         edges.push(edge);
         group.add(edge);
       }
@@ -908,7 +982,18 @@ export class ShooterScene implements Placer {
       }
       group.visible = false;
       this.scene.add(group);
-      this.zones.push({ group, base, fill, edges, curtains, baseMat, fillMat, edgeMat });
+      this.zones.push({
+        group,
+        base,
+        fill,
+        edges,
+        curtains,
+        foot,
+        baseMat,
+        fillMat,
+        edgeMat,
+        footMat,
+      });
     }
     for (let i = 0; i < MAX_FLASHES; i++) {
       const mat = own(
@@ -1028,6 +1113,7 @@ export class ShooterScene implements Placer {
     this.syncZones(flashes, time);
     this.syncRings(time);
     this.syncCorpses(time);
+    this.syncBiters(time);
     this.fortress.update(time);
     for (const o of this.outlines) o.hull.count = o.src.count;
     this.renderer.render(this.scene, this.camera);
@@ -1096,6 +1182,92 @@ export class ShooterScene implements Placer {
     this.corpseT[c] = this.now;
   }
 
+  /**
+   * A monster reached the bite line at (x, y): it leaps at the squad's front row at `targetX` (see
+   * `BITE_TIME`). Whatever gets through bites, wherever it gets through, so one that reaches the
+   * line far from the squad jumps across to it: you see which one took a soldier, and where.
+   */
+  bite(x: number, y: number, kind: MonsterKind, radius: number, targetX: number): void {
+    const c = this.biterHead;
+    this.biterHead = (c + 1) % MAX_BITERS;
+    this.biterX[c] = x;
+    this.biterTX[c] = targetX;
+    this.biterY[c] = y;
+    this.biterR[c] = radius;
+    this.biterKind[c] = MONSTER_KIND_BY_INDEX.indexOf(kind);
+    this.biterT[c] = this.now;
+  }
+
+  private syncBiters(time: number): void {
+    const counts = this.biterCount;
+    const flashes = this.biterFlashCount;
+    counts.fill(0);
+    flashes.fill(0);
+    const bodies = this.biterMeshes.map((m) => m.instanceMatrix.array as Float32Array);
+    const shells = this.biterFlashes.map((m) => m.instanceMatrix.array as Float32Array);
+    for (let c = 0; c < MAX_BITERS; c++) {
+      const a = (time - this.biterT[c]) / BITE_TIME;
+      if (!(a >= 0 && a < 1)) continue;
+      const k = this.biterKind[c];
+      const r = this.biterR[c];
+      const x0 = this.biterX[c];
+      const dx = this.biterTX[c] - x0;
+      let x = x0;
+      let y = this.biterY[c];
+      let lift = 0;
+      let stretch: number;
+      let s = r;
+      // turned towards where it jumps
+      const yaw = Math.atan2(dx, 0.45 + 0.35 * r) * 0.8;
+      if (a < BITE_SNAP) {
+        // it rears up and back a little, then throws itself at the front row, stretched out; one
+        // from further off leaps in a higher arc
+        const p = a / BITE_SNAP;
+        const lunge = p < 0.3 ? -0.15 * (p / 0.3) : -0.15 + 1.15 * ((p - 0.3) / 0.7) ** 2;
+        y -= (0.45 + 0.35 * r) * lunge;
+        x += dx * Math.max(0, lunge);
+        lift = Math.sin(p * Math.PI) * (0.35 * r + 0.18 * Math.abs(dx));
+        stretch = 1 + 0.45 * Math.max(0, lunge);
+      } else {
+        // snap: squashed flat on the soldiers, red, and swallowed into the road
+        const p = (a - BITE_SNAP) / (1 - BITE_SNAP);
+        y -= 0.45 + 0.35 * r;
+        x += dx;
+        stretch = 1.3 - 0.3 * p;
+        s = r * (1 + 0.2 * (1 - p)) * (1 - p * p);
+      }
+      const sy = s / stretch;
+      const sxz = s * Math.sqrt(stretch);
+      const sz = s * stretch;
+      writeTRS(bodies[k], counts[k]++, x, lift, -y, yaw, 0, sxz, sy, sz);
+      if (a >= BITE_SNAP) {
+        const f = 1.06;
+        writeTRS(shells[k], flashes[k]++, x, lift, -y, yaw, 0, sxz * f, sy * f, sz * f);
+      }
+    }
+    for (let k = 0; k < this.biterMeshes.length; k++) {
+      this.biterMeshes[k].count = counts[k];
+      this.biterMeshes[k].instanceMatrix.needsUpdate = true;
+      this.biterFlashes[k].count = flashes[k];
+      this.biterFlashes[k].instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /**
+   * How hard a soldier at `x` was just bitten (0..1): fresh bites near it count most. Only bites
+   * that already snapped count, so the soldiers flinch when the jaws close, not before.
+   */
+  private hurtAt(x: number, time: number): number {
+    let hurt = 0;
+    for (let c = 0; c < MAX_BITERS; c++) {
+      const age = time - this.biterT[c] - BITE_TIME * BITE_SNAP;
+      if (!(age >= 0 && age < HURT_TIME)) continue;
+      const near = 1 - Math.abs(x - this.biterTX[c]) / (HURT_REACH + this.biterR[c]);
+      if (near > 0) hurt = Math.max(hurt, near * (1 - age / HURT_TIME));
+    }
+    return hurt;
+  }
+
   private syncCorpses(time: number): void {
     const counts = this.corpseCount;
     const flashes = this.flashCount;
@@ -1146,6 +1318,8 @@ export class ShooterScene implements Placer {
     for (let i = 0; i < n; i++) front = Math.max(front, player.y[i]);
     this.squadFront = front + 0.8 * size;
     let muzzleN = 0;
+    const hurtArr = this.hurtShell.instanceMatrix.array as Float32Array;
+    let hurtN = 0;
     for (let i = 0; i < n; i++) {
       // every soldier stands a little off its grid slot and turned its own way: a group of people,
       // not a parade block (small enough that the bullets still leave from the gun)
@@ -1153,7 +1327,27 @@ export class ShooterScene implements Placer {
       const y = player.y[i] + (((i * 0.382 + 0.3) % 1) - 0.5) * 0.28;
       const yaw = (((i * 0.7548) % 1) - 0.5) * 0.35;
       const bob = (Math.abs(Math.sin(time * 14 + i * 1.3)) * 0.06 * moving) as number;
-      writeTRS(arr, i, x, bob, -y + recoil * 0.12, yaw, lean, size, size, size);
+      // a bite knocks the front row back and squashes it; the rows behind feel it less
+      const depth = Math.max(0, 1 - (front - player.y[i]) / 3);
+      const hurt = this.hurtAt(x, time) * depth;
+      const knock = hurt * 0.3;
+      const sq = 1 - 0.18 * hurt;
+      writeTRS(
+        arr,
+        i,
+        x,
+        bob,
+        -y + recoil * 0.12 + knock,
+        yaw,
+        lean,
+        size / sq,
+        size * sq,
+        size / sq,
+      );
+      if (hurt > 0.25) {
+        const h = size * 1.06;
+        writeTRS(hurtArr, hurtN++, x, bob, -y + knock, yaw, lean, h / sq, h * sq, h / sq);
+      }
       writeTRS(shadowArr, shadowN++, x, 0.1, -y, 0, 0, 0.2 * size, 1, 0.2 * size);
       // the gun's muzzle sits at (0, 0.55, -0.76) in model space; only the front row flares
       if (player.y[i] < front - 0.3) continue;
@@ -1163,6 +1357,8 @@ export class ShooterScene implements Placer {
     }
     this.soldiers.count = n;
     this.soldiers.instanceMatrix.needsUpdate = true;
+    this.hurtShell.count = hurtN;
+    this.hurtShell.instanceMatrix.needsUpdate = true;
     const glow = Math.max(0, 1 - (time - this.glowStart) / GLOW_TIME);
     this.squadShellMat.opacity = 0.85 * glow;
     this.squadShell.count = glow > 0 ? n : 0;
@@ -1249,6 +1445,16 @@ export class ShooterScene implements Placer {
     const sim = this.sim;
     for (const view of this.elements.values()) view.group.visible = false;
     this.glow.visible = false;
+    for (const f of sim.flying) {
+      const view = this.elements.get(f.el);
+      if (!view) continue;
+      const at = flightPos(f, sim.squadX);
+      view.group.visible = true;
+      view.group.position.set(at.x, at.h, -at.y);
+      view.group.rotation.y = time * 9;
+      view.group.scale.setScalar(at.size * (view.prize ? JACKPOT_SCALE : 1));
+      if (view.beam) view.beam.visible = true;
+    }
     sim.lane.elements.forEach((e, k) => {
       const view = this.elements.get(e);
       if (!view) return;
@@ -1290,22 +1496,35 @@ export class ShooterScene implements Placer {
 
   /**
    * One strike zone from the squad's row up to the elite at `top`: it fills up while `t` runs to 1,
-   * blinks white just before it lands, and is drawn at `k` of its strength (1 live, then fading).
+   * pulses faster and faster, blinks white just before it lands, and is drawn at `k` of its
+   * strength (1 live, then fading).
    */
-  private drawZone(z: ZoneView, lo: number, hi: number, top: number, t: number, k: number): void {
+  private drawZone(
+    z: ZoneView,
+    lo: number,
+    hi: number,
+    top: number,
+    t: number,
+    k: number,
+    time: number,
+  ): void {
     const bottom = -1.5;
     z.group.visible = true;
+    // the pulse quickens from a slow throb to a flicker as the strike closes in
+    const pulse = k === 1 ? 0.5 + 0.5 * Math.sin(time * (6 + 22 * t * t)) : 0;
     placeRect(z.base, lo, hi, bottom, top, 0.14);
     z.baseMat.opacity = (0.2 + 0.35 * t) * k;
     const reach = (top - bottom) * t;
     placeRect(z.fill, lo, hi, top - reach, top, 0.16);
     z.fillMat.opacity = (0.3 + 0.4 * t) * k;
-    const w = 0.14;
+    placeRect(z.foot, lo, hi, bottom, 1.4, 0.17);
+    z.footMat.opacity = (0.35 + 0.45 * pulse) * k;
+    const w = 0.2;
     placeRect(z.edges[0], lo, lo + w, bottom, top, 0.18);
     placeRect(z.edges[1], hi - w, hi, bottom, top, 0.18);
     placeRect(z.edges[2], lo, hi, top - w, top, 0.18);
     placeRect(z.edges[3], lo, hi, bottom, bottom + w, 0.18);
-    z.edgeMat.opacity = 0.95 * k;
+    z.edgeMat.opacity = (0.75 + 0.25 * pulse) * k;
     const white = k === 1 && t > 0.7 && Math.floor(t * 20) % 2 === 0;
     const mid = (top + bottom) / 2;
     const c0 = z.curtains[0];
@@ -1337,11 +1556,11 @@ export class ShooterScene implements Placer {
     let n = 0;
     for (const a of sim.attacks) {
       if (n >= MAX_ATTACKS) break;
-      this.drawZone(this.zones[n++], a.lo, a.hi, a.y, a.t, 1);
+      this.drawZone(this.zones[n++], a.lo, a.hi, a.y, a.t, 1, time);
     }
     for (const f of this.fadingZones) {
       if (n >= MAX_ATTACKS) break;
-      this.drawZone(this.zones[n++], f.lo, f.hi, f.top, 1, 1 - (time - f.start) / ZONE_FADE);
+      this.drawZone(this.zones[n++], f.lo, f.hi, f.top, 1, 1 - (time - f.start) / ZONE_FADE, time);
     }
     for (; n < MAX_ATTACKS; n++) this.zones[n].group.visible = false;
 

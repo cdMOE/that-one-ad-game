@@ -9,7 +9,7 @@ import type { ItemDef, StationaryLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
 import { FORT_STAGES, fortressStage } from './stationary/fortress';
 import { monsterTop } from './stationary/models';
-import { JACKPOT_SCALE, ShooterScene } from './stationary/scene';
+import { JACKPOT_SCALE, ShooterScene, flightPos } from './stationary/scene';
 import {
   ARENA,
   MAX_MONSTERS,
@@ -39,8 +39,8 @@ const LANE_LABELS = 2;
  * Stationary shooter: the squad slides left and right (drag, mouse or A/D) and every
  * soldier fires one bullet dead straight ahead from its own position, so you sweep the
  * fire across the field. Monsters come down from the top right, a block
- * with an HP counter stops bullets, and the power-up hidden behind it falls towards the
- * squad once the block breaks.
+ * with an HP counter stops bullets, and the power-up behind it flies to the squad once the
+ * block breaks.
  *
  * All rules live in the headless `StationarySim`; this class only translates input into
  * squad movement and reacts to simulation events with effects. The world is drawn in 3D by
@@ -84,6 +84,19 @@ export class StationaryMode implements GameMode {
   private eliteDamage = 0;
   private eliteDamageAt = { x: 0, y: 0, lift: 0 };
   private eliteDamageWait = 0;
+  /**
+   * Soldiers bitten since the last "−N" popped up over the squad: a horde bites many times a
+   * second, so the bites are summed into one number a few times a second, not a pile of "−1"s.
+   */
+  private biteLoss = 0;
+  private biteLossWait = 0;
+  /**
+   * How close the strike the squad stands in is to landing (0..1, see `Attack.t`), or -1 when it
+   * stands clear of every lit zone. While it is in one, its counter turns red and an alarm beeps.
+   */
+  private danger = -1;
+  private alarmWait = 0;
+  private readonly alarm: () => void;
 
   private readonly scene: ShooterScene;
   private viewKey = -1;
@@ -118,7 +131,11 @@ export class StationaryMode implements GameMode {
       win: () => !this.demo && ctx.sfx.win(),
       lose: () => !this.demo && ctx.sfx.lose(),
       roar: () => !this.demo && once('roar', 400, () => ctx.sfx.roar()),
+      // a volley lights up all its zones in the same instant: one warning for all of them
+      warn: () => !this.demo && once('warn', 300, () => ctx.sfx.gate(false)),
+      alarm: () => !this.demo && ctx.sfx.alarm(),
     };
+    this.alarm = sfx.alarm;
     this.coinMul = upgradeMultiplier('coins', ctx.upgrades.coins) * ctx.coinFactor;
     this.sim = new StationarySim(
       level,
@@ -174,7 +191,7 @@ export class StationaryMode implements GameMode {
           sfx.pop();
         },
         telegraph: () => {
-          sfx.gate(false); // a warning blip: a strike is about to land
+          sfx.warn(); // a warning blip: a strike is about to land
         },
         strike: (x, half, hit, lost) => {
           this.flashes.push({ x, half, life: 0.3, hit });
@@ -209,10 +226,14 @@ export class StationaryMode implements GameMode {
           popups.add(x, y + 5.5, 'HORDE!', COLORS.bad, 2.2);
           particles.burst(x, y + 1.5, 36, 8, Pc.Bad, 0.6, 0.22);
         },
-        bite: (x, y, lost) => {
+        bite: (x, y, lost, kind, radius) => {
           this.lastBlow = 'horde';
-          particles.burst(x, y, 10, 5, Pc.Bad, 0.5, 0.16);
-          popups.add(this.sim.squadX, 2.4, `−${lost}`, COLORS.bad, 1.1);
+          // it leaps at the nearest soldier of the front row and snaps; the sparks fly there
+          const half = Math.max(0, this.sim.halfWidth() - 0.3);
+          const at = Math.max(this.sim.squadX - half, Math.min(this.sim.squadX + half, x));
+          this.scene.bite(x, y, kind, radius, at);
+          particles.burst(at, 0.3, 10, 5, Pc.Bad, 0.5, 0.16);
+          this.biteLoss += lost;
           camera.shake(0.12 + Math.min(0.3, lost / 60));
           this.pillPop = 1;
           sfx.hit();
@@ -233,9 +254,10 @@ export class StationaryMode implements GameMode {
           sfx.gate(true);
           this.pillPop = 1;
         },
-        itemLost: (x) => {
-          popups.add(x, 1.5, 'MISSED', COLORS.bad, 1);
-          sfx.gate(false);
+        itemLaunched: (x, y) => {
+          // freed: it lifts off the pedestal in a puff of gold and is on its way to the squad
+          particles.burst(x, y, 14, 5, Pc.Gold, 0.5, 0.18);
+          sfx.coin();
         },
         ended: (won) => {
           this.endTimer = won ? 1.7 : 1;
@@ -293,7 +315,7 @@ export class StationaryMode implements GameMode {
     this.introShown = true;
   }
 
-  /** Where the demo squad wants to be: under the power-ups, otherwise under the nearest monster. */
+  /** Where the demo squad wants to be: under the nearest monster, or at the front block when calm. */
   private autopilotX(): number {
     const sim = this.sim;
     let nearest = -1;
@@ -301,8 +323,7 @@ export class StationaryMode implements GameMode {
       if (!sim.malive[i] || sim.my[i] > 13) continue;
       if (nearest < 0 || sim.my[i] < sim.my[nearest]) nearest = i;
     }
-    const front = sim.lane.elements[0];
-    if (front && (front.type === 'item' ? front.y < 9 : nearest < 0)) return sim.lane.x;
+    if (sim.lane.elements.length > 0 && nearest < 0) return sim.lane.x;
     return nearest >= 0 ? sim.mx[nearest] : (sim.monsterMinX + sim.monsterMaxX) / 2;
   }
 
@@ -375,6 +396,7 @@ export class StationaryMode implements GameMode {
     this.pillPop *= Math.exp(-7 * dt);
     this.coinLabelWait -= dt;
     this.popEliteDamage(dt);
+    this.popBiteLoss(dt);
     for (const c of this.flyingCoins) c.t += dt * 1.6;
     while (this.flyingCoins.length > 0 && this.flyingCoins[0].t >= 1) this.flyingCoins.shift();
 
@@ -401,6 +423,7 @@ export class StationaryMode implements GameMode {
     this.sim.targetX = Math.max(-limit, Math.min(limit, this.sim.targetX));
 
     if (!this.preview) this.sim.update(dt);
+    this.updateDanger(dt);
     // every quarter of the run knocks a piece off the fortress; the win brings it down
     const stage = fortressStage(this.sim.progress);
     if (stage > this.fortStage) {
@@ -455,6 +478,35 @@ export class StationaryMode implements GameMode {
     this.eliteDamageWait = 0.14;
   }
 
+  /**
+   * Is the squad standing in a lit strike zone? Past the halfway mark of the telegraph an alarm
+   * beeps, quicker as the strike closes in, until the squad steps out.
+   */
+  private updateDanger(dt: number): void {
+    const sim = this.sim;
+    const reach = sim.halfWidth();
+    this.danger = -1;
+    for (const a of sim.attacks) {
+      if (sim.squadX + reach >= a.lo && sim.squadX - reach <= a.hi) {
+        this.danger = Math.max(this.danger, a.t);
+      }
+    }
+    this.alarmWait -= dt;
+    if (this.danger < 0.4 || this.alarmWait > 0) return;
+    this.alarm();
+    this.alarmWait = 0.34 - 0.16 * this.danger;
+  }
+
+  /** The squad's losses to bites, summed (see `biteLoss`), over the squad. */
+  private popBiteLoss(dt: number): void {
+    this.biteLossWait -= dt;
+    if (this.biteLossWait > 0 || this.biteLoss < 1) return;
+    const big = Math.min(1.5, 1 + this.biteLoss / 20);
+    this.ctx.popups.add(this.sim.squadX, 2.4, `\u2212${this.biteLoss}`, COLORS.bad, big);
+    this.biteLoss = 0;
+    this.biteLossWait = 0.18;
+  }
+
   /** Keeps the 3D camera framed to the canvas; cheap when nothing changed. */
   private fitView(): void {
     const { width, height } = this.ctx.camera;
@@ -496,6 +548,7 @@ export class StationaryMode implements GameMode {
     g.clearRect(0, 0, cam.width, cam.height);
     this.drawLaneLabels(g);
     this.drawMonsterLabels(g);
+    this.drawStrikeWarnings(g);
     this.drawSquadCounter(g);
     popups.drawPlaced(g, this.scene);
     if (!this.demo && !this.preview) {
@@ -520,7 +573,43 @@ export class StationaryMode implements GameMode {
     // the close camera can put a squad at the road's edge half off screen; its number stays on
     const margin = fontPx * 1.3;
     const x = Math.max(margin, Math.min(this.ctx.camera.width - margin, sc.sx));
-    drawPill(g, formatCount(this.shownCount), x, sc.sy, SQUAD_BLUE, fontPx);
+    // standing in a lit strike zone: the number you watch anyway throbs red until you step out
+    const fill =
+      this.danger >= 0 && Math.sin(performance.now() / 55) > -0.3 ? DANGER_RED : SQUAD_BLUE;
+    drawPill(g, formatCount(this.shownCount), x, sc.sy, fill, fontPx);
+  }
+
+  /**
+   * A warning sign at the squad's row under every lit strike zone, over everything else on the
+   * field: the zones reach from the boss to the squad, but the far end is lost in the horde, and
+   * the near end is the one that matters. It pulses faster as the strike closes in, and the one
+   * over the squad stands out.
+   */
+  private drawStrikeWarnings(g: CanvasRenderingContext2D): void {
+    const sim = this.sim;
+    if (sim.attacks.length === 0 || this.demo) return;
+    const sc = this.scene;
+    const reach = sim.halfWidth();
+    const now = performance.now() / 1000;
+    // zones that overlap share one sign, in the middle of the stretch they cover together
+    const spans = sim.attacks.map((a) => ({ lo: a.lo, hi: a.hi, t: a.t }));
+    spans.sort((a, b) => a.lo - b.lo);
+    const merged: typeof spans = [];
+    for (const s of spans) {
+      const last = merged[merged.length - 1];
+      if (last && s.lo <= last.hi) {
+        last.hi = Math.max(last.hi, s.hi);
+        last.t = Math.max(last.t, s.t);
+      } else merged.push(s);
+    }
+    for (const a of merged) {
+      sc.placeAt((a.lo + a.hi) / 2, 1.3, 0.35);
+      const over = sim.squadX + reach >= a.lo && sim.squadX - reach <= a.hi;
+      const pulse = 0.5 + 0.5 * Math.sin(now * (6 + 22 * a.t * a.t) * 2);
+      const size =
+        Math.max(22, sc.scale * 0.95) * (over ? 1.3 : 1) * (0.9 + 0.2 * a.t + 0.1 * pulse);
+      drawWarningSign(g, sc.sx, sc.sy - size * 0.2, size, over, 0.7 + 0.3 * pulse);
+    }
   }
 
   /** Coins on their way to the counter at the top right, along a short arc. */
@@ -601,18 +690,34 @@ export class StationaryMode implements GameMode {
       const e = els[k];
       if (e.type === 'item' && e.item) {
         // the prize at the far end keeps its caption all the way: it is the goal of the run
-        if (k < LANE_LABELS || e === this.jackpot) this.drawItemLabel(g, e, e.item);
+        if (k < LANE_LABELS || e === this.jackpot) {
+          this.drawItemLabel(g, e, e.item, sim.lane.x, e.y, 0, 1);
+        }
       } else {
         this.drawBlockLabel(g, e);
       }
     }
+    // a power-up on its way to the squad says what it is all the way in
+    for (const f of sim.flying) {
+      const at = flightPos(f, sim.squadX);
+      this.drawItemLabel(g, f.el, f.item, at.x, at.y, at.h, at.size);
+    }
   }
 
-  private drawItemLabel(g: CanvasRenderingContext2D, e: LaneElement, def: ItemDef): void {
+  /** The caption of the power-up `e` standing at (x, y), `h` up in the air, at `size`. */
+  private drawItemLabel(
+    g: CanvasRenderingContext2D,
+    e: LaneElement,
+    def: ItemDef,
+    x: number,
+    y: number,
+    h: number,
+    size: number,
+  ): void {
     const sc = this.scene;
     // over the light column of the pedestal (the weapon floats a little lower, inside it)
-    const lift = e === this.jackpot ? JACKPOT_SCALE : 1;
-    sc.placeAt(this.sim.lane.x, e.y, (def.kind === 'weapon' ? 2.1 : 1.6) * lift);
+    const lift = (e === this.jackpot ? JACKPOT_SCALE : 1) * size;
+    sc.placeAt(x, y, h + (def.kind === 'weapon' ? 2.1 : 1.6) * lift);
     const label = itemLabel(def);
     // the far-off prize gets a bigger minimum, so it still reads out in the haze
     const minPx = e === this.jackpot ? 18 : 13;
@@ -647,8 +752,9 @@ export class StationaryMode implements GameMode {
   }
 }
 
-/** Colour of the squad counter: the soldiers' blue. */
+/** Colour of the squad counter: the soldiers' blue, and the red it flashes while in a strike zone. */
 const SQUAD_BLUE = '#2f86e8';
+const DANGER_RED = '#e8243a';
 const MAX_FLYING_COINS = 18;
 /** Top and bottom colour of the big numbers on tyre piles: the ad shooters' orange. */
 const BLOCK_FILL: [string, string] = ['#ffe27a', '#ff7b1c'];
@@ -720,6 +826,43 @@ function drawHordeMarks(
       : 'rgba(255,255,255,0.3)';
     g.stroke();
   }
+}
+
+/**
+ * A red warning triangle with a white "!", `size` px wide, its centre at (x, y). The one over the
+ * squad (`over`) is outlined in white.
+ */
+function drawWarningSign(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  over: boolean,
+  alpha: number,
+): void {
+  const h = size * 0.88;
+  const top = y - h * 0.55;
+  const bottom = y + h * 0.45;
+  g.save();
+  g.globalAlpha = alpha;
+  g.beginPath();
+  g.moveTo(x, top);
+  g.lineTo(x + size / 2, bottom);
+  g.lineTo(x - size / 2, bottom);
+  g.closePath();
+  g.lineJoin = 'round';
+  g.lineWidth = size * (over ? 0.2 : 0.14);
+  g.strokeStyle = over ? '#fff' : 'rgba(40,6,10,0.9)';
+  g.stroke();
+  g.fillStyle = '#ff2a3a';
+  g.fill();
+  const px = Math.round(h * 0.62);
+  g.font = `900 ${px}px ${FONT}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#fff';
+  g.fillText('!', x, y + h * 0.1);
+  g.restore();
 }
 
 /** A rounded health bar centred on (x, y): dark track, red fill for the share that is left. */

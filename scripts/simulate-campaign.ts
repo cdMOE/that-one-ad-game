@@ -79,7 +79,8 @@ for (const name of names) {
     const have = UPGRADE_KINDS.map((k) => `${k} ${p.upgrades[k]}`).join(', ');
     // how far each run got (a won run also says how long the upgrade lane lasted, see LANE_LASTS):
     // the first few and the last one
-    const lane = `won (lane ${Math.round((p.laneShare ?? 0) * 100)}%)`;
+    const fight = p.bossFight === null ? '' : `, boss ${p.bossFight.toFixed(0)}s`;
+    const lane = `won (lane ${Math.round((p.laneShare ?? 0) * 100)}%${fight})`;
     const path = p.reached.map((x) => (x >= 1 ? lane : `${Math.floor(x * 100)}%`));
     const target = CAMPAIGN[p.level.id];
     const range = target?.runs[name];

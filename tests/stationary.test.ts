@@ -10,6 +10,7 @@ import {
   BULLET_RANGE,
   ELITE_BODY_SCALE,
   GAME_SPEED,
+  HORDE_HOLD,
   LANE_HOLD_Y,
   MAX_BULLETS,
   MAX_SHOOTERS,
@@ -387,6 +388,37 @@ describe('StationarySim', () => {
     }
   });
 
+  it('an elite holds its fire while a horde is in front of it, and opens fire once it clears', () => {
+    const level = withLane([{ type: 'block', hp: 1000000 }], {
+      startCount: 600,
+      monsters: [
+        { kind: 'boss', count: 1, hp: 1000000, interval: 1, x: 0.5, spread: 0 },
+        // a long, unkillable stream that walks past the boss, then a clear field
+        { kind: 'grunt', count: 240, hp: 1000000, interval: 0.12, delay: 20 },
+      ],
+    });
+    const sim = new StationarySim(level, mulberry32(2));
+    sim.targetX = sim.lane.x; // shooting the block: the horde walks in untouched
+    sim.snapSquad = true;
+    const announced: number[] = [];
+    sim.hooks.telegraph = () => announced.push(sim.hordeNear);
+    let heldWithHorde = 0;
+    let volleysAfter = 0;
+    for (let i = 0; i < 30 * 150 && sim.phase !== 'lost'; i++) {
+      const before = announced.length;
+      sim.update(1 / 30);
+      const boss = sim.malive.findIndex(
+        (v, k) => v === 1 && sim.mkind[k] === MONSTER_KIND_BY_INDEX.indexOf('boss'),
+      );
+      if (boss >= 0 && sim.mstate[boss] !== 0 && sim.hordeNear >= HORDE_HOLD) heldWithHorde++;
+      if (heldWithHorde > 0 && sim.hordeNear === 0 && announced.length > before) volleysAfter++;
+    }
+    expect(heldWithHorde).toBeGreaterThan(30 * 5); // it stood through a horde phase
+    // never a new volley while the horde crowds the field, and volleys again once it has passed
+    expect(announced.every((n) => n < HORDE_HOLD)).toBe(true);
+    expect(volleysAfter).toBeGreaterThan(0);
+  });
+
   it('a volley costs the squad once, even when it stands in two zones', () => {
     const level = withLane([{ type: 'block', hp: 1000000 }], {
       startCount: 20,
@@ -595,7 +627,7 @@ describe('StationarySim', () => {
     expect(sim.progress).toBe(1);
   });
 
-  it('loses power-ups the squad does not catch', () => {
+  it('sends a freed power-up to the squad wherever it stands', () => {
     const level = withLane(
       [
         { type: 'block', hp: 6 },
@@ -609,15 +641,18 @@ describe('StationarySim', () => {
       },
     );
     const sim = new StationarySim(level, mulberry32(1));
-    let lost = 0;
+    let launched = 0;
     let broken = false;
-    sim.hooks.itemLost = () => lost++;
+    sim.hooks.itemLaunched = () => launched++;
     sim.hooks.blockBreak = () => (broken = true);
+    let flew = false;
     run(sim, 60, (s) => {
       s.targetX = broken ? 5 : s.lane.x; // shoot the block, then leave for the monster side
+      flew ||= s.flying.length > 0 && s.count < 25;
     });
-    expect(lost).toBe(1);
-    expect(sim.count).toBeLessThanOrEqual(10);
+    expect(launched).toBe(1);
+    expect(flew).toBe(true); // it takes a moment to land, it does not count at once
+    expect(sim.count).toBeGreaterThanOrEqual(25);
   });
 
   it('applies upgrades and weapon switches from power-ups', () => {

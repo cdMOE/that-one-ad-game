@@ -22,8 +22,8 @@ import { applyUpgrade, effectiveWeapon, newWeaponState, type WeaponState } from 
  * The field has two separate lanes. The **upgrade lane** (left by default) is a column of
  * blocks (HP counter, stop bullets) and power-ups sliding towards the squad: the front block
  * holds close to the squad until it is shot to pieces, the power-ups behind it are visible
- * from the start and fall one after another, so you have to be underneath them to catch
- * them. The **monster lane** is the rest of the field: monsters pour down it in masses on
+ * from the start, and each one the broken block frees flies to the squad on its own (see
+ * `ITEM_FLIGHT`). The **monster lane** is the rest of the field: monsters pour down it in masses on
  * straight lines and never enter the upgrade lane. Levels send them as marching ranks, one row
  * after another without a breather, so every second spent on the upgrade lane costs you.
  */
@@ -65,6 +65,14 @@ export const LANE_HOLD_Y = 4.4;
 /** Distance between two neighbouring lane elements. */
 export const LANE_SPACING = 1.7;
 export const BLOCK_HEIGHT = 1.3;
+/**
+ * A power-up freed from its block flies to the squad on its own, wherever the squad stands, in
+ * this many seconds (game time), and counts when it lands. The choice is shooting the block or
+ * the horde; walking under a power-up to catch it was legwork, and a missed minigun hurt a run
+ * without being a decision. Power-ups freed together leave one after another, `ITEM_GAP` apart.
+ */
+export const ITEM_FLIGHT = 0.75;
+const ITEM_GAP = 0.25;
 /** The upgrade lane is this wide and its centre is this far from the middle of the field. */
 export const UPGRADE_LANE_WIDTH = 3.6;
 export const UPGRADE_LANE_CENTER = 3.8;
@@ -122,6 +130,19 @@ const ELITE_PROGRESS_MAX = 0.5;
 
 /** Every rage step makes an elite's volleys come this many times sooner. */
 export const RAGE_PACE = 0.8;
+
+/**
+ * A boss fight comes in phases, never horde and volleys at full strength at once: while the horde
+ * on the field in front of the elites (closer than `HORDE_FIELD_Y`, its own or the level's) could
+ * bite at least `HORDE_HOLD` soldiers (a tank counts as four grunts), they hold their fire, and
+ * the squad deals with the horde.
+ * Once the field clears they open fire within `HORDE_REFIRE` of their volley interval: dodge and
+ * hit the boss. A volley already announced still lands. Health marks and rage steps call the next
+ * wave, so a fight that drags never thins out into a lonely duel either.
+ */
+export const HORDE_HOLD = 6;
+export const HORDE_FIELD_Y = 12;
+const HORDE_REFIRE = 0.35;
 
 export interface MonsterStats {
   speed: number;
@@ -225,7 +246,13 @@ export const ELITE_BODY_SCALE = 0.85;
  * level peaks at about 700 with the bot playing.
  */
 export const MAX_MONSTERS = 1000;
-export const MAX_BULLETS = 900;
+/**
+ * Bullets in flight at most; a fired bullet takes the slot of the oldest one. Enough for a full
+ * squad of drawn soldiers on a maxed minigun over a whole bullet range, so none is lost unseen.
+ */
+export const MAX_BULLETS = 1600;
+/** Shots one soldier may fire in one step: a long frame (up to `MAX_FRAME`) still fires them all. */
+const MAX_SHOTS_PER_STEP = 6;
 /** Monsters are sorted into horizontal slabs of this height so bullets only test nearby ones. */
 const BUCKET_H = 1;
 /** Enough slabs to reach past the spawn line (plus its jitter); anything beyond shares the last. */
@@ -243,6 +270,18 @@ export interface LaneElement {
   item?: ItemDef;
   /** 1 right after a hit, decays in the view. */
   flash: number;
+}
+
+/** A power-up on its way from the lane to the squad (see `ITEM_FLIGHT`). */
+export interface FlyingItem {
+  /** The lane element it was, so the view keeps drawing the same thing. */
+  el: LaneElement;
+  item: ItemDef;
+  /** Where it left the lane. */
+  x: number;
+  y: number;
+  /** 0 when it leaves, 1 when it lands. */
+  t: number;
 }
 
 export interface LaneState {
@@ -290,11 +329,14 @@ export interface SimHooks {
   kill?(x: number, y: number, kind: MonsterKind, radius: number): void;
   /** Coins dropped at a position (raw amount, before the coin-bonus upgrade). */
   coin?(x: number, y: number, amount: number): void;
-  bite?(x: number, y: number, lost: number): void;
+  /** A monster of `kind` reached the squad at (x, y) and bit `lost` soldiers out of it. */
+  bite?(x: number, y: number, lost: number, kind: MonsterKind, radius: number): void;
   blockHit?(x: number, y: number): void;
   blockBreak?(x: number, y: number): void;
+  /** A power-up left the lane for the squad (see `ITEM_FLIGHT`). */
+  itemLaunched?(x: number, y: number, def: ItemDef): void;
+  /** It landed on the squad and counts now; `delta` is what it did to the squad's size. */
   itemCollected?(x: number, y: number, def: ItemDef, delta: number): void;
-  itemLost?(x: number, def: ItemDef): void;
   /**
    * An elite called `count` monsters of its horde to its side (see `SummonDef`): at one of its
    * health marks, or (`rage`) as the half wave that comes with a rage step.
@@ -452,6 +494,12 @@ export class StationarySim {
   private readonly mzones = new Uint8Array(MAX_MONSTERS);
   /** Strikes that are lit up right now (rebuilt every step). */
   readonly attacks: Attack[] = [];
+  /** Soldiers the horde in front of the elites could bite this step (see `HORDE_HOLD`). */
+  hordeNear = 0;
+  /** Power-ups in the air between the lane and the squad. */
+  readonly flying: FlyingItem[] = [];
+  /** Game time until the next freed power-up may leave the lane. */
+  private launchWait = 0;
   // bullets (ring buffer)
   readonly bx = new Float32Array(MAX_BULLETS);
   readonly by = new Float32Array(MAX_BULLETS);
@@ -729,6 +777,12 @@ export class StationarySim {
       this.eliteIndex++;
     }
 
+    this.hordeNear = 0;
+    for (let i = 0; i < MAX_MONSTERS; i++) {
+      if (this.malive[i] && this.my[i] < HORDE_FIELD_Y) {
+        this.hordeNear += MONSTERS[MONSTER_KIND_BY_INDEX[this.mkind[i]]].bite;
+      }
+    }
     // monsters march straight down their own lane; whatever reaches the bottom bites
     for (let i = 0; i < MAX_MONSTERS; i++) {
       if (!this.malive[i]) continue;
@@ -743,7 +797,13 @@ export class StationarySim {
         if (!this.mcalled[i]) this.done++;
         this.count = clampCount(this.count - stats.bite);
         this.trace.bitten += stats.bite;
-        this.hooks.bite?.(this.mx[i], Math.max(0, y), stats.bite);
+        this.hooks.bite?.(
+          this.mx[i],
+          Math.max(0, y),
+          stats.bite,
+          MONSTER_KIND_BY_INDEX[this.mkind[i]],
+          stats.radius,
+        );
         if (this.count <= 0) {
           this.end(false);
           return;
@@ -932,6 +992,11 @@ export class StationarySim {
         if (h) this.callHorde(i, Math.ceil(h.count / 2), true);
       }
     }
+    // horde phase: it holds its fire while the horde is in front of it (see `HORDE_HOLD`)
+    if (this.mstate[i] === 1 && this.hordeNear >= HORDE_HOLD) {
+      this.mtimer[i] = Math.max(this.mtimer[i] - dt, e.interval * HORDE_REFIRE);
+      return false;
+    }
     this.mtimer[i] -= dt;
     if (this.mtimer[i] > 0) return false;
     if (this.mstate[i] === 1) {
@@ -1036,23 +1101,22 @@ export class StationarySim {
       if (k > 0) floor = Math.max(floor, els[k - 1].y + LANE_SPACING);
       e.y = Math.max(floor, e.y - LANE_SPEED * dt);
     }
-    // collect or lose the front power-up
+    // a power-up with no block in front of it leaves for the squad
+    this.launchWait -= dt;
     const front = els[0];
-    if (front && front.type === 'item' && front.item) {
-      if (front.y <= 1 && Math.abs(lane.x - this.squadX) <= this.halfWidth() + lane.width / 2) {
-        els.shift();
-        const before = this.count;
-        this.applyItem(front.item);
-        this.trace.items.push({
-          t: this.traceTime(),
-          item: itemName(front.item),
-          count: this.count,
-        });
-        this.hooks.itemCollected?.(lane.x, front.y, front.item, this.count - before);
-      } else if (front.y < -1.5) {
-        els.shift();
-        this.hooks.itemLost?.(lane.x, front.item);
-      }
+    if (front && front.type === 'item' && front.item && this.launchWait <= 0) {
+      els.shift();
+      this.launchWait = ITEM_GAP;
+      this.flying.push({ el: front, item: front.item, x: lane.x, y: front.y, t: 0 });
+      this.hooks.itemLaunched?.(lane.x, front.y, front.item);
+    }
+    for (const f of this.flying) f.t += dt / ITEM_FLIGHT;
+    while (this.flying.length > 0 && this.flying[0].t >= 1) {
+      const f = this.flying.shift() as FlyingItem;
+      const before = this.count;
+      this.applyItem(f.item);
+      this.trace.items.push({ t: this.traceTime(), item: itemName(f.item), count: this.count });
+      this.hooks.itemCollected?.(this.squadX, 0, f.item, this.count - before);
     }
   }
 
@@ -1073,22 +1137,28 @@ export class StationarySim {
     // than we can draw hit harder per bullet, so the counter always matters
     const perBullet = w.damage * (this.count / n);
     for (let i = 0; i < n; i++) {
-      this.fireAcc[i] += w.rate * dt;
+      // a fast gun fires several times per step on a slow frame (a 30 fps phone, the 30 Hz bot):
+      // one shot per step at most capped a maxed minigun at 60% of its damage there. Each shot of
+      // the step leaves when it was due, so it starts as far along its way as it has flown since
+      this.fireAcc[i] = Math.min(this.fireAcc[i] + w.rate * dt, MAX_SHOTS_PER_STEP);
       if (this.fireAcc[i] < 1) continue;
-      this.fireAcc[i] = Math.min(this.fireAcc[i] - 1, 1);
       const x = this.soldierX(i);
       const y = this.soldierY(i) + 0.5;
-      for (let p = 0; p < pellets; p++) {
-        const fan = pellets > 1 ? (p / (pellets - 1) - 0.5) * w.spread : 0;
-        const a = Math.PI / 2 + fan; // bullets fly dead straight from the soldier
-        const b = this.bulletHead;
-        this.bulletHead = (this.bulletHead + 1) % MAX_BULLETS;
-        this.bx[b] = x;
-        this.by[b] = y;
-        this.bvx[b] = Math.cos(a) * w.speed;
-        this.bvy[b] = Math.sin(a) * w.speed;
-        this.bdmg[b] = perBullet;
-        this.blife[b] = BULLET_RANGE / w.speed;
+      while (this.fireAcc[i] >= 1) {
+        this.fireAcc[i] -= 1;
+        const age = this.fireAcc[i] / w.rate;
+        for (let p = 0; p < pellets; p++) {
+          const fan = pellets > 1 ? (p / (pellets - 1) - 0.5) * w.spread : 0;
+          const a = Math.PI / 2 + fan; // bullets fly dead straight from the soldier
+          const b = this.bulletHead;
+          this.bulletHead = (this.bulletHead + 1) % MAX_BULLETS;
+          this.bvx[b] = Math.cos(a) * w.speed;
+          this.bvy[b] = Math.sin(a) * w.speed;
+          this.bx[b] = x + this.bvx[b] * age;
+          this.by[b] = y + this.bvy[b] * age;
+          this.bdmg[b] = perBullet;
+          this.blife[b] = BULLET_RANGE / w.speed - age;
+        }
       }
       this.hooks.shot?.(x, y);
     }

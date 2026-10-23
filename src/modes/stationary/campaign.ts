@@ -84,6 +84,10 @@ export const CAMPAIGN: Readonly<Record<string, CampaignTarget>> = {
   'stationary-05': {
     runs: { good: [8, 10], casual: [14, 20] },
     role: 'chapter boss',
+    // since power-ups fly in and bosses fight in phases (horde, then volleys), the casual model
+    // takes 11-14 runs here: those two changes help a weaker reader most, and it reaches the
+    // level with a bigger wallet. Open until a casual playtest says whether that is right.
+    pending: ['casual'],
   },
 };
 
@@ -150,6 +154,8 @@ export interface LevelCampaign {
   reached: number[];
   /** Share of the winning run the upgrade lane lasted (see `LANE_LASTS`); null if not won. */
   laneShare: number | null;
+  /** How long the boss stood in the winning run (see `BotResult.bossSeconds`); null if not won. */
+  bossFight: number | null;
   /** Upgrades owned after the level. */
   upgrades: UpgradeLevels;
 }
@@ -221,6 +227,7 @@ export function playCampaign(
     const gaps: number[] = [];
     const reached: number[] = [];
     let laneShare: number | null = null;
+    let bossFight: number | null = null;
     while (!won && runs < maxRuns) {
       const r = runBot(level, seed++ * 7919, up, { pilot });
       runs++;
@@ -235,6 +242,7 @@ export function playCampaign(
       if (won) {
         coins += firstClearBonus(order);
         laneShare = r.laneShare;
+        bossFight = r.bossSeconds;
       }
       const before = { ...up };
       coins = spend(up, coins, buy);
@@ -254,6 +262,7 @@ export function playCampaign(
       gaps,
       reached,
       laneShare,
+      bossFight,
       upgrades: { ...up },
     });
   }

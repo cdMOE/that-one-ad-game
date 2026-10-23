@@ -13,11 +13,11 @@ _Screenshots: coming soon (put captures in `docs/screenshots/` and link them her
 
 The core is mode-agnostic. A level's `"mode"` field picks the variant:
 
-| Mode           | Idea                                                                                         | Status            |
-| -------------- | -------------------------------------------------------------------------------------------- | ----------------- |
-| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds.                | ready (10 levels) |
-| `stationary`   | You slide the squad, every soldier shoots; smash HP blocks, catch the power-ups behind them. | ready (5 levels)  |
-| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                            | planned           |
+| Mode           | Idea                                                                                          | Status            |
+| -------------- | --------------------------------------------------------------------------------------------- | ----------------- |
+| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds.                 | ready (10 levels) |
+| `stationary`   | You slide the squad, every soldier shoots; smash HP blocks, the power-ups behind them fly in. | ready (5 levels)  |
+| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                             | planned           |
 
 New modes are one file plus a registry entry, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -110,7 +110,7 @@ far away the road fades into fog.
 
 The upgrade lane is a column that slides towards the squad: the **front block** (HP counter, stops
 bullets) holds close to the squad until it is shot to pieces, and the **power-ups behind it are
-all visible**. A power-up at the front falls, and you catch it by moving underneath. A chain like
+all visible**. Once no block stands in front of a power-up, it flies to the squad on its own. A chain like
 block, +1, +1, bigger block, weapon, block, +1 is just a list. Whatever monster reaches the bottom
 bites the squad, wherever the squad is, so you have to sweep between both lanes.
 
@@ -177,8 +177,8 @@ level can **not** be won on the first run either: you lose, bank the coins, buy 
 again. They are meant to take a number of runs each, rising in waves (see `CAMPAIGN` below): Heavy
 Crates is a breather after the tutorial (an `x2` right after the rifle, tanks, a boss that calls
 tanks), Growing Pains the first real wall (runners down the far flank, a second miniboss that calls
-them), The Flood a power fantasy (half again as many monsters, a boss that is a pure damage race),
-and Big Boss the chapter boss (a second miniboss in the end phase, a boss with twice the health). A
+them), The Flood a power fantasy (nearly twice as many monsters, each softer, and a short boss
+fight), and Big Boss the chapter boss (a second miniboss in the end phase, the toughest horde). A
 lost run shows how far it got, against the level's record, and what finished it (the horde or a
 boss volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the
 line turns gold and NEW RECORD! pops. The bar counts ordinary monsters one each and elites by the
@@ -200,7 +200,8 @@ little further instead of flipping a run from "lost at 60%" to "won without a sc
 - **The boss is the one wall at the end.** A run that gets there with too little firepower brings
   it down part of the way before its horde and volleys win: lost runs end at "boss 20% left", the
   near-miss that makes you retry. The unit tests check that the run before every win came close
-  (`NEAR_MISS`).
+  (`NEAR_MISS`). The fight takes 20-35 s on the run that wins (`npm run simulate:campaign` shows it):
+  its health is set for that, the difficulty of a level comes from its toughness `k`.
 
 **Stars** measure how much of the biggest squad of the run is still standing at the end (80% or more:
 three stars, 45% or more: two, otherwise one), so a run without bites and volleys earns three stars
@@ -214,7 +215,10 @@ menu; leaving keeps the coins of the run.
 field: there is no queue, no breather, and two bosses can be out at once. They walk in to a hold
 line well inside the field (`holdY` in `sim.ts`) and never bite. Instead they stay until you kill
 them and fire volleys at intervals: red zones light up, and a moment later they land, costing a share of your soldiers (once per volley) unless
-you have slid out of all of them. The first zone is aimed at your squad with a chance (`aimedChance`),
+you have slid out of all of them. A boss fight comes in phases: while a horde stands on the field in
+front of the elites (enough to bite `HORDE_HOLD` soldiers, a tank counts as four), they hold their
+fire, and once it clears they open fire at once, so you fight the horde, then dodge and hit the boss,
+never both at full strength. The first zone is aimed at your squad with a chance (`aimedChance`),
 otherwise it lands at random, and the boss adds a second random zone (`zones`); a volley always
 leaves a gap the squad fits into. The upgrade lane is never struck. Everything else (grunts, runners, tanks)
 still walks down and bites. Bullets have a limited range (`BULLET_RANGE` in `sim.ts`): they reach

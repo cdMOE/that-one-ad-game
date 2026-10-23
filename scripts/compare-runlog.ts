@@ -15,6 +15,8 @@ import type { RunTrace, StationarySim } from '../src/modes/stationary/sim';
 //   --pilot   pilots to compare (names from PILOTS in bot.ts), default: good
 //   --seeds   bot runs per logged run
 //   --level   only the runs of this level (its id, e.g. stationary-05)
+//   --all     every run in the log; by default only the runs after its last progress reset, as a
+//             reset starts a new playthrough (a log can hold several)
 const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith('--'));
 if (!file) {
@@ -44,7 +46,10 @@ for (const f of readdirSync(dir)
 // position among the shooter levels, for the level's payout factor
 const order = new Map([...levels.keys()].map((id, i) => [id, i]));
 
-const log = JSON.parse(readFileSync(file, 'utf8')) as LogItem[];
+const full = JSON.parse(readFileSync(file, 'utf8')) as LogItem[];
+let lastReset = -1;
+if (!args.includes('--all')) full.forEach((e, i) => 'reset' in e && (lastReset = i));
+const log = full.slice(lastReset + 1);
 // a run left from the pause screen says nothing about how far it would have got
 const only = option('level');
 const runs = log.filter(

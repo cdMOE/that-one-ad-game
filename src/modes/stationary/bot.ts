@@ -46,6 +46,11 @@ export interface BotResult {
   blockLeft: number | null;
   /** Health left (0..1) of the boss a lost run did not get past, null if none was on the field. */
   bossLeft: number | null;
+  /**
+   * Real seconds the boss stood on its line, from reaching it until it fell (or the run ended);
+   * null when it never got there. A boss fight is meant to take 20-35 s at the run that wins.
+   */
+  bossSeconds: number | null;
 }
 
 /**
@@ -130,17 +135,28 @@ function dodgeTarget(
   margin = 0.05,
   want = sim.squadX,
 ): number | null {
-  const reach = sim.halfWidth() + 0.3;
   const limit = 6 - sim.halfWidth();
   const zones = sim.attacks.filter((a) => a.t >= reaction);
-  const blocked = (x: number) => zones.some((a) => x + reach >= a.lo && x - reach <= a.hi);
-  if (!blocked(want)) return null;
-  // the nearest spot just beside a zone edge that no other zone covers
-  const options = zones
-    .flatMap((a) => [a.lo - reach - margin, a.hi + reach + margin])
-    .filter((x) => x >= -limit && x <= limit && !blocked(x));
-  if (options.length === 0) return null;
-  return options.reduce((best, x) => (Math.abs(x - want) < Math.abs(best - want) ? x : best));
+  // with room to spare, it keeps well clear of the edges; a volley always leaves a gap the squad
+  // fits into, but not always one that wide, and then it squeezes into the gap it has (standing
+  // still because no spot is comfortable is how a careful bot still ate whole volleys)
+  for (const [pad, m] of [
+    [0.3, margin],
+    [0, margin],
+    [0, 0.02],
+  ]) {
+    const reach = sim.halfWidth() + pad;
+    const blocked = (x: number) => zones.some((a) => x + reach >= a.lo && x - reach <= a.hi);
+    if (!blocked(want)) return null;
+    // the nearest spot just beside a zone edge that no other zone covers
+    const options = zones
+      .flatMap((a) => [a.lo - reach - m, a.hi + reach + m])
+      .filter((x) => x >= -limit && x <= limit && !blocked(x));
+    if (options.length > 0) {
+      return options.reduce((best, x) => (Math.abs(x - want) < Math.abs(best - want) ? x : best));
+    }
+  }
+  return null;
 }
 
 /**
@@ -211,8 +227,8 @@ function crowdScore(sim: StationarySim, cx: number, pilot: Pilot, elites: number
 
 /**
  * Monsters come down in masses, so it stands where its fire reaches most of the crowd whenever
- * they are close; otherwise it goes to the upgrade lane to shoot the front block or catch the
- * falling power-up, or shoots a boss that is waiting on the field.
+ * they are close; otherwise it goes to the upgrade lane to shoot the front block, or shoots a boss
+ * that is waiting on the field. Power-ups come to the squad on their own.
  */
 function fieldTarget(sim: StationarySim, pilot: Pilot): number {
   const engageAt = pilot.engageAt ?? 7;
@@ -238,7 +254,6 @@ function fieldTarget(sim: StationarySim, pilot: Pilot): number {
     }
   }
   const front = sim.lane.elements[0];
-  if (front?.type === 'item' && nearestY > 2.5) return sim.lane.x;
   if (!front || danger >= 3 || nearestY < 3) return bestX;
   // quiet moment: a boss standing in the field is worth more than the next block
   const elite = nearestElite(sim);
@@ -247,7 +262,7 @@ function fieldTarget(sim: StationarySim, pilot: Pilot): number {
 
 /**
  * A simple but sensible player: it keeps the squad under whatever is most urgent (close
- * monsters, falling power-ups, the front block). Used by `npm run validate:levels` to check
+ * monsters, a waiting boss, the front block). Used by `npm run validate:levels` to check
  * that a level can be won.
  */
 export function runBot(
@@ -305,6 +320,7 @@ export function runBot(
     if (laneDry < 0 && sim.lane.elements.length === 0) laneDry = sim.time;
   }
   const front = sim.lane.elements.find((e) => e.type === 'block');
+  const boss = sim.trace.elites.find((e) => e.kind === 'boss');
   return {
     won: sim.phase === 'won',
     survivors: sim.phase === 'won' ? sim.count : 0,
@@ -318,6 +334,7 @@ export function runBot(
     itemTimes,
     blockLeft: front?.type === 'block' ? Math.max(0, front.hp / front.maxHp) : null,
     bossLeft: sim.wallLeft,
+    bossSeconds: boss ? (boss.down ?? sim.time / GAME_SPEED) - boss.t : null,
   };
 }
 

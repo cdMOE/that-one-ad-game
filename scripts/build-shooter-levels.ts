@@ -52,6 +52,7 @@ const LEVELS: LevelSpec[] = [
     id: 'stationary-02',
     name: 'Heavy Crates',
     k: 3.969,
+    boss: 0.6,
     side: 'left',
     // the x2 right after the rifle and tanks all through, one by one; a breather, so the miniboss
     // in the opening is a light one
@@ -64,7 +65,8 @@ const LEVELS: LevelSpec[] = [
     file: '13-growing-pains',
     id: 'stationary-03',
     name: 'Growing Pains',
-    k: 7.905,
+    k: 8.9,
+    boss: 0.75,
     side: 'right',
     // runners down the far flank, and a second miniboss that calls them
     opening: 'B10 +2 B80 +2 B310 rifle +3',
@@ -88,22 +90,23 @@ const LEVELS: LevelSpec[] = [
     id: 'stationary-04',
     name: 'The Flood',
     k: 18.817,
+    boss: 0.4,
     side: 'left',
-    // half again as many monsters, each softer: a flood that melts; the boss is a damage race
+    // nearly twice as many monsters, each softer: a flood that melts, and a short boss fight
     opening: 'B12 +3 B100 rifle x2',
-    crowd: 1.5,
+    crowd: 1.8,
     pulseHp: [3, 4],
-    summons: { kind: 'grunt', hp: 12, count: 12, columns: 8, at: [0.75, 0.5, 0.25] },
+    summons: { kind: 'grunt', hp: 12, count: 24, columns: 8, at: [0.75, 0.5, 0.25] },
   },
   {
     file: '15-big-boss',
     id: 'stationary-05',
     name: 'Big Boss',
-    k: 27.253,
+    k: 42,
     side: 'right',
     // a second miniboss early in the end phase, then the chapter boss
     opening: 'B15 +2 B120 +2 B400 rifle +3',
-    boss: 2.2,
+    boss: 0.8,
     summons: { kind: 'grunt', hp: 20, count: 24, columns: 8, at: [0.75, 0.5, 0.25] },
     extra: [{ kind: 'miniboss', count: 1, hp: 400, interval: 1, delay: 58, x: -0.4, spread: 0.3 }],
   },
