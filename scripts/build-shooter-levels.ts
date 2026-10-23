@@ -67,21 +67,22 @@ const LEVELS: LevelSpec[] = [
     id: 'stationary-01',
     name: 'First Blood',
     k: 1.25,
+    boss: 0.75,
     side: 'left',
     opening: 'B4 +2 B30 +2 B100 rifle +3',
     ladder:
       'B400 minigun +3 B900 +3 B1500 +3 B2200 r+0.15 B3000 +3 B4000 +4 B5200 r+0.15 B6600 +4 B8200 +5',
-    summons: { kind: 'grunt', hp: 20, count: 32, columns: 8, at: [0.75, 0.5, 0.25] },
+    summons: { kind: 'grunt', hp: 20, count: 22, columns: 8, at: [0.75, 0.5, 0.25] },
   },
   {
     // heavy crates: few, thick blocks with big rewards, and the TRIPLE SHOT right with the minigun:
-    // the shots fan out wide, the tanks that come in pairs all through the level fall to it. No
+    // three bullets side by side, where you aim, the tanks that come in pairs fall to it. No
     // miniboss: the breather after the tutorial, the tank pairs are its small walls
     file: '12-heavy-crates',
     id: 'stationary-02',
     name: 'Heavy Crates',
     k: 6.8,
-    boss: 0.9,
+    boss: 0.7,
     side: 'left',
     tempo: 0.95,
     opening: 'B8 +2 B30 +2 B90 rifle x2',
@@ -98,25 +99,25 @@ const LEVELS: LevelSpec[] = [
     file: '13-growing-pains',
     id: 'stationary-03',
     name: 'Growing Pains',
-    k: 9,
+    k: 9.8,
     boss: 0.75,
     side: 'right',
     tempo: 1.15,
     opening: 'B10 +2 B80 +2 B310 rifle +3',
     ladder:
-      'B250 minigun +3 G800 d+0.25 G1150 +3 G1600 d+0.25 G2200 +3 G3000 r+0.15 G3900 +4 G5000 +4 G6400 +5 G8200 +6',
+      'B250 minigun +3 G800 +3 G1150 d+0.25 G1600 +3 G2200 d+0.25 G3000 r+0.15 G3900 +4 G5000 +4 G6400 +5 G8200 +6',
     runnersAt: 0.8,
     summons: { kind: 'grunt', hp: 20, count: 32, columns: 8, at: [0.75, 0.5, 0.25] },
     extra: [
       {
         kind: 'miniboss',
         count: 1,
-        hp: 900,
+        hp: 600,
         interval: 1,
         delay: 48,
         x: 0,
         spread: 0.3,
-        summons: { kind: 'runner', hp: 4, count: 12, columns: 6, at: [0.5] },
+        summons: { kind: 'runner', hp: 4, count: 8, columns: 4, at: [0.5] },
       },
     ],
   },
@@ -129,7 +130,7 @@ const LEVELS: LevelSpec[] = [
     id: 'stationary-04',
     name: 'The Flood',
     k: 33,
-    boss: 0.65,
+    boss: 0.5,
     side: 'left',
     weapon: 'rifle',
     tempo: 0.95,
@@ -149,12 +150,12 @@ const LEVELS: LevelSpec[] = [
     file: '15-big-boss',
     id: 'stationary-05',
     name: 'Big Boss',
-    k: 44,
+    k: 51,
     side: 'right',
     tempo: 1.1,
     opening: 'B15 +2 B120 +2 B400 rifle +3',
     ladder:
-      'B400 minigun +3 B900 +3 B1500 d+0.25 B2200 laser B3000 r+0.15 B4000 +5 B5500 +6 B7500 +8',
+      'B400 minigun +3 B650 +3 B1000 +3 B1500 d+0.25 B2200 laser B3000 r+0.15 B4000 +5 B5500 +6 B7500 +8',
     boss: 0.8,
     summons: {
       kind: 'grunt',
@@ -167,7 +168,7 @@ const LEVELS: LevelSpec[] = [
         { kind: 'tank', hp: 150, count: 2 },
       ],
     },
-    extra: [{ kind: 'miniboss', count: 1, hp: 400, interval: 1, delay: 58, x: -0.4, spread: 0.3 }],
+    extra: [{ kind: 'miniboss', count: 1, hp: 250, interval: 1, delay: 58, x: -0.4, spread: 0.3 }],
   },
 ];
 

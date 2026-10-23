@@ -1182,13 +1182,14 @@ export class StationarySim {
         this.fireAcc[i] -= 1;
         const age = this.fireAcc[i] / w.rate;
         for (let p = 0; p < pellets; p++) {
-          const fan = pellets > 1 ? (p / (pellets - 1) - 0.5) * w.spread : 0;
-          const a = Math.PI / 2 + fan; // bullets fly dead straight from the soldier
+          const across = pellets > 1 ? p / (pellets - 1) - 0.5 : 0;
+          const a = Math.PI / 2 + across * w.spread; // bullets fly dead straight from the soldier
+          const side = across * (pellets - 1) * w.gap; // or side by side
           const b = this.bulletHead;
           this.bulletHead = (this.bulletHead + 1) % MAX_BULLETS;
           this.bvx[b] = Math.cos(a) * w.speed;
           this.bvy[b] = Math.sin(a) * w.speed;
-          this.bx[b] = x + this.bvx[b] * age;
+          this.bx[b] = x + side + this.bvx[b] * age;
           this.by[b] = y + this.bvy[b] * age;
           this.bdmg[b] = perBullet;
           this.blife[b] = BULLET_RANGE / w.speed - age;

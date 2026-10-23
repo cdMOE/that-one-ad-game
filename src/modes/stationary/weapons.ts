@@ -14,6 +14,11 @@ export interface WeaponStats {
   pellets: number;
   /** Total fan angle (radians) the pellets are spread over. */
   spread: number;
+  /**
+   * Sideways distance between the parallel lines of a shot with more than one pellet and no fan
+   * of its own (see `PELLET_GAP`).
+   */
+  gap: number;
   /** Bullet speed in world units per second. */
   speed: number;
   /**
@@ -24,26 +29,36 @@ export interface WeaponStats {
 }
 
 /**
- * Fan (radians) of a shot with more than one pellet when the weapon has none of its own: the
- * pellets of a TRIPLE SHOT fan out wide where you can see them, into the columns next to the
- * soldier's, instead of stacking on one line. Into a lane block only the middle one hits, so it
- * thins the horde three times as fast and not the lane.
+ * The pellets of a TRIPLE SHOT fly side by side, this far apart (a third of `SOLDIER_SPACING`), dead
+ * straight like a single shot: the squad's beam turns into a solid curtain three times as dense,
+ * and it stays exactly where you aim. A fan was stronger on paper and felt weaker: the extra
+ * bullets went where the player was not aiming.
  */
-const PELLET_FAN = 0.36;
+const PELLET_GAP = 0.2;
 
 export const WEAPONS: Record<WeaponId, WeaponStats> = {
-  pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, speed: 20 },
-  rifle: { name: 'Rifle', rate: 4.5, damage: 1, pellets: 1, spread: 0, speed: 24 },
+  pistol: { name: 'Pistol', rate: 2.2, damage: 1, pellets: 1, spread: 0, gap: 0, speed: 20 },
+  rifle: { name: 'Rifle', rate: 4.5, damage: 1, pellets: 1, spread: 0, gap: 0, speed: 24 },
   minigun: {
     name: 'Minigun',
     rate: 8,
     damage: 1,
     pellets: 1,
     spread: 0,
+    gap: 0,
     speed: 26,
   },
   // the prize of the last level: fewer, heavier shots that cut through the whole column
-  laser: { name: 'Laser', rate: 5, damage: 1.6, pellets: 1, spread: 0, speed: 40, pierce: true },
+  laser: {
+    name: 'Laser',
+    rate: 5,
+    damage: 1.6,
+    pellets: 1,
+    spread: 0,
+    gap: 0,
+    speed: 40,
+    pierce: true,
+  },
 };
 
 /** The squad's current weapon plus upgrades collected so far. */
@@ -65,7 +80,7 @@ export function effectiveWeapon(w: WeaponState): WeaponStats {
     rate: base.rate * w.rateMul,
     damage: base.damage * w.damageMul,
     pellets: base.pellets + w.extraPellets,
-    spread: base.spread || (base.pellets + w.extraPellets > 1 ? PELLET_FAN : 0),
+    gap: !base.spread && base.pellets + w.extraPellets > 1 ? PELLET_GAP : 0,
   };
 }
 

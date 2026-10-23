@@ -417,12 +417,12 @@
     {
       "kind": "boss",
       "count": 1,
-      "hp": 6300,
+      "hp": 4700,
       "interval": 1,
       "delay": 77,
       "x": 0.4,
       "spread": 0.3,
-      "summons": { "kind": "grunt", "hp": 25, "count": 32, "columns": 8, "at": [0.75, 0.5, 0.25] }
+      "summons": { "kind": "grunt", "hp": 25, "count": 22, "columns": 8, "at": [0.75, 0.5, 0.25] }
     }
   ]
 }

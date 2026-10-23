@@ -120,9 +120,10 @@ describe('weapons', () => {
     expect(e.rate).toBeCloseTo(3.3);
     expect(e.damage).toBeCloseTo(1.25);
     expect(e.pellets).toBe(3);
-    // more than one pellet fans out where you can see it; one pellet flies dead straight
-    expect(e.spread).toBeGreaterThan(0);
-    expect(effectiveWeapon(newWeaponState('minigun')).spread).toBe(0);
+    // more than one pellet flies in parallel lines, straight where you aim; one pellet is one line
+    expect(e.spread).toBe(0);
+    expect(e.gap).toBeGreaterThan(0);
+    expect(effectiveWeapon(newWeaponState('minigun')).gap).toBe(0);
   });
 
   it('a laser shot goes through the horde, other bullets stop at the first monster', () => {

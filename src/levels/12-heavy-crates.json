@@ -439,7 +439,7 @@
     {
       "kind": "boss",
       "count": 1,
-      "hp": 31000,
+      "hp": 24000,
       "interval": 1,
       "delay": 73.15,
       "x": 0.4,

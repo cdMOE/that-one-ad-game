@@ -55,6 +55,9 @@ export class StationaryMode implements GameMode {
   private time = 0;
   private recoil = 0;
   private pillPop = 0;
+  /** When the last power-up label popped, and how many popped in a row (see `itemCollected`). */
+  private itemPopAt = -Infinity;
+  private itemPopStack = 0;
   private endTimer = -1;
   private shotCounter = 0;
   private deathBudget = 0;
@@ -250,7 +253,14 @@ export class StationaryMode implements GameMode {
           const label = itemLabel(def);
           this.scene.celebrate(this.sim.squadX);
           particles.burst(this.sim.squadX, 1, 24, 6, Pc.Good, 0.6, 0.18);
-          popups.add(this.sim.squadX, 3, label.title, COLORS.player, 1.3);
+          // power-ups freed together land a quarter second apart: each label above the last one
+          // instead of on top of it (MINIGUN and TRIPLE read as one word otherwise)
+          this.itemPopStack = this.time - this.itemPopAt < 0.8 ? this.itemPopStack + 1 : 0;
+          this.itemPopAt = this.time;
+          // and a word as long as MINIGUN stays on screen with the squad at the edge of the road
+          const edge = ARENA.halfWidth - 2.5;
+          const x = Math.max(-edge, Math.min(edge, this.sim.squadX));
+          popups.add(x, 3 + 2.8 * this.itemPopStack, label.title, COLORS.player, 1.3);
           sfx.gate(true);
           this.pillPop = 1;
         },
