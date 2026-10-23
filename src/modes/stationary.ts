@@ -383,11 +383,11 @@ export class StationaryMode implements GameMode {
     // a boss still standing is the wall the run did not get past: say how close it was
     const left = this.sim.wallLeft;
     if (left !== null && left <= 0.35)
-      return `The boss had only ${Math.max(1, Math.round(left * 100))}% health left!`;
-    if (left !== null && this.lastBlow === 'horde') return "The boss's horde overran you.";
-    if (left !== null) return "The boss's strikes wore your squad down. Hit it harder!";
-    if (this.lastBlow === 'volley') return 'A boss volley wiped out your squad.';
-    if (this.lastBlow === 'horde') return 'The horde broke through.';
+      return `The boss had ${Math.max(1, Math.round(left * 100))}% left. It's telling everyone.`;
+    if (left !== null && this.lastBlow === 'horde') return 'The boss brought friends.';
+    if (left !== null) return 'The boss hit back. Hit harder.';
+    if (this.lastBlow === 'volley') return 'You stood where the boss was aiming.';
+    if (this.lastBlow === 'horde') return 'There were more of them than bullets.';
     return undefined;
   }
 

@@ -111,13 +111,6 @@ body {
   text-wrap: balance;
 }
 
-.fine {
-  margin: 14px 0 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  text-shadow: 0 1px 4px rgba(23, 32, 84, 0.8);
-}
-
 /* The menu sits on the live game scene: a dark veil keeps every line of text readable. */
 .menu {
   background:
@@ -1579,4 +1572,109 @@ body {
 .result.shooter::before {
   background: rgba(238, 244, 255, 0.85);
   backdrop-filter: blur(4px);
+}
+
+/* ---- what comes next: a quiet card under the mode list ------------------- */
+
+/* outlined and see-through, so it never competes with the card that starts the game */
+.mode-soon {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 2px dashed rgba(255, 255, 255, 0.55);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 0 1px 4px rgba(29, 42, 91, 0.7);
+}
+
+.soon-title {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.soon-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+/* ---- finale: the campaign is beaten -------------------------------------- */
+
+.result.finale .result-title {
+  color: var(--gold);
+  font-size: clamp(38px, 12vw, 58px);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.result.finale .result-sub {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.x-icon {
+  display: inline-flex;
+}
+
+.btn-follow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.result.finale .result-actions .btn-follow {
+  flex: 1 1 100%;
+  font-size: 16px;
+}
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.confetti span {
+  position: absolute;
+  top: -20px;
+  left: var(--x);
+  width: 9px;
+  height: 15px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti-fall var(--dur) cubic-bezier(0.25, 0.4, 0.5, 1) var(--delay) forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift), 110vh) rotate(var(--spin));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti {
+    display: none;
+  }
 }

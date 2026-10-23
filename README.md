@@ -2,23 +2,29 @@
 
 > The one from the ads. Now without the ad.
 
-An open-source crowd runner for the browser. Steer your crowd through math gates (`+10`, `×2`,
-`−5`, `÷2`), dodge obstacles, crush enemy crowds and beat the boss. Mobile-first, plain
-TypeScript, 2D canvas for the runner and [Three.js](https://threejs.org) (WebGL) for the shooter,
-no framework, no ads.
+**[Play it in the browser](https://cdmoe.github.io/that-one-ad-game/)**
+News on X: [@moe_zerr](https://x.com/moe_zerr)
 
-_Screenshots: coming soon (put captures in `docs/screenshots/` and link them here)._
+![That One Ad Game: the squad on the bridge, power-up blocks on the left, the castle ahead](public/og-image.png)
+
+You've seen this game in a hundred ads. Here it is, and you can actually play it. Drag the squad,
+shoot whatever comes down the bridge, lose, buy upgrades, go again. Works with one thumb on a phone
+or with a mouse or `A`/`D` on a desktop. Plain TypeScript and [Three.js](https://threejs.org).
+
+More levels and modes are coming. Soon, probably.
 
 ## One engine, several game modes
 
 The core is mode-agnostic. A level's `"mode"` field picks the variant:
 
-| Mode           | Idea                                                                                          | Status            |
-| -------------- | --------------------------------------------------------------------------------------------- | ----------------- |
-| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds.                 | ready (10 levels) |
-| `stationary`   | You slide the squad, every soldier shoots; smash HP blocks, the power-ups behind them fly in. | ready (5 levels)  |
-| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                             | planned           |
+| Mode           | Idea                                                                                          | Status                      |
+| -------------- | --------------------------------------------------------------------------------------------- | --------------------------- |
+| `stationary`   | You slide the squad, every soldier shoots; smash HP blocks, the power-ups behind them fly in. | in the game (5 levels)      |
+| `runner`       | Auto-run forward, steer left/right through gates, obstacles and enemy crowds (2D).            | retired for now (10 levels) |
+| `gates_choice` | Risk vs. reward: every gate row offers upgrades _and_ downgrades.                             | planned                     |
 
+The runner is the older 2D mode. It is hidden from the menu (`PLAYABLE_MODES` in
+[`src/ui/ui.ts`](src/ui/ui.ts)), but its code, levels and tests stay, so it can come back.
 New modes are one file plus a registry entry, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Run it locally

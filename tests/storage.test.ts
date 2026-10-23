@@ -11,11 +11,15 @@ describe('resetSave', () => {
       coins: 800,
       upgrades,
       progress: { 'stationary-02': 0.6 },
+      runs: 31,
+      beatenIn: 27,
     };
     resetSave(save);
     expect(save.completed).toEqual({});
     expect(save.progress).toEqual({});
     expect(save.coins).toBe(0);
+    expect(save.runs).toBe(0);
+    expect(save.beatenIn).toBe(0);
     expect(save.upgrades).toBe(upgrades); // the running game keeps pointing at the same object
     expect(upgrades).toEqual({ damage: 0, rate: 0, soldiers: 0, coins: 0 });
     expect(save.muted).toBe(true);

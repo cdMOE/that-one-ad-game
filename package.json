@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=20"
   },
-  "description": "That One Ad Game: an open-source crowd runner with a data-driven, multi-mode engine.",
+  "description": "That One Ad Game: the squad shooter from the ads, for real. Open source, in the browser, no ads.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

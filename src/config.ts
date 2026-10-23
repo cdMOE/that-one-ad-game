@@ -1,5 +1,9 @@
 export const GAME_TITLE = 'That One Ad Game';
 export const GAME_TAGLINE = 'The one from the ads. Now without the ad.';
+/** Where the game lives; the share button and the link previews point here. */
+export const GAME_URL = 'https://cdmoe.github.io/that-one-ad-game/';
+/** The author's X (Twitter) handle, without the @: news about new levels and modes. */
+export const X_HANDLE = 'moe_zerr';
 
 /** Track width in world units. The lateral axis runs from -HALF_TRACK to +HALF_TRACK. */
 export const TRACK_WIDTH = 10;

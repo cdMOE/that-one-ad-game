@@ -5,7 +5,7 @@ Das Spiel hat zwei Modi: **Shooter** (`src/modes/stationary.ts`, `src/modes/stat
 ## Aktueller Fokus: nur Shooter
 
 - Arbeite ausschließlich am Shooter-Modus (stationary), sofern nicht ausdrücklich anders gesagt.
-- Der Runner-Modus ist vorerst eingefroren: nicht ändern, nicht refactoren, nicht "nebenbei verbessern", keine Tests/Balance/Doku dafür anpassen.
+- Der Runner-Modus ist im Spiel ausgeblendet (`PLAYABLE_MODES` in `src/ui/ui.ts`) und vorerst eingefroren: nicht ändern, nicht refactoren, nicht "nebenbei verbessern", keine Tests/Balance/Doku dafür anpassen.
 - Gemeinsamer Code (`src/core/`, `src/ui/`, `src/game.ts`, `src/modes/mode.ts`) darf für den Shooter geändert werden, aber so, dass der Runner nicht kaputtgeht (Typecheck/Tests müssen weiter durchlaufen). Falls eine Änderung das Runner-Verhalten betreffen würde, vorher nachfragen.
 - Vorschläge, Reviews und Ideen beziehen sich nur auf den Shooter.
 
@@ -16,6 +16,7 @@ Denke und entscheide wie ein erfahrener Game-Designer und Entwickler mit vielen 
 Rahmen: Das Spiel ist **kostenlos und läuft im Web** (Browser, Desktop und Handy). Keine Monetarisierung, keine Ads, keine In-App-Käufe, kein Login. Der "Ad-Game-Look" ist nur Stil, kein Geschäftsmodell. Suchtfaktor heißt hier: Spaß und "nur noch ein Run", nicht Geld oder Dark Patterns.
 
 Maßstäbe für jede Entscheidung:
+
 - **Erste 30 Sekunden:** Link öffnen → sofort spielen. Ohne Text verständlich, erster Erfolg sofort da.
 - **Core Loop:** Schießen → Belohnung → Upgrade → nächster Run. Jede Änderung muss diesen Loop schneller, klarer oder befriedigender machen.
 - **Juice & Feedback:** Jede Aktion braucht sichtbares/hörbares Feedback (Zahlen-Popups, Screenshake, Partikel, Squash & Stretch). Mehr Masse auf dem Bildschirm = mehr Spaß.

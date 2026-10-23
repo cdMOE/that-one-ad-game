@@ -1,4 +1,4 @@
-import { GAME_TAGLINE, GAME_TITLE } from '../config';
+import { GAME_TAGLINE, GAME_TITLE, GAME_URL, X_HANDLE } from '../config';
 import { formatCount } from '../core/rules';
 import {
   isMaxed,
@@ -11,7 +11,7 @@ import {
 } from '../core/shop';
 import type { SaveData } from '../core/storage';
 import type { Level } from '../levels';
-import { LEVEL_MODES, type LevelMode } from '../levels/schema';
+import type { LevelMode } from '../levels/schema';
 
 export interface UiHandlers {
   onStartLevel(index: number): void;
@@ -56,11 +56,24 @@ export interface ResultInfo {
   lossReason?: string;
   /** Health left (0..1) of the boss that ended a lost run. */
   bossLeft?: number;
+  /**
+   * The last shooter level was just beaten: the finale instead of the usual result. `runs` is how
+   * many runs the first clear took (0 when unknown), `levels` how many levels the campaign has.
+   */
+  finale?: { runs: number; levels: number };
 }
+
+/**
+ * The modes the menu offers, in order. The runner is retired for now (2D, from before the shooter);
+ * its levels stay in the code and in the tests, so it can come back.
+ */
+const PLAYABLE_MODES: readonly LevelMode[] = ['stationary'];
+
+const X_URL = `https://x.com/${X_HANDLE}`;
 
 const MODE_INFO: Record<LevelMode, { title: string; blurb: string }> = {
   runner: { title: 'RUNNER', blurb: 'Run, pick the right gates, crush the boss' },
-  stationary: { title: 'SHOOTER', blurb: 'Slide, shoot, earn coins, buy upgrades' },
+  stationary: { title: 'SHOOTER', blurb: "Yes, it's actually playable." },
 };
 
 /** Pips on an upgrade card: one stretch of levels at a time (see `makeUpgradeBar`). */
@@ -91,6 +104,8 @@ const ICON_PAUSE =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
 const ICON_FLAG =
   '<svg viewBox="0 0 24 28" width="24" height="28"><path d="M5 2v24" stroke="#0f2f66" stroke-width="4" stroke-linecap="round"/><path d="M6 3h14l-4 5 4 5H6z" fill="#fff" stroke="#0f2f66" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+const ICON_X =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>';
 const ICON_BACK =
   '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
@@ -103,6 +118,22 @@ function runOverTitle(info: ResultInfo): string {
     (info.progress && info.progress.reached >= 0.75) ||
     (info.bossLeft !== undefined && info.bossLeft <= 0.2);
   return close ? 'SO CLOSE!' : 'UPGRADE & GO!';
+}
+
+/** A link to the author's X profile, opened in a new tab. */
+function xLink(className: string, ...children: ElChild[]): HTMLAnchorElement {
+  const a = h('a', { class: className }, ...children);
+  a.href = X_URL;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  return a;
+}
+
+/** The X logo, to sit in front of the handle. */
+function xIcon(): HTMLElement {
+  const icon = h('span', { class: 'x-icon' });
+  icon.innerHTML = ICON_X;
+  return icon;
 }
 
 /** One bullet pointing right, for the fire rate picture. */
@@ -163,6 +194,7 @@ export class Ui {
   private hintLeft = 0;
   private readonly nextBtn: HTMLButtonElement;
   private readonly modeList: HTMLElement;
+  private readonly pick: HTMLElement;
   private readonly levelTitle: HTMLElement;
   private readonly levelBar: HTMLElement;
   /** Shooter mode screen: one big button that starts the next level to beat. */
@@ -179,6 +211,11 @@ export class Ui {
   private readonly resultProgressBest: HTMLElement;
   private readonly resultProgressPct: HTMLElement;
   private readonly retryBtn: HTMLButtonElement;
+  private readonly resumeBtn: HTMLButtonElement;
+  /** Finale: share the win (the system share sheet, or the link copied). */
+  private readonly shareBtn: HTMLButtonElement;
+  private readonly followLink: HTMLAnchorElement;
+  private shareText = '';
   private readonly resetBtn: HTMLButtonElement;
   private resetTimer = 0;
   /** Redraw functions of every upgrade bar on screen (they all show the same wallet). */
@@ -214,15 +251,21 @@ export class Ui {
 
     // main menu
     this.modeList = h('div', { class: 'mode-list' });
+    this.pick = h('p', { class: 'pick', text: 'Choose a game mode' });
     this.menu = h(
       'section',
       { class: 'screen menu' },
       h('h1', { class: 'title' }, h('span', { text: 'THAT ONE' }), h('span', { text: 'AD GAME' })),
       h('p', { class: 'tagline', text: GAME_TAGLINE }),
-      h('p', { class: 'pick', text: 'Choose a game mode' }),
+      this.pick,
       this.modeList,
-      h('p', { class: 'fine', text: 'Open source. MIT licensed. No ads. Promise.' }),
-      // erasing everything stays out of the way, below the fine print
+      // a quiet promise below the big card: the game grows, and where to hear about it
+      xLink(
+        'mode-soon',
+        h('span', { class: 'soon-title', text: 'MORE LEVELS SOON' }),
+        h('span', { class: 'soon-follow' }, xIcon(), `Ask @${X_HANDLE} how soon`),
+      ),
+      // erasing everything stays out of the way, at the very bottom
       this.resetBtn,
       ...(this.exportBtn ? [this.exportBtn] : []),
     );
@@ -294,11 +337,11 @@ export class Ui {
       h(
         'div',
         { class: 'pause-actions' },
-        h('button', {
+        (this.resumeBtn = h('button', {
           class: 'btn btn-primary btn-resume',
           text: 'RESUME',
           onclick: click(() => handlers.onResume()),
-        }),
+        })),
         h('button', {
           class: 'btn btn-secondary',
           text: 'RETRY',
@@ -392,6 +435,12 @@ export class Ui {
       text: 'RETRY',
       onclick: click(() => handlers.onRetry()),
     });
+    this.shareBtn = h('button', {
+      class: 'btn btn-primary btn-share',
+      text: 'SHARE',
+      onclick: click(() => void this.share()),
+    });
+    this.followLink = xLink('btn btn-secondary btn-follow', xIcon(), `WHAT'S NEXT? @${X_HANDLE}`);
     // top to bottom: what happened, what it paid, what to spend it on, then the one big button
     this.result = h(
       'section',
@@ -408,6 +457,8 @@ export class Ui {
         { class: 'result-actions' },
         this.nextBtn,
         this.retryBtn,
+        this.shareBtn,
+        this.followLink,
         h('button', {
           class: 'btn btn-ghost btn-menu',
           text: 'MENU',
@@ -429,6 +480,48 @@ export class Ui {
     if (this.fpsEl) root.append(this.fpsEl);
     document.title = GAME_TITLE;
     this.hideAll();
+
+    // on a keyboard, Enter or Space presses the one big button of the screen
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat || (e.code !== 'Enter' && e.code !== 'NumpadEnter' && e.code !== 'Space'))
+        return;
+      const btn = this.primaryButton();
+      if (!btn) return;
+      e.preventDefault(); // a focused button must not be pressed a second time
+      btn.click();
+    });
+  }
+
+  /** The button Enter and Space press: the obvious next step of the screen on top, if any. */
+  private primaryButton(): HTMLElement | null {
+    if (!this.pause.hidden) return this.resumeBtn;
+    if (!this.result.hidden) {
+      // the finale's big button shares, which is nothing to set off by accident
+      if (this.result.classList.contains('finale')) return null;
+      if (!this.nextBtn.hidden) return this.nextBtn;
+      return this.retryBtn.hidden ? null : this.retryBtn;
+    }
+    if (!this.levelScreen.hidden) return this.playBtn.hidden ? null : this.playBtn;
+    if (!this.menu.hidden) return this.modeList.querySelector('button');
+    return null;
+  }
+
+  /** Shares the finale: the system share sheet where there is one, else the text is copied. */
+  private async share(): Promise<void> {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: GAME_TITLE, text: this.shareText, url: GAME_URL });
+        return;
+      }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return; // the player closed it
+    }
+    try {
+      await navigator.clipboard.writeText(`${this.shareText} ${GAME_URL}`);
+      this.shareBtn.textContent = 'LINK COPIED!';
+    } catch {
+      // no clipboard either (an old browser or an insecure page): nothing to do
+    }
   }
 
   private levels: Level[] = [];
@@ -438,6 +531,8 @@ export class Ui {
     coins: 0,
     upgrades: noUpgrades(),
     progress: {},
+    runs: 0,
+    beatenIn: 0,
   };
   private unlockAll = false;
 
@@ -507,7 +602,9 @@ export class Ui {
   showMenu(): void {
     this.hideAll();
     this.modeList.replaceChildren();
-    for (const mode of LEVEL_MODES) {
+    // with a single mode there is nothing to choose: its card is simply the way in
+    this.pick.hidden = PLAYABLE_MODES.length < 2;
+    for (const mode of PLAYABLE_MODES) {
       const list = this.indicesOf(mode);
       if (list.length === 0) continue;
       const done = list.filter((i) => this.save.completed[this.levels[i].id]).length;
@@ -712,7 +809,7 @@ export class Ui {
   /** Pause screen over a running level; `coins` is what the run has earned so far. */
   showPause(coins: number): void {
     this.pauseSub.textContent =
-      coins > 0 ? `+${formatCount(coins)} coins so far. You keep them if you leave.` : '';
+      coins > 0 ? `+${formatCount(coins)} coins so far. Quitting keeps them.` : '';
     this.pauseSub.hidden = coins <= 0;
     this.pause.hidden = false;
     // the tutorial hint waits with the game instead of running out behind the pause screen
@@ -799,7 +896,10 @@ export class Ui {
     this.resultBonus.textContent = `incl. +${formatCount(bonus)} first clear bonus`;
     this.resultBonus.hidden = bonus <= 0;
     this.showProgress(won ? undefined : info.progress);
-    this.resultBar.hidden = !upgradesAvailable;
+    const finale = won ? info.finale : undefined;
+    this.result.classList.toggle('finale', finale !== undefined);
+    // after the finale there is nothing left to buy for, so the cards stay away
+    this.resultBar.hidden = !upgradesAvailable || finale !== undefined;
     this.result.classList.toggle('shooter', upgradesAvailable);
     this.renderBars();
     this.hud.hidden = true;
@@ -817,16 +917,34 @@ export class Ui {
     // a lost shooter run is never a defeat screen: it paid coins, and the cards below spend them
     const runOver = !won && upgradesAvailable;
     this.result.classList.toggle('run-over', runOver);
-    this.resultTitle.textContent = won ? 'VICTORY!' : runOver ? runOverTitle(info) : 'DEFEATED';
-    this.resultSub.textContent = won
-      ? `${survivors} survivor${survivors === 1 ? '' : 's'} made it`
-      : upgradesAvailable
-        ? (info.lossReason ?? 'Your squad was wiped out.')
-        : 'Your crowd was wiped out. Try another path through the gates.';
+    this.resultTitle.textContent = finale
+      ? 'YOU BEAT THE AD!'
+      : won
+        ? 'VICTORY!'
+        : runOver
+          ? runOverTitle(info)
+          : 'DEFEATED';
+    this.resultSub.textContent = finale
+      ? `${finale.levels} levels.${finale.runs > 0 ? ` ${finale.runs} runs.` : ''} The ad never showed this part.`
+      : won
+        ? `${survivors} survivor${survivors === 1 ? '' : 's'} made it`
+        : upgradesAvailable
+          ? (info.lossReason ?? 'Squad gone. Coins kept.')
+          : 'Your crowd was wiped out. Try another path through the gates.';
     const next = won && info.hasNext;
     this.nextBtn.hidden = !next;
     // a beaten shooter level is not played again while the next one waits
-    this.retryBtn.hidden = next && upgradesAvailable;
+    this.retryBtn.hidden = (next && upgradesAvailable) || finale !== undefined;
+    // the finale's one big button shares the win; following the author is the way to what comes next
+    this.shareBtn.hidden = this.followLink.hidden = !finale;
+    if (finale) {
+      // the joke travels with the link: people know the ads, few know the game is real
+      this.shareText = `I beat ${GAME_TITLE}${
+        finale.runs > 0 ? ` in ${finale.runs} runs` : ''
+      }. Yes, the one from the ads. It's real.`;
+      this.shareBtn.textContent = 'SHARE';
+      confetti(this.result);
+    }
     // the shooter gets one big button for the obvious next step; the others shrink to links
     this.retryBtn.className = `btn btn-retry ${
       upgradesAvailable ? (next ? 'btn-ghost' : 'btn-primary') : 'btn-secondary'
@@ -861,6 +979,27 @@ export class Ui {
   setFps(fps: number, extra: string): void {
     if (this.fpsEl) this.fpsEl.textContent = `${Math.round(fps)} fps  ${extra}`;
   }
+}
+
+/** The finale's confetti: a burst of paper strips that rains down over the screen once. */
+function confetti(screen: HTMLElement): void {
+  const colors = ['#ffd23f', '#ff5d73', '#2fe6d2', '#5b9bff', '#b388ff', '#ffffff'];
+  const layer = h('div', { class: 'confetti' });
+  for (let i = 0; i < 80; i++) {
+    const bit = h('span');
+    bit.style.setProperty('--x', `${Math.random() * 100}vw`);
+    bit.style.setProperty('--drift', `${(Math.random() - 0.5) * 30}vw`);
+    bit.style.setProperty('--delay', `${Math.random() * 0.9}s`);
+    bit.style.setProperty('--dur', `${2.4 + Math.random() * 1.8}s`);
+    bit.style.setProperty(
+      '--spin',
+      `${(Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 720)}deg`,
+    );
+    bit.style.background = colors[i % colors.length];
+    layer.append(bit);
+  }
+  screen.append(layer);
+  window.setTimeout(() => layer.remove(), 5000);
 }
 
 /**

@@ -24,8 +24,7 @@ import { Ui } from './ui/ui';
 
 type State = 'menu' | 'playing' | 'result';
 
-const NO_3D =
-  "This browser can't show the 3D shooter. Turn on hardware acceleration or try another browser.";
+const NO_3D = "Your browser can't do 3D. Turn on hardware acceleration, or try another browser.";
 
 /** Position of a level among the shooter levels (0 = first, -1 for a runner level). */
 function shooterOrder(level: Level): number {
@@ -219,8 +218,7 @@ export class Game {
     if (firstOfMode && !this.save.completed[level.id] && !this.save.progress[level.id]) {
       if (level.mode === 'runner')
         this.ui.showHint('Drag left / right to pick the best gate', 5000);
-      else
-        this.ui.showHint('Drag to slide. Smash blocks for power-ups, stop the horde!', 4000, true);
+      else this.ui.showHint('Drag to move. Shoot everything.', 4000, true);
     }
   }
 
@@ -255,6 +253,7 @@ export class Game {
     const mode = this.mode;
     if (this.state !== 'playing' || !mode || levels[this.levelIndex].mode !== 'stationary') return;
     this.logShooterRun(mode, 'left');
+    this.save.runs++;
     this.save.coins += mode.coinsEarned;
     this.recordProgress(levels[this.levelIndex], mode.progress);
     writeSave(this.save);
@@ -390,6 +389,8 @@ export class Game {
     let stars = 0;
     let bonus = 0;
     const shooter = level.mode === 'stationary';
+    if (shooter) this.save.runs++;
+    const hasNext = this.nextIndex(this.levelIndex) >= 0;
     const bestBefore = shooter ? this.recordProgress(level, won ? 1 : mode.progress) : 0;
     if (won) {
       stars =
@@ -400,6 +401,7 @@ export class Game {
         // the first win pays a one-off bonus that grows with the level
         bonus = firstClearBonus(shooterOrder(level));
         this.save.coins += bonus;
+        if (!hasNext) this.save.beatenIn = this.save.runs;
       }
       this.save.completed[level.id] = {
         stars: Math.max(prev?.stars ?? 0, stars),
@@ -411,7 +413,7 @@ export class Game {
     this.ui.showResult({
       won,
       survivors: mode.survivors,
-      hasNext: this.nextIndex(this.levelIndex) >= 0,
+      hasNext,
       stars,
       coins: mode.coinsEarned,
       upgradesAvailable: shooter,
@@ -419,6 +421,15 @@ export class Game {
       ...(shooter ? { progress: { reached: mode.progress, bestBefore } } : {}),
       ...(mode.lossReason ? { lossReason: mode.lossReason } : {}),
       ...(mode.bossLeft !== undefined ? { bossLeft: mode.bossLeft } : {}),
+      // the last shooter level beaten: the campaign is done
+      ...(won && shooter && !hasNext
+        ? {
+            finale: {
+              runs: this.save.beatenIn,
+              levels: levels.filter((l) => l.mode === 'stationary').length,
+            },
+          }
+        : {}),
     });
   }
 

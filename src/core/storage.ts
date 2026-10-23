@@ -25,6 +25,10 @@ export interface SaveData {
   upgrades: UpgradeLevels;
   /** Furthest any run of a level got (0..1, the HUD progress), so a lost run can show a record. */
   progress: Record<string, number>;
+  /** Shooter runs played so far (won, lost or left). */
+  runs: number;
+  /** How many runs it took to beat the last shooter level the first time (0: not yet). */
+  beatenIn: number;
 }
 
 function isResult(v: unknown): v is LevelResult {
@@ -41,6 +45,8 @@ export function loadSave(): SaveData {
     coins: 0,
     upgrades: noUpgrades(),
     progress: {},
+    runs: 0,
+    beatenIn: 0,
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -53,6 +59,8 @@ export function loadSave(): SaveData {
       upgrades?: Record<string, unknown>;
       progress?: Record<string, unknown>;
       progressVersion?: unknown;
+      runs?: unknown;
+      beatenIn?: unknown;
     };
     const completed: Record<string, LevelResult> = {};
     for (const [id, value] of Object.entries(parsed.completed ?? {})) {
@@ -77,7 +85,16 @@ export function loadSave(): SaveData {
       typeof parsed.coins === 'number' && parsed.coins > 0
         ? Math.floor((parsed.coins * COIN_SCALE) / savedScale)
         : 0;
-    return { completed, muted: parsed.muted === true, coins, upgrades, progress };
+    const count = (v: unknown) => (typeof v === 'number' && v > 0 ? Math.floor(v) : 0);
+    return {
+      completed,
+      muted: parsed.muted === true,
+      coins,
+      upgrades,
+      progress,
+      runs: count(parsed.runs),
+      beatenIn: count(parsed.beatenIn),
+    };
   } catch {
     return fresh;
   }
@@ -94,11 +111,13 @@ export function writeSave(data: SaveData): void {
   }
 }
 
-/** Throws away all progress (levels, records, coins, upgrades) in place; the sound setting stays. */
+/** Throws away all progress (levels, records, coins, upgrades, run count) in place; the sound setting stays. */
 export function resetSave(save: SaveData): void {
   save.completed = {};
   save.progress = {};
   save.coins = 0;
+  save.runs = 0;
+  save.beatenIn = 0;
   // the upgrades object is shared with the running game, so it is cleared instead of replaced
   for (const kind of UPGRADE_KINDS) save.upgrades[kind] = 0;
   writeSave(save);
