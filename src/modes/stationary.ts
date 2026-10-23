@@ -128,14 +128,14 @@ export class StationaryMode implements GameMode {
       coin: () => !this.demo && ctx.sfx.coin(),
       shoot: () => !this.demo && ctx.sfx.shoot(),
       pop: () => !this.demo && ctx.sfx.pop(),
-      boom: () => !this.demo && once('boom', 150, () => ctx.sfx.boom()),
+      boom: () => !this.demo && once('boom', 150, () => ctx.sfx.blast()),
       hit: () => !this.demo && ctx.sfx.hit(),
       gate: (good: boolean) => !this.demo && ctx.sfx.gate(good),
       win: () => !this.demo && ctx.sfx.win(),
-      lose: () => !this.demo && ctx.sfx.lose(),
+      lose: () => !this.demo && ctx.sfx.defeat(),
       roar: () => !this.demo && once('roar', 400, () => ctx.sfx.roar()),
       // a volley lights up all its zones in the same instant: one warning for all of them
-      warn: () => !this.demo && once('warn', 300, () => ctx.sfx.gate(false)),
+      warn: () => !this.demo && once('warn', 300, () => ctx.sfx.volley()),
       alarm: () => !this.demo && ctx.sfx.alarm(),
     };
     this.alarm = sfx.alarm;
@@ -440,7 +440,7 @@ export class StationaryMode implements GameMode {
       this.fortStage = stage;
       this.scene.breakFortress(stage, this.time);
       camera.shake(stage === FORT_STAGES ? 0.5 : 0.18);
-      if (!this.demo) this.ctx.sfx.boom();
+      if (!this.demo) this.ctx.sfx.blast();
     }
     for (const f of this.flashes) f.life -= dt;
     while (this.flashes.length > 0 && this.flashes[0].life <= 0) this.flashes.shift();
