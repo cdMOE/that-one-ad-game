@@ -37,16 +37,17 @@ Controls: drag with finger or mouse, or use `A`/`D` or the arrow keys.
 
 ### Scripts
 
-| Command                     | What it does                                                   |
-| --------------------------- | -------------------------------------------------------------- |
-| `npm run dev`               | Dev server with hot reload                                     |
-| `npm run build`             | Type-check and build to `dist/`                                |
-| `npm test`                  | Unit tests (gate math, battle resolution, swarm, level checks) |
-| `npm run validate:levels`   | Validates every level file and checks that it can be won       |
-| `npm run simulate:campaign` | Plays the shooter levels in order and prints runs per level    |
-| `npm run compare:runlog`    | Replays a logged playtest with the bot, run by run             |
-| `npm run lint`              | ESLint                                                         |
-| `npm run format`            | Prettier                                                       |
+| Command                        | What it does                                                   |
+| ------------------------------ | -------------------------------------------------------------- |
+| `npm run dev`                  | Dev server with hot reload                                     |
+| `npm run build`                | Type-check and build to `dist/`                                |
+| `npm test`                     | Unit tests (gate math, battle resolution, swarm, level checks) |
+| `npm run validate:levels`      | Validates every level file and checks that it can be won       |
+| `npm run simulate:campaign`    | Plays the shooter levels in order and prints runs per level    |
+| `npm run compare:runlog`       | Replays a logged playtest with the bot, run by run             |
+| `npm run build:shooter-levels` | Writes the five shooter levels from their template             |
+| `npm run lint`                 | ESLint                                                         |
+| `npm run format`               | Prettier                                                       |
 
 ## Creating a level
 
@@ -159,30 +160,47 @@ Prices start low and climb moderately to the cap (`src/core/shop.ts`): the desig
 next upgrade is one or two runs away, and every card shows a thin bar of how close the wallet is.
 The result screen has a "next goal" bar that fills with the coins of the run, so even a run that buys
 nothing visibly moves you forward. The first win of a level pays a one-off bonus (`firstClearBonus`).
-Every shooter level pays a quarter more per kill and per block than the one before
-(`LEVEL_COIN_GROWTH`), so income keeps up with the climbing prices. Only the current shooter level
+Every shooter level pays 40% more per kill and per block than the one before
+(`LEVEL_COIN_GROWTH`), so income keeps up with the climbing prices, also for a player who never
+buys the coin bonus. The coin bonus is +10% per level (+61% maxed): a nice extra, not a must. Only the current shooter level
 is played: the strip at the top of the shooter screen shows the campaign but picks nothing (a lost
 run pays anyway, so an old level has nothing to offer). Once every level is beaten, PLAY replays the
 last one at half pay. Every level starts with the pistol; the rifle and the minigun wait on its lane.
 `npm run simulate:campaign` prints the runs per level and the longest stretch without a purchase.
 
-**The first shooter level teaches the loop** in about three runs. Like the ads, it starts with a
-single soldier that grows fast (`+1`, then `x2` right away). The first run is lost roughly a third of
-the way in (at a tough horde with a group of tanks), but pays for the first few upgrades; with them
-the second run gets clearly further (to a wall of heavy tanks), and the third run wins. Its lane is
-long enough that the winning run still has blocks to smash until the end. Every run visibly gets further, so the shop is learned by using it. Every later level
-can **not** be won on the first run either: you lose, bank the coins, buy upgrades and try again. They are meant to take a
-number of runs each, rising in waves (see `CAMPAIGN` below): Heavy Crates is a breather after the
-tutorial (tanks, a boss that calls tanks), Growing Pains the first real wall (a miniboss early, one
-with a runner horde halfway, a horde that toughens late), The Flood a power fantasy (twice the
-horde, each one softer, two x2 gates), and Big Boss the chapter boss. Every level starts with the
-pistol; the wall comes from lane blocks that get thicker the deeper they sit and from the elites,
-more than from the horde, so a run that loses still shows a block or a boss bar a little lower. A lost
-run shows how far it got, against the level's record, and what finished it (the horde or a boss
-volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the line
-turns gold and NEW RECORD! pops. The bar counts ordinary monsters one each and elites by the health
-they lose (`progressShare`: a boss is a quarter of the bar, a miniboss a twentieth), so a boss
-fight moves it instead of parking it at 99%.
+**The first shooter level teaches the loop** in about five runs. Like the ads, it starts with a
+single soldier that grows fast (`+2`, `+2`, the rifle, `+3`). The first run is lost in the horde a
+bit before the halfway mark, but pays for the first few upgrades; with them every run gets clearly
+further: through the horde, to the boss, the boss bar a little lower each time, then the win. Its
+lane is long enough that the winning run still has blocks to smash until the end. Every later
+level can **not** be won on the first run either: you lose, bank the coins, buy upgrades and try
+again. They are meant to take a number of runs each, rising in waves (see `CAMPAIGN` below): Heavy
+Crates is a breather after the tutorial (an `x2` right after the rifle, tanks, a boss that calls
+tanks), Growing Pains the first real wall (runners down the far flank, a second miniboss that calls
+them), The Flood a power fantasy (half again as many monsters, a boss that is a pure damage race),
+and Big Boss the chapter boss (a second miniboss in the end phase, a boss with twice the health). A
+lost run shows how far it got, against the level's record, and what finished it (the horde or a
+boss volley). The record also sits on the HUD bar as a white line; the moment a run passes it, the
+line turns gold and NEW RECORD! pops. The bar counts ordinary monsters one each and elites by the
+health they lose (`progressShare`: a boss is a quarter of the bar, a miniboss a twentieth), so a
+boss fight moves it instead of parking it at 99%.
+
+**How a shooter level is built: a slope, not a cliff.** All five shooter levels share one shape
+(they are built by `npm run build:shooter-levels`, see below), so a stronger squad always gets a
+little further instead of flipping a run from "lost at 60%" to "won without a scratch":
+
+- **The lane is a ladder.** The rifle after the first few blocks, the minigun soon after (every run
+  that is not lost in the opening gets it: it is the power fantasy, not the deciding wall), then
+  many small steps (`+3` to `+10` soldiers, `+15%` fire rate) behind blocks that get thicker the
+  deeper they sit. 20% more damage means a step or two further, never "won instead of lost". There
+  is no late `x2`: one gate that doubles the squad is a cliff.
+- **The end phase comes in pulses.** The horde arrives in short, dense waves with a breather after
+  each, so a squad that falls a little behind loses a few soldiers and catches up instead of being
+  overrun in two seconds. Tanks come between the pulses, not with the boss.
+- **The boss is the one wall at the end.** A run that gets there with too little firepower brings
+  it down part of the way before its horde and volleys win: lost runs end at "boss 20% left", the
+  near-miss that makes you retry. The unit tests check that the run before every win came close
+  (`NEAR_MISS`).
 
 **Stars** measure how much of the biggest squad of the run is still standing at the end (80% or more:
 three stars, 45% or more: two, otherwise one), so a run without bites and volleys earns three stars
@@ -228,17 +246,28 @@ share as above), next to the level's target. It plays the campaign once for each
 (`PROFILES` in `src/modes/stationary/campaign.ts`) and then shows them side by side: `good` is a
 strong player who knows the game (the `GOOD` pilot, buying like the user did: one of each card per
 round, soldiers first, then the coin bonus, then damage and fire rate), `casual` plays now and then
-(the `CASUAL` pilot, buying the cheapest upgrade) and should need about twice the runs;
-`--profile=good` plays only one. The targets live in `CAMPAIGN`: a range of runs per level and
-profile, rising in waves (a breather after every wall). The unit tests play the same campaigns and
-hold every level to its range, and to at most `MAX_DRY` runs in a row that buy nothing; a level
-`pending` for a profile has not been tuned for it yet and shows up as a todo.
+(the `CASUAL` pilot, buying the cheapest card that makes it stronger right away, never the coin
+bonus); `--profile=good` plays only one. The table at the end shows the median of the `CAMPAIGN_SEEDS`
+campaigns (one campaign is a single draw of the random spawns), as the unit tests check it. The targets live in `CAMPAIGN`: a range of runs per level
+and profile, rising in waves (a breather after every wall). The `good` ranges are the agreed
+design; the `casual` ranges are what the casual model needs today (about one and a half times the
+runs in all: as many in the tutorial, where the shop decides, up to four times as many in The
+Flood, where handling a mass is the skill), a guard rail rather than a goal until a casual playtest
+calibrates it. The unit tests play the same campaigns and hold every level to its range, to at most
+`MAX_DRY` runs in a row that buy nothing and to a near miss before every win; a level `pending`
+for a profile has not been tuned for it yet and shows up as a todo.
 
 The `GOOD` pilot is calibrated against a real playtest: open the game with `?debug`, play, save the
 log with EXPORT RUN LOG, then `npm run compare:runlog -- runlog.json` replays every logged run with
 exactly the upgrades it had, over several seeds (`--pilot=good,casual`, `--seeds=N`,
 `--level=stationary-05`). Where the player won, the bot should win most seeds; where they lost, it
-should get about as far and earn about as much.
+should get about as far and earn about as much. A log only says something about the level versions
+it was played on: after the levels change, play a new one.
+
+`npm run build:shooter-levels` writes the five shooter level files from one template (the lane
+ladder, the pulses, the boss) plus a flavour and a toughness per level (`scripts/build-shooter-levels.ts`).
+Tune the numbers there, not in the JSON files, which it overwrites; then check the result with
+`npm run simulate:campaign`.
 
 Check your level before opening a pull request:
 

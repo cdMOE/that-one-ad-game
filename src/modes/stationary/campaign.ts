@@ -15,8 +15,8 @@ import { GAME_SPEED } from './sim';
 
 /**
  * How a player buys upgrades between runs:
- * - `cheapest`: always the cheapest upgrade still available, never the coin bonus (it only speeds
- *   the campaign up, and a careful player buys it late).
+ * - `cheapest`: always the cheapest upgrade still available, never the coin bonus: a player who
+ *   plays now and then buys power they can feel right away, not a bonus that pays off later.
  * - `player`: what the user did in their playtest (it buys what they bought after 15 of their 17
  *   runs): round after round along the cards, one level of each it can afford per round, the
  *   soldiers card first (an extra soldier is the biggest jump in power), then the coin bonus, then
@@ -57,37 +57,48 @@ export interface CampaignTarget {
 /**
  * The difficulty curve of the campaign, by level id. It rises in waves, not in a line: a breather
  * after every wall, so a level that just felt hard is followed by one that shows off the upgrades.
- * `good` holds the runs agreed for a strong player; the `casual` ranges are still the ones the
- * levels were built for before the good profile existed (about twice the good ones), until the
- * levels are retuned for both. The unit tests hold every level to its range for every profile that
- * is not `pending`, so a change anywhere (shop, weapons, a level) that shifts the curve fails there
- * instead of in a playtest.
+ * `good` holds the runs agreed for a strong player (the user). The `casual` ranges are what the
+ * casual model needs today, a guard rail rather than a goal until a casual playtest calibrates it:
+ * about as many runs in the tutorial and the breathers, where the shop decides, and twice as many
+ * on the walls, where reading the field does. The unit tests hold every level to its range for
+ * every profile that is not `pending` (the median of `CAMPAIGN_SEEDS` campaigns), so a change
+ * anywhere (shop, weapons, a level) that shifts the curve fails there instead of in a playtest.
  */
 export const CAMPAIGN: Readonly<Record<string, CampaignTarget>> = {
   'stationary-01': {
-    runs: { good: [4, 6], casual: [7, 13] },
-    role: 'tutorial: wall, horde, boss, a little further each run',
-    pending: ['good'],
+    runs: { good: [4, 6], casual: [5, 8] },
+    role: 'tutorial: horde, boss, a little further each run',
   },
   'stationary-02': {
-    runs: { good: [2, 4], casual: [3, 5] },
+    runs: { good: [2, 4], casual: [2, 5] },
     role: 'breather: the upgrades bought show',
   },
   'stationary-03': {
-    runs: { good: [6, 8], casual: [9, 12] },
+    runs: { good: [6, 8], casual: [10, 15] },
     role: 'the first real wall',
   },
   'stationary-04': {
-    runs: { good: [2, 3], casual: [3, 4] },
+    runs: { good: [2, 3], casual: [4, 7] },
     role: 'power fantasy: a flood that melts',
-    pending: ['good'],
   },
   'stationary-05': {
-    runs: { good: [8, 10], casual: [12, 15] },
+    runs: { good: [8, 10], casual: [14, 20] },
     role: 'chapter boss',
-    pending: ['good'],
   },
 };
+
+/**
+ * Seeds the campaign is checked with: one campaign is a single draw of the random spawns, and the
+ * same squad can need a run or two more or less; the median of a few says what a level takes.
+ */
+export const CAMPAIGN_SEEDS: readonly number[] = [1, 1001, 2001];
+
+/**
+ * How far the last lost run before a win must have got (median over `CAMPAIGN_SEEDS`). A level
+ * whose power curve is a cliff is lost at 55-60% until one more upgrade wins it without a scratch;
+ * a slope announces the win with a run that came close (usually 80% and more: the boss half down).
+ */
+export const NEAR_MISS = 0.6;
 
 /**
  * Most runs in a row that may buy nothing: the core loop promises that losing pays for the next
@@ -148,7 +159,7 @@ export function spend(up: UpgradeLevels, coins: number, policy: BuyPolicy): numb
   const price = (k: UpgradeKind) => upgradeCost(k, up[k]);
   if (policy === 'cheapest') {
     for (;;) {
-      // the coin bonus is left out: it only speeds a run up and a careful player buys it late
+      // the coin bonus is left out (see BuyPolicy)
       const pick = UPGRADE_KINDS.filter((k) => k !== 'coins' && price(k) <= coins).sort(
         (a, b) => price(a) - price(b),
       )[0];
@@ -184,13 +195,20 @@ export function playCampaign(
   {
     profile = PROFILES.casual,
     maxRuns = 400,
+    seed: firstSeed = 1,
     onRun,
-  }: { profile?: Profile; maxRuns?: number; onRun?: (run: CampaignRun) => void } = {},
+  }: {
+    profile?: Profile;
+    maxRuns?: number;
+    /** Seed of the first run; another one plays the same campaign with other random spawns. */
+    seed?: number;
+    onRun?: (run: CampaignRun) => void;
+  } = {},
 ): LevelCampaign[] {
   const { pilot, buy } = profile;
   const up = noUpgrades();
   let coins = 0;
-  let seed = 1;
+  let seed = firstSeed;
   const out: LevelCampaign[] = [];
   for (const [order, level] of levels.entries()) {
     const entry = squadPower(up, level);

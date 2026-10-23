@@ -7,147 +7,51 @@
   "lane": {
     "side": "right",
     "elements": [
-      {
-        "type": "block",
-        "hp": 10
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 80
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 310
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "weapon",
-          "weapon": "rifle"
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 3
-        }
-      },
-      {
-        "type": "block",
-        "hp": 5200
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 9400
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 18000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "weapon",
-          "weapon": "minigun"
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 29000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 7
-        }
-      },
-      {
-        "type": "block",
-        "hp": 44000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 7
-        }
-      },
-      {
-        "type": "block",
-        "hp": 73000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "x",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 310000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 10
-        }
-      }
+      { "type": "block", "hp": 10 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 2 } },
+      { "type": "block", "hp": 80 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 2 } },
+      { "type": "block", "hp": 310 },
+      { "type": "item", "item": { "kind": "weapon", "weapon": "rifle" } },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 3200 },
+      { "type": "item", "item": { "kind": "weapon", "weapon": "minigun" } },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 7100 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 12000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 17000 },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "block", "hp": 24000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 32000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
+      { "type": "block", "hp": 41000 },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "block", "hp": 52000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
+      { "type": "block", "hp": 65000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
+      { "type": "block", "hp": 79000 },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "block", "hp": 99000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
+      { "type": "block", "hp": 120000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
+      { "type": "block", "hp": 150000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 6 } },
+      { "type": "block", "hp": 190000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 8 } },
+      { "type": "block", "hp": 250000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 10 } }
     ]
   },
   "monsters": [
     {
       "kind": "grunt",
       "count": 6,
-      "hp": 4,
+      "hp": 8,
       "interval": 1.8,
       "delay": 5,
       "columns": 2,
@@ -157,7 +61,7 @@
     {
       "kind": "grunt",
       "count": 6,
-      "hp": 4,
+      "hp": 8,
       "interval": 1.75,
       "delay": 13,
       "columns": 2,
@@ -167,7 +71,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 4,
+      "hp": 8,
       "interval": 3.5,
       "delay": 15,
       "columns": 3,
@@ -177,7 +81,7 @@
     {
       "kind": "grunt",
       "count": 9,
-      "hp": 4,
+      "hp": 8,
       "interval": 1.66,
       "delay": 21,
       "columns": 3,
@@ -187,7 +91,7 @@
     {
       "kind": "grunt",
       "count": 9,
-      "hp": 4,
+      "hp": 8,
       "interval": 1.66,
       "delay": 21.64,
       "columns": 3,
@@ -197,7 +101,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 4,
+      "hp": 8,
       "interval": 3.33,
       "delay": 23,
       "columns": 3,
@@ -207,7 +111,7 @@
     {
       "kind": "grunt",
       "count": 16,
-      "hp": 4,
+      "hp": 8,
       "interval": 1.55,
       "delay": 29,
       "columns": 4,
@@ -217,7 +121,7 @@
     {
       "kind": "grunt",
       "count": 16,
-      "hp": 4,
+      "hp": 8,
       "interval": 1.55,
       "delay": 29.57,
       "columns": 4,
@@ -227,7 +131,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 4,
+      "hp": 8,
       "interval": 3.1,
       "delay": 31,
       "columns": 3,
@@ -237,7 +141,7 @@
     {
       "kind": "grunt",
       "count": 20,
-      "hp": 7,
+      "hp": 16,
       "interval": 1.41,
       "delay": 37,
       "columns": 5,
@@ -247,7 +151,7 @@
     {
       "kind": "grunt",
       "count": 20,
-      "hp": 7,
+      "hp": 16,
       "interval": 1.41,
       "delay": 37.5,
       "columns": 5,
@@ -257,7 +161,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 4,
+      "hp": 8,
       "interval": 2.83,
       "delay": 39,
       "columns": 3,
@@ -267,7 +171,7 @@
     {
       "kind": "grunt",
       "count": 30,
-      "hp": 9,
+      "hp": 16,
       "interval": 1.26,
       "delay": 45,
       "columns": 6,
@@ -277,7 +181,7 @@
     {
       "kind": "grunt",
       "count": 30,
-      "hp": 9,
+      "hp": 16,
       "interval": 1.26,
       "delay": 45.45,
       "columns": 6,
@@ -287,7 +191,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 5,
+      "hp": 8,
       "interval": 2.52,
       "delay": 47,
       "columns": 3,
@@ -297,7 +201,7 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 318,
+      "hp": 550,
       "interval": 1.5,
       "delay": 46,
       "x": 0.3,
@@ -305,60 +209,200 @@
     },
     {
       "kind": "grunt",
-      "count": 36,
-      "hp": 23,
-      "interval": 1.09,
-      "delay": 53,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 40,
+      "interval": 0.6,
+      "delay": 50,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
     },
     {
       "kind": "grunt",
-      "count": 36,
-      "hp": 23,
-      "interval": 1.09,
-      "delay": 53.39,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 40,
+      "interval": 0.6,
+      "delay": 50.3,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 42,
+      "interval": 0.6,
+      "delay": 54.8,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 42,
+      "interval": 0.6,
+      "delay": 55.1,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
     },
     {
       "kind": "runner",
-      "count": 6,
-      "hp": 5,
-      "interval": 2.18,
-      "delay": 55,
+      "count": 3,
+      "hp": 8,
+      "interval": 0.6,
+      "delay": 55.8,
       "columns": 3,
       "spread": 0.25,
       "x": 0.8
     },
     {
       "kind": "grunt",
-      "count": 36,
-      "hp": 23,
-      "interval": 0.91,
-      "delay": 61,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 44,
+      "interval": 0.6,
+      "delay": 59.6,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
     },
     {
       "kind": "grunt",
-      "count": 36,
-      "hp": 23,
-      "interval": 0.91,
-      "delay": 61.34,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 44,
+      "interval": 0.6,
+      "delay": 59.9,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 46,
+      "interval": 0.6,
+      "delay": 64.4,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 46,
+      "interval": 0.6,
+      "delay": 64.7,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
     },
     {
       "kind": "runner",
+      "count": 3,
+      "hp": 8,
+      "interval": 0.6,
+      "delay": 65.4,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
+    },
+    {
+      "kind": "grunt",
       "count": 9,
-      "hp": 5,
-      "interval": 1.82,
-      "delay": 63,
+      "hp": 49,
+      "interval": 0.6,
+      "delay": 69.2,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 49,
+      "interval": 0.6,
+      "delay": 69.5,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 51,
+      "interval": 0.6,
+      "delay": 74,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 51,
+      "interval": 0.6,
+      "delay": 74.3,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "runner",
+      "count": 3,
+      "hp": 8,
+      "interval": 0.6,
+      "delay": 75,
+      "columns": 3,
+      "spread": 0.25,
+      "x": 0.8
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 53,
+      "interval": 0.6,
+      "delay": 78.8,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 53,
+      "interval": 0.6,
+      "delay": 79.1,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 55,
+      "interval": 0.6,
+      "delay": 83.6,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 55,
+      "interval": 0.6,
+      "delay": 83.9,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "runner",
+      "count": 3,
+      "hp": 8,
+      "interval": 0.6,
+      "delay": 84.6,
       "columns": 3,
       "spread": 0.25,
       "x": 0.8
@@ -366,121 +410,49 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 887,
+      "hp": 1500,
       "interval": 1.5,
-      "delay": 62,
+      "delay": 57,
       "x": 0.3,
       "spread": 0.6
     },
     {
-      "kind": "grunt",
-      "count": 54,
-      "hp": 27,
-      "interval": 0.71,
-      "delay": 69,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 54,
-      "hp": 27,
-      "interval": 0.71,
-      "delay": 69.3,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 12,
-      "hp": 5,
-      "interval": 1.42,
-      "delay": 71,
-      "columns": 3,
-      "spread": 0.25,
-      "x": 0.8
-    },
-    {
-      "kind": "grunt",
-      "count": 78,
-      "hp": 27,
-      "interval": 0.5,
-      "delay": 77,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 78,
-      "hp": 27,
-      "interval": 0.5,
-      "delay": 77.25,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 18,
-      "hp": 5,
-      "interval": 1,
-      "delay": 79,
-      "columns": 3,
-      "spread": 0.25,
-      "x": 0.8
-    },
-    {
       "kind": "tank",
-      "count": 5,
-      "hp": 1538,
-      "interval": 1.2,
-      "delay": 70,
+      "count": 3,
+      "hp": 2400,
+      "interval": 1.4,
+      "delay": 66,
       "x": 0.3,
       "spread": 0.6
     },
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 1600,
+      "hp": 12000,
+      "interval": 1,
+      "delay": 48,
+      "x": 0,
+      "spread": 0.3,
+      "summons": { "kind": "runner", "hp": 32, "count": 12, "columns": 6, "at": [0.5] }
+    },
+    {
+      "kind": "miniboss",
+      "count": 1,
+      "hp": 2400,
       "interval": 1,
       "delay": 24.8,
       "x": -0.4,
       "spread": 0.3
     },
     {
-      "kind": "miniboss",
-      "count": 1,
-      "hp": 7800,
-      "interval": 1,
-      "delay": 48,
-      "x": 0,
-      "spread": 0.3,
-      "summons": {
-        "kind": "runner",
-        "hp": 21,
-        "count": 12,
-        "columns": 6,
-        "at": [0.5]
-      }
-    },
-    {
       "kind": "boss",
       "count": 1,
-      "hp": 26000,
+      "hp": 40000,
       "interval": 1,
       "delay": 77,
       "x": 0.4,
       "spread": 0.3,
-      "summons": {
-        "kind": "grunt",
-        "hp": 104,
-        "count": 32,
-        "columns": 8,
-        "at": [0.75, 0.5, 0.25]
-      }
+      "summons": { "kind": "grunt", "hp": 160, "count": 32, "columns": 8, "at": [0.75, 0.5, 0.25] }
     }
   ]
 }

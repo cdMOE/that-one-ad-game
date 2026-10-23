@@ -74,7 +74,7 @@ describe('shop', () => {
   it('has no bonus at level 0 and a bonus that compounds per level', () => {
     expect(upgradeMultiplier('damage', 0)).toBe(1);
     expect(upgradeMultiplier('damage', 2)).toBeCloseTo(1.12 * 1.12);
-    expect(upgradeMultiplier('coins', 2)).toBeCloseTo(1.44);
+    expect(upgradeMultiplier('coins', 2)).toBeCloseTo(1.21);
     // every level is worth as much as the one before: the tenth purchase is felt like the first
     const step = (level: number) =>
       upgradeMultiplier('damage', level + 1) / upgradeMultiplier('damage', level);

@@ -15,7 +15,9 @@ import {
 } from '../src/modes/stationary/bot';
 import {
   CAMPAIGN,
+  CAMPAIGN_SEEDS,
   MAX_DRY,
+  NEAR_MISS,
   PROFILES,
   playCampaign,
   spend,
@@ -123,8 +125,8 @@ describe('shipped levels', () => {
 
 /**
  * The difficulty curve: the shooter levels played in order the way a player does (lose, keep the
- * coins, buy upgrades, retry), once for every player profile, each level held to its `CAMPAIGN`
- * range of runs for that profile. A level `pending` for a profile is still played (the next one
+ * coins, buy upgrades, retry), for every player profile and every one of `CAMPAIGN_SEEDS`, each
+ * level held to its `CAMPAIGN` range of runs for that profile (the median of the seeds). A level `pending` for a profile is still played (the next one
  * starts with what it paid for) but not checked for it: it has not been tuned for that player yet.
  */
 describe('campaign', () => {
@@ -133,15 +135,20 @@ describe('campaign', () => {
     if (!result.ok || result.level.mode !== 'stationary') throw new Error(`bad level ${f}`);
     return result.level;
   });
-  const played = new Map<ProfileName, ReturnType<typeof playCampaign>>();
-  const campaign = (profile: ProfileName) => {
+  // one campaign per seed and profile, played on first use and shared by the checks
+  const played = new Map<ProfileName, ReturnType<typeof playCampaign>[]>();
+  const campaigns = (profile: ProfileName) => {
     let p = played.get(profile);
     if (!p) {
-      p = playCampaign(shooterLevels, { profile: PROFILES[profile], maxRuns: 40 });
+      p = CAMPAIGN_SEEDS.map((seed) =>
+        playCampaign(shooterLevels, { profile: PROFILES[profile], maxRuns: 40, seed }),
+      );
       played.set(profile, p);
     }
     return p;
   };
+  const median = (values: number[]) =>
+    [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
   it('sets a target for every shooter level, and only for those', () => {
     expect(Object.keys(CAMPAIGN).sort()).toEqual(shooterLevels.map((l) => l.id).sort());
@@ -160,12 +167,18 @@ describe('campaign', () => {
   it.each(checks.filter((c) => !pending(c)))(
     '$level.name takes the runs it is meant to ($profile)',
     ({ profile, order, range }) => {
-      const p = campaign(profile)[order];
-      expect(p.won).toBe(true);
-      expect(p.runs).toBeGreaterThanOrEqual(range[0]);
-      expect(p.runs).toBeLessThanOrEqual(range[1]);
-      // and losing keeps paying for upgrades
-      expect(p.dry).toBeLessThanOrEqual(MAX_DRY);
+      const levels = campaigns(profile).map((c) => c[order]);
+      for (const p of levels) {
+        expect(p.won).toBe(true);
+        // losing keeps paying for upgrades
+        expect(p.dry).toBeLessThanOrEqual(MAX_DRY);
+      }
+      const runs = median(levels.map((p) => p.runs));
+      expect(runs).toBeGreaterThanOrEqual(range[0]);
+      expect(runs).toBeLessThanOrEqual(range[1]);
+      // and no cliff: the win is announced by a run that came close
+      const lastLost = levels.filter((p) => p.runs > 1).map((p) => p.reached[p.runs - 2]);
+      if (lastLost.length > 0) expect(median(lastLost)).toBeGreaterThanOrEqual(NEAR_MISS);
     },
     SLOW_TEST_MS,
   );

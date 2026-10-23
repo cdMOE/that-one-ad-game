@@ -80,13 +80,25 @@ export interface Pilot {
   engageAt?: number;
 }
 
-/** The validator's bot: quicker and more precise than most people. */
-export const SHARP: Pilot = { aimEvery: 1, reaction: 0.25, wobble: 0 };
 /**
- * Someone who plays now and then: re-aims five times a second, notices a strike late, is a little
- * off target and reads the field plainly (see `Pilot`). It needs about twice the runs of `GOOD`.
+ * The validator's bot: quicker and more precise than most people, with the good player's reading of
+ * the field (a perfect hand that walks back into every strike would fail a level a person wins).
  */
-export const CASUAL: Pilot = { aimEvery: 6, reaction: 0.45, wobble: 0.5 };
+export const SHARP: Pilot = {
+  aimEvery: 1,
+  reaction: 0.25,
+  wobble: 0,
+  careful: true,
+  lineOfFire: true,
+  engageAt: 10,
+};
+/**
+ * Someone who plays now and then: re-aims five times a second, is a little off target, notices a
+ * strike late (it gets out of the way, but often only just) and reads the field plainly: it stands
+ * where the most monsters are, a boss in the way or not, and only turns to the horde once it is
+ * close (see `Pilot`). Without a playtest of its own this is a model, not a measurement.
+ */
+export const CASUAL: Pilot = { aimEvery: 6, reaction: 0.6, wobble: 0.5, careful: true };
 /**
  * A strong player who knows the game, calibrated against the user's logged playtest: with the same
  * upgrades it wins where they won (all 17 runs of the first playthrough), gets as far where they

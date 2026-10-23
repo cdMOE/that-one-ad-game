@@ -23,9 +23,11 @@ export function firstClearBonus(order: number): number {
 /**
  * Every shooter level pays this many times more per kill and per block than the one before. Prices
  * climb with every purchase (`costGrowth`), so with a flat payout the later levels would turn into
- * a grind of runs that buy nothing; this keeps every run good for at least one upgrade.
+ * a grind of runs that buy nothing; this keeps every run good for at least one upgrade, also for a
+ * player who never buys the coin bonus (at a quarter more per level, the casual campaign profile
+ * bought something only every other run on the last levels).
  */
-export const LEVEL_COIN_GROWTH = 1.25;
+export const LEVEL_COIN_GROWTH = 1.4;
 
 /** Payout factor of the shooter level at position `order` (0 = first). */
 export function levelCoinFactor(order: number): number {
@@ -99,7 +101,9 @@ export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
     baseCost: 50 * COIN_SCALE,
     costGrowth: 1.5,
     maxLevel: 5,
-    perLevel: 0.2,
+    // a nice bonus, not a must: at +20% a level (x2.5 maxed) a player who skipped it fell so far
+    // behind that a later level took fifteen times the runs
+    perLevel: 0.1,
     unit: 'percent',
     blurb: 'coins per kill',
   },

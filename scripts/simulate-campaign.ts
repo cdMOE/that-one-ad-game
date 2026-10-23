@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { UPGRADE_KINDS } from '../src/core/shop';
 import {
   CAMPAIGN,
+  CAMPAIGN_SEEDS,
   PROFILES,
   playCampaign,
   squadPower,
@@ -16,7 +17,8 @@ import type { StationaryLevel } from '../src/levels/schema';
 // Plays the shooter levels in order with ONE shared wallet and permanent upgrades, like a player
 // working through the campaign: lose, bank the coins, buy upgrades, retry. Prints how many runs each
 // level took, for each player profile (see PROFILES: `good` is a strong player who knows the game,
-// calibrated against a logged playtest, `casual` plays now and then), and the two side by side.
+// calibrated against a logged playtest, `casual` plays now and then), and at the end a table of
+// the median of the CAMPAIGN_SEEDS campaigns against the targets, as the unit tests check it.
 // Run with: npm run simulate:campaign -- [maxRunsPerLevel] [--profile=good|casual] [--levels=N] [--runs]
 //   --profile=X only this profile (default: both)
 //   --levels=N  only the first N shooter levels
@@ -95,26 +97,43 @@ for (const name of names) {
   results.set(name, played);
 }
 
-// the profiles side by side: runs per level against their targets (* = outside the range)
-if (results.size > 1) {
-  console.log(
-    `\n${'level'.padEnd(17)}${names.map((n) => `${n} (target)`.padEnd(20)).join('')}ratio`,
-  );
-  const first = results.get(names[0]) ?? [];
-  for (const [i, p] of first.entries()) {
-    const cells = names.map((n) => {
-      const q = (results.get(n) ?? [])[i];
-      const range = CAMPAIGN[q.level.id]?.runs[n];
-      const off = range && (q.runs < range[0] || q.runs > range[1]) ? '*' : ' ';
-      const runs = q.won ? String(q.runs) : `>${q.runs}`;
-      return `${runs}${off} (${range ? `${range[0]}-${range[1]}` : '-'})`.padEnd(20);
-    });
-    const runsOf = (n: ProfileName) => (results.get(n) ?? [])[i].runs;
-    const ratio = (runsOf(names[names.length - 1]) / runsOf(names[0])).toFixed(1);
-    console.log(`${p.level.name.padEnd(17)}${cells.join('')}x${ratio}`);
-  }
-  const sum = (n: ProfileName) => (results.get(n) ?? []).reduce((a, p) => a + p.runs, 0);
-  console.log(
-    `${'total'.padEnd(17)}${names.map((n) => String(sum(n)).padEnd(20)).join('')}x${(sum(names[names.length - 1]) / sum(names[0])).toFixed(1)}`,
-  );
+// the profiles side by side, as the unit tests see them: the median of the campaigns played with
+// CAMPAIGN_SEEDS (the first one is the campaign above), the spread in brackets, * = outside the
+// range
+const seeded = new Map<ProfileName, LevelCampaign[][]>();
+for (const n of names) {
+  seeded.set(n, [
+    results.get(n) ?? [],
+    ...CAMPAIGN_SEEDS.slice(1).map((seed) =>
+      playCampaign(levels.slice(0, onlyLevels), { profile: PROFILES[n], maxRuns, seed }),
+    ),
+  ]);
 }
+const runsAt = (n: ProfileName, i: number) =>
+  (seeded.get(n) ?? []).map((c) => (c[i].won ? c[i].runs : Infinity));
+console.log(
+  `\nmedian of ${CAMPAIGN_SEEDS.length} campaigns\n${'level'.padEnd(17)}${names.map((n) => `${n} (spread) target`.padEnd(26)).join('')}${names.length > 1 ? 'ratio' : ''}`,
+);
+const first = results.get(names[0]) ?? [];
+const totals = new Map<ProfileName, number>();
+for (const [i, p] of first.entries()) {
+  const cells = names.map((n) => {
+    const runs = runsAt(n, i);
+    const mid = median(runs);
+    totals.set(n, (totals.get(n) ?? 0) + mid);
+    const range = CAMPAIGN[p.level.id]?.runs[n];
+    const off = range && (mid < range[0] || mid > range[1]) ? '*' : ' ';
+    const show = (x: number) => (Number.isFinite(x) ? String(x) : 'lost');
+    const spread = `(${show(Math.min(...runs))}-${show(Math.max(...runs))})`;
+    return `${show(mid)}${off} ${spread} ${range ? `${range[0]}-${range[1]}` : '-'}`.padEnd(26);
+  });
+  const ratio =
+    names.length > 1
+      ? `x${(median(runsAt(names[names.length - 1], i)) / median(runsAt(names[0], i))).toFixed(1)}`
+      : '';
+  console.log(`${p.level.name.padEnd(17)}${cells.join('')}${ratio}`);
+}
+const total = (n: ProfileName) => totals.get(n) ?? 0;
+console.log(
+  `${'total'.padEnd(17)}${names.map((n) => String(total(n)).padEnd(26)).join('')}${names.length > 1 ? `x${(total(names[names.length - 1]) / total(names[0])).toFixed(1)}` : ''}`,
+);

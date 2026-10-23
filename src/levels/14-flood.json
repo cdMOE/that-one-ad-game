@@ -7,136 +7,50 @@
   "lane": {
     "side": "left",
     "elements": [
-      {
-        "type": "block",
-        "hp": 12
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 3
-        }
-      },
-      {
-        "type": "block",
-        "hp": 100
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "weapon",
-          "weapon": "rifle"
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "x",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 4800
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 22000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "weapon",
-          "weapon": "minigun"
-        }
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 5
-        }
-      },
-      {
-        "type": "block",
-        "hp": 42000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "x",
-          "value": 2
-        }
-      },
-      {
-        "type": "block",
-        "hp": 66000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 7
-        }
-      },
-      {
-        "type": "block",
-        "hp": 100000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 7
-        }
-      },
-      {
-        "type": "block",
-        "hp": 170000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 10
-        }
-      },
-      {
-        "type": "block",
-        "hp": 720000
-      },
-      {
-        "type": "item",
-        "item": {
-          "kind": "crowd",
-          "op": "+",
-          "value": 10
-        }
-      }
+      { "type": "block", "hp": 12 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 100 },
+      { "type": "item", "item": { "kind": "weapon", "weapon": "rifle" } },
+      { "type": "item", "item": { "kind": "crowd", "op": "x", "value": 2 } },
+      { "type": "block", "hp": 7500 },
+      { "type": "item", "item": { "kind": "weapon", "weapon": "minigun" } },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 17000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 28000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 41000 },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "block", "hp": 56000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 3 } },
+      { "type": "block", "hp": 75000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
+      { "type": "block", "hp": 98000 },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "block", "hp": 120000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
+      { "type": "block", "hp": 150000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 4 } },
+      { "type": "block", "hp": 190000 },
+      { "type": "item", "item": { "kind": "upgrade", "stat": "rate", "value": 0.15 } },
+      { "type": "block", "hp": 240000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
+      { "type": "block", "hp": 290000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 5 } },
+      { "type": "block", "hp": 360000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 6 } },
+      { "type": "block", "hp": 450000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 8 } },
+      { "type": "block", "hp": 600000 },
+      { "type": "item", "item": { "kind": "crowd", "op": "+", "value": 10 } }
     ]
   },
   "monsters": [
     {
       "kind": "grunt",
-      "count": 12,
-      "hp": 6,
-      "interval": 1.27,
+      "count": 9,
+      "hp": 19,
+      "interval": 1.47,
       "delay": 5,
       "columns": 2,
       "spread": 0.34,
@@ -144,9 +58,9 @@
     },
     {
       "kind": "grunt",
-      "count": 12,
-      "hp": 6,
-      "interval": 1.24,
+      "count": 9,
+      "hp": 19,
+      "interval": 1.43,
       "delay": 13,
       "columns": 2,
       "spread": 0.34,
@@ -155,7 +69,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 12,
+      "hp": 19,
       "interval": 3.5,
       "delay": 15,
       "columns": 3,
@@ -164,9 +78,9 @@
     },
     {
       "kind": "grunt",
-      "count": 18,
-      "hp": 6,
-      "interval": 1.17,
+      "count": 14,
+      "hp": 19,
+      "interval": 1.36,
       "delay": 21,
       "columns": 3,
       "spread": 0.51,
@@ -174,9 +88,9 @@
     },
     {
       "kind": "grunt",
-      "count": 18,
-      "hp": 6,
-      "interval": 1.17,
+      "count": 14,
+      "hp": 19,
+      "interval": 1.36,
       "delay": 21.64,
       "columns": 3,
       "spread": 0.51,
@@ -185,7 +99,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 12,
+      "hp": 19,
       "interval": 3.33,
       "delay": 23,
       "columns": 3,
@@ -194,9 +108,9 @@
     },
     {
       "kind": "grunt",
-      "count": 32,
-      "hp": 6,
-      "interval": 1.1,
+      "count": 24,
+      "hp": 19,
+      "interval": 1.27,
       "delay": 29,
       "columns": 4,
       "spread": 0.69,
@@ -204,9 +118,9 @@
     },
     {
       "kind": "grunt",
-      "count": 32,
-      "hp": 6,
-      "interval": 1.1,
+      "count": 24,
+      "hp": 19,
+      "interval": 1.27,
       "delay": 29.57,
       "columns": 4,
       "spread": 0.69,
@@ -215,7 +129,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 12,
+      "hp": 19,
       "interval": 3.1,
       "delay": 31,
       "columns": 3,
@@ -224,9 +138,9 @@
     },
     {
       "kind": "grunt",
-      "count": 40,
-      "hp": 12,
-      "interval": 1.0,
+      "count": 30,
+      "hp": 38,
+      "interval": 1.15,
       "delay": 37,
       "columns": 5,
       "spread": 0.86,
@@ -234,9 +148,9 @@
     },
     {
       "kind": "grunt",
-      "count": 40,
-      "hp": 12,
-      "interval": 1.0,
+      "count": 30,
+      "hp": 38,
+      "interval": 1.15,
       "delay": 37.5,
       "columns": 5,
       "spread": 0.86,
@@ -245,7 +159,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 12,
+      "hp": 19,
       "interval": 2.83,
       "delay": 39,
       "columns": 3,
@@ -254,9 +168,9 @@
     },
     {
       "kind": "grunt",
-      "count": 60,
-      "hp": 12,
-      "interval": 0.89,
+      "count": 45,
+      "hp": 38,
+      "interval": 1.03,
       "delay": 45,
       "columns": 6,
       "spread": 1,
@@ -264,9 +178,9 @@
     },
     {
       "kind": "grunt",
-      "count": 60,
-      "hp": 12,
-      "interval": 0.89,
+      "count": 45,
+      "hp": 38,
+      "interval": 1.03,
       "delay": 45.45,
       "columns": 6,
       "spread": 1,
@@ -275,7 +189,7 @@
     {
       "kind": "runner",
       "count": 6,
-      "hp": 12,
+      "hp": 19,
       "interval": 2.52,
       "delay": 47,
       "columns": 3,
@@ -285,7 +199,7 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 840,
+      "hp": 1300,
       "interval": 1.5,
       "delay": 46,
       "x": 0.3,
@@ -293,60 +207,200 @@
     },
     {
       "kind": "grunt",
-      "count": 72,
-      "hp": 30,
-      "interval": 0.77,
-      "delay": 53,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 56,
+      "interval": 0.6,
+      "delay": 50,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
     },
     {
       "kind": "grunt",
-      "count": 72,
-      "hp": 30,
-      "interval": 0.77,
-      "delay": 53.39,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 56,
+      "interval": 0.6,
+      "delay": 50.3,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 59,
+      "interval": 0.6,
+      "delay": 54.8,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 59,
+      "interval": 0.6,
+      "delay": 55.1,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
     },
     {
       "kind": "runner",
-      "count": 6,
-      "hp": 12,
-      "interval": 2.18,
-      "delay": 55,
+      "count": 3,
+      "hp": 19,
+      "interval": 0.6,
+      "delay": 55.8,
       "columns": 3,
       "spread": 0.6,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 72,
-      "hp": 30,
-      "interval": 0.64,
-      "delay": 61,
-      "columns": 6,
-      "spread": 1,
+      "count": 9,
+      "hp": 62,
+      "interval": 0.6,
+      "delay": 59.6,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 62,
+      "interval": 0.6,
+      "delay": 59.9,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 65,
+      "interval": 0.6,
+      "delay": 64.4,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 65,
+      "interval": 0.6,
+      "delay": 64.7,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "runner",
+      "count": 3,
+      "hp": 19,
+      "interval": 0.6,
+      "delay": 65.4,
+      "columns": 3,
+      "spread": 0.6,
       "x": 0
     },
     {
       "kind": "grunt",
-      "count": 72,
-      "hp": 30,
-      "interval": 0.64,
-      "delay": 61.34,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
+      "count": 9,
+      "hp": 67,
+      "interval": 0.6,
+      "delay": 69.2,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 67,
+      "interval": 0.6,
+      "delay": 69.5,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 70,
+      "interval": 0.6,
+      "delay": 74,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 70,
+      "interval": 0.6,
+      "delay": 74.3,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
     },
     {
       "kind": "runner",
+      "count": 3,
+      "hp": 19,
+      "interval": 0.6,
+      "delay": 75,
+      "columns": 3,
+      "spread": 0.6,
+      "x": 0
+    },
+    {
+      "kind": "grunt",
       "count": 9,
-      "hp": 12,
-      "interval": 1.82,
-      "delay": 63,
+      "hp": 73,
+      "interval": 0.6,
+      "delay": 78.8,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 73,
+      "interval": 0.6,
+      "delay": 79.1,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 75,
+      "interval": 0.6,
+      "delay": 83.6,
+      "columns": 3,
+      "spread": 0.5,
+      "x": -0.5
+    },
+    {
+      "kind": "grunt",
+      "count": 9,
+      "hp": 75,
+      "interval": 0.6,
+      "delay": 83.9,
+      "columns": 3,
+      "spread": 0.5,
+      "x": 0.5
+    },
+    {
+      "kind": "runner",
+      "count": 3,
+      "hp": 19,
+      "interval": 0.6,
+      "delay": 84.6,
       "columns": 3,
       "spread": 0.6,
       "x": 0
@@ -354,85 +408,25 @@
     {
       "kind": "tank",
       "count": 3,
-      "hp": 2340,
+      "hp": 3700,
       "interval": 1.5,
-      "delay": 62,
+      "delay": 57,
       "x": 0.3,
       "spread": 0.6
     },
     {
-      "kind": "grunt",
-      "count": 108,
-      "hp": 36,
-      "interval": 0.5,
-      "delay": 69,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 108,
-      "hp": 36,
-      "interval": 0.5,
-      "delay": 69.3,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 12,
-      "hp": 12,
-      "interval": 1.42,
-      "delay": 71,
-      "columns": 3,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 156,
-      "hp": 36,
-      "interval": 0.35,
-      "delay": 77,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "grunt",
-      "count": 156,
-      "hp": 36,
-      "interval": 0.35,
-      "delay": 77.25,
-      "columns": 6,
-      "spread": 1,
-      "x": 0
-    },
-    {
-      "kind": "runner",
-      "count": 18,
-      "hp": 12,
-      "interval": 1,
-      "delay": 79,
-      "columns": 3,
-      "spread": 0.6,
-      "x": 0
-    },
-    {
       "kind": "tank",
-      "count": 5,
-      "hp": 4056,
-      "interval": 1.2,
-      "delay": 70,
+      "count": 3,
+      "hp": 5600,
+      "interval": 1.4,
+      "delay": 66,
       "x": 0.3,
       "spread": 0.6
     },
     {
       "kind": "miniboss",
       "count": 1,
-      "hp": 3600,
+      "hp": 5600,
       "interval": 1,
       "delay": 24.8,
       "x": -0.4,
@@ -441,18 +435,12 @@
     {
       "kind": "boss",
       "count": 1,
-      "hp": 60000,
+      "hp": 94000,
       "interval": 1,
       "delay": 77,
       "x": 0.4,
       "spread": 0.3,
-      "summons": {
-        "kind": "grunt",
-        "hp": 120,
-        "count": 48,
-        "columns": 8,
-        "at": [0.75, 0.5, 0.25]
-      }
+      "summons": { "kind": "grunt", "hp": 230, "count": 12, "columns": 8, "at": [0.75, 0.5, 0.25] }
     }
   ]
 }
