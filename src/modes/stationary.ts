@@ -69,6 +69,12 @@ export class StationaryMode implements GameMode {
   private demo = false;
   /** The shooter screen: the level stands ready behind the cards, nothing moves until it starts. */
   private preview = false;
+  /**
+   * Where the mouse stood when the keys last steered, or null once the mouse has steered since.
+   * A resting cursor must not pull the squad back when a key is released: the mouse takes over
+   * again only once it moves.
+   */
+  private keyPointerX: number | null = null;
   private readonly coinMul: number;
   /** Coins flying from a kill up to the coin counter in the HUD (screen px, 0..1 progress). */
   private readonly flyingCoins: Array<{ x: number; y: number; t: number }> = [];
@@ -416,17 +422,22 @@ export class StationaryMode implements GameMode {
     // the target never runs past where the squad can stand: dragging beyond the edge and back
     // must move the squad at once, not first unwind an invisible overshoot
     const limit = ARENA.halfWidth - this.sim.halfWidth();
-    // finger and mouse both put the squad exactly where they say (keys still glide), so a phone
-    // steers as snappily as a desktop
-    this.sim.snapSquad = !this.demo && input.axis === 0;
+    // finger, mouse and keys all put the squad exactly where they say, so it never trails behind
+    // and never drifts or jumps when a key is released
+    this.sim.snapSquad = !this.demo;
     if (this.demo) {
       this.sim.targetX += (this.autopilotX() - this.sim.targetX) * Math.min(1, 4 * dt);
     } else if (this.preview) {
       // stands ready: the pointer over the cards must not move it
     } else if (input.axis !== 0) {
       this.sim.targetX += input.axis * KEY_SPEED * dt;
+      this.keyPointerX = input.pointerX;
     } else if (input.usesMouse) {
-      this.sim.targetX = this.scene.screenToWorldX(input.pointerX);
+      // the keys steered last and the mouse has not moved since: the squad stays where it is
+      if (this.keyPointerX === null || input.pointerX !== this.keyPointerX) {
+        this.keyPointerX = null;
+        this.sim.targetX = this.scene.screenToWorldX(input.pointerX);
+      }
     } else {
       this.sim.targetX += this.scene.pxToWorld(drag) * DRAG_GAIN;
     }
