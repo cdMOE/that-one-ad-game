@@ -403,6 +403,13 @@ export function laneJackpot<T extends { type: 'block' | 'item'; item?: ItemDef }
   return best;
 }
 
+/** A `+` soldier gate with the soldiers upgrade on top; everything else stays as it is. */
+function boostGate(def: ItemDef, bonus: number): ItemDef {
+  return def.kind === 'crowd' && def.op === '+' && bonus > 0
+    ? { ...def, value: def.value + bonus }
+    : def;
+}
+
 /** Closest approach of a bullet's segment to a circle; returns the segment parameter or -1. */
 function segmentCircle(
   x0: number,
@@ -426,8 +433,8 @@ function segmentCircle(
 export interface SimOptions {
   damageMul: number;
   rateMul: number;
-  /** Extra soldiers the squad starts with (the soldiers upgrade). */
-  startBonus?: number;
+  /** Extra soldiers every `+` soldier gate on the lane gives (the soldiers upgrade). */
+  gateBonus?: number;
 }
 
 /**
@@ -575,7 +582,7 @@ export class StationarySim {
     readonly hooks: SimHooks = {},
     options: SimOptions = { damageMul: 1, rateMul: 1 },
   ) {
-    this.count = level.startCount + (options.startBonus ?? 0);
+    this.count = level.startCount;
     this.peak = this.count;
     this.weapon = newWeaponState(level.weapon);
     this.weapon.damageMul = options.damageMul;
@@ -624,7 +631,7 @@ export class StationarySim {
         grow: e.type === 'block' ? (e.grow ?? 0) : 0,
         growCap: e.type === 'block' ? e.hp * GROW_CAP : 0,
         idle: 0,
-        ...(e.type === 'item' ? { item: e.item } : {}),
+        ...(e.type === 'item' ? { item: boostGate(e.item, options.gateBonus ?? 0) } : {}),
         flash: 0,
       })),
     };

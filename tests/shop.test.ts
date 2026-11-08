@@ -5,7 +5,7 @@ import {
   isMaxed,
   MAX_TIER,
   noUpgrades,
-  startSoldiers,
+  gateBonus,
   tierUpgrades,
   upgradeCost,
   upgradeEffect,
@@ -83,7 +83,7 @@ describe('shop', () => {
 
   it('describes tiers and empty upgrades', () => {
     expect(noUpgrades()).toEqual({ damage: 0, rate: 0, soldiers: 0, coins: 0 });
-    expect(tierUpgrades(3)).toEqual({ damage: 8, rate: 6, soldiers: 2, coins: 0 });
+    expect(tierUpgrades(3)).toEqual({ damage: 8, rate: 6, soldiers: 1, coins: 0 });
   });
 
   it('caps every upgrade: the last level can be bought, the one after cannot', () => {
@@ -96,8 +96,8 @@ describe('shop', () => {
     }
   });
 
-  it('gives whole soldiers for the soldiers upgrade and a fully upgraded squad at the top tier', () => {
-    expect(startSoldiers(3)).toBe(3);
+  it('gives whole soldiers per gate for the soldiers upgrade and a fully upgraded squad at the top tier', () => {
+    expect(gateBonus(3)).toBe(3);
     expect(upgradeEffect('soldiers', 2)).toBe('+2');
     expect(upgradeEffect('damage', 3)).toBe('+40%');
     const top = tierUpgrades(MAX_TIER);

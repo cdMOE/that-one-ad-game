@@ -146,17 +146,19 @@ const LEVELS: LevelSpec[] = [
   },
   {
     // the chapter boss: two minibosses guard it, it calls every kind of monster at once, and the
-    // prize at the end of the lane is the LASER, within reach of a strong run
+    // prize at the end of the lane is the LASER, within reach of a strong run. Its nine soldier
+    // gates make it the level the soldiers card (a bonus per gate) helps most: tougher to match,
+    // with a softer boss so the fight that wins stays short
     file: '15-big-boss',
     id: 'stationary-05',
     name: 'Big Boss',
-    k: 51,
+    k: 66,
     side: 'right',
     tempo: 1.1,
     opening: 'B15 +2 B120 +2 B400 rifle +3',
     ladder:
       'B400 minigun +3 B650 +3 B1000 +3 B1500 d+0.25 B2200 laser B3000 r+0.15 B4000 +5 B5500 +6 B7500 +8',
-    boss: 0.8,
+    boss: 0.6,
     summons: {
       kind: 'grunt',
       hp: 20,

@@ -198,12 +198,12 @@ describe('spend', () => {
     expect(first).toEqual({ damage: 1, rate: 1, soldiers: 0, coins: 2 });
     // the soldiers card as soon as it is affordable
     const up = { damage: 1, rate: 1, soldiers: 0, coins: 2 };
-    expect(spend(up, 8123, 'player')).toBe(123);
+    expect(spend(up, 20123, 'player')).toBe(123);
     expect(up).toEqual({ damage: 1, rate: 1, soldiers: 1, coins: 2 });
     // coin bonus maxed, soldiers out of reach: damage and fire rate by turns
-    const later = { damage: 4, rate: 5, soldiers: 3, coins: 5 };
+    const later = { damage: 4, rate: 5, soldiers: 1, coins: 5 };
     expect(spend(later, 26859, 'player')).toBe(2605);
-    expect(later).toEqual({ damage: 6, rate: 7, soldiers: 3, coins: 5 });
+    expect(later).toEqual({ damage: 6, rate: 7, soldiers: 1, coins: 5 });
   });
 
   it('buys the cheapest upgrade and never the coin bonus', () => {

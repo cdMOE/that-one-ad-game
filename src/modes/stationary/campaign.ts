@@ -3,7 +3,7 @@ import {
   firstClearBonus,
   levelCoinFactor,
   noUpgrades,
-  startSoldiers,
+  gateBonus,
   upgradeCost,
   upgradeMultiplier,
   type UpgradeKind,
@@ -19,7 +19,7 @@ import { GAME_SPEED } from './sim';
  *   plays now and then buys power they can feel right away, not a bonus that pays off later.
  * - `player`: what the user did in their playtest (it buys what they bought after 15 of their 17
  *   runs): round after round along the cards, one level of each it can afford per round, the
- *   soldiers card first (an extra soldier is the biggest jump in power), then the coin bonus, then
+ *   soldiers card first (the biggest jump in power), then the coin bonus, then
  *   damage and fire rate, the one behind first.
  */
 export type BuyPolicy = 'cheapest' | 'player';
@@ -117,11 +117,18 @@ export const MAX_DRY = 2;
  * number the lane and the bosses of the next level have to be measured against.
  */
 export function squadPower(up: UpgradeLevels, level: StationaryLevel): number {
-  const n = level.startCount;
+  // the soldiers card counts by the squad the lane's `+` gates build (multipliers left out)
+  let n = level.startCount;
+  let gates = 0;
+  for (const e of level.lane.elements) {
+    if (e.type !== 'item' || e.item.kind !== 'crowd' || e.item.op !== '+') continue;
+    n += e.item.value;
+    gates++;
+  }
   return (
     upgradeMultiplier('damage', up.damage) *
     upgradeMultiplier('rate', up.rate) *
-    ((n + startSoldiers(up.soldiers)) / n)
+    ((n + gates * gateBonus(up.soldiers)) / n)
   );
 }
 

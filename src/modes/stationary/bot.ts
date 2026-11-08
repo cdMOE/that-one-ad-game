@@ -1,7 +1,7 @@
 import { mulberry32 } from '../../core/rng';
 import {
   MAX_TIER,
-  startSoldiers,
+  gateBonus,
   tierUpgrades,
   upgradeMultiplier,
   type UpgradeLevels,
@@ -382,7 +382,7 @@ export function runBot(
     {
       damageMul: upgradeMultiplier('damage', up.damage),
       rateMul: upgradeMultiplier('rate', up.rate),
-      startBonus: startSoldiers(up.soldiers),
+      gateBonus: gateBonus(up.soldiers),
     },
   );
   // like a mouse the squad sits exactly on the target; the human part is how often it re-aims

@@ -3,7 +3,7 @@ import { Pc } from '../core/particles';
 import { drawPill } from '../core/render';
 import { formatCount } from '../core/rules';
 import { starsFor } from '../levels/analyze';
-import { startSoldiers, upgradeMultiplier } from '../core/shop';
+import { gateBonus, upgradeMultiplier } from '../core/shop';
 import { Swarm } from '../core/swarm';
 import type { ItemDef, StationaryLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
@@ -302,7 +302,7 @@ export class StationaryMode implements GameMode {
       {
         damageMul: upgradeMultiplier('damage', ctx.upgrades.damage),
         rateMul: upgradeMultiplier('rate', ctx.upgrades.rate),
-        startBonus: startSoldiers(ctx.upgrades.soldiers),
+        gateBonus: gateBonus(ctx.upgrades.soldiers),
       },
     );
 

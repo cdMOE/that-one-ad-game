@@ -89,12 +89,14 @@ export const UPGRADES: Record<UpgradeKind, UpgradeInfo> = {
   },
   soldiers: {
     title: 'Soldiers',
-    baseCost: 400 * COIN_SCALE,
+    baseCost: 1000 * COIN_SCALE,
     costGrowth: 2,
-    maxLevel: 5,
+    // a level counts on every gate (Big Boss has nine), so two are plenty: even one more made
+    // the chapter boss a two-run level
+    maxLevel: 2,
     perLevel: 1,
     unit: 'count',
-    blurb: 'extra soldiers at the start',
+    blurb: 'more soldiers from every soldier gate',
   },
   coins: {
     title: 'Coins',
@@ -134,8 +136,12 @@ export function upgradeMultiplier(kind: UpgradeKind, level: number): number {
   return Math.pow(1 + UPGRADES[kind].perLevel, level);
 }
 
-/** Extra soldiers the squad starts with. */
-export function startSoldiers(level: number): number {
+/**
+ * Extra soldiers every `+` soldier gate on the lane gives. An extra soldier at the start was worth
+ * little past the first gates (a squad of 25 hardly feels a 26th); on the gates it grows with the
+ * level, and the player sees it on the road: `+3` reads `+4`.
+ */
+export function gateBonus(level: number): number {
   return Math.round(UPGRADES.soldiers.perLevel * level);
 }
 

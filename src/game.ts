@@ -354,7 +354,7 @@ export class Game {
     writeSave(this.save);
     logPurchase(kind);
     this.sfx.upgrade(this.save.upgrades[kind]);
-    // a bought soldier steps into the waiting squad at once
+    // the waiting lane shows the bigger soldier gates at once
     if (kind === 'soldiers' && this.previewIndex !== null) {
       const index = this.previewIndex;
       this.previewIndex = null;
