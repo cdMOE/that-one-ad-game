@@ -7,7 +7,7 @@ import { gateBonus, upgradeMultiplier } from '../core/shop';
 import { Swarm } from '../core/swarm';
 import type { ItemDef, StationaryLevel } from '../levels/schema';
 import type { GameContext, GameMode, Outcome } from './mode';
-import { FORT_STAGES, fortressStage } from './stationary/fortress';
+import { FORT_GATE_Y, FORT_STAGES, fortressStage } from './stationary/fortress';
 import { monsterTop } from './stationary/models';
 import { JACKPOT_SCALE, ShooterScene, flightPos } from './stationary/scene';
 import {
@@ -34,6 +34,19 @@ const KEY_SPEED = 11; // A/D, world units per second
  * the way down the lane: the big ones far off are the goals for the next runs.
  */
 const LANE_LABELS = 2;
+/**
+ * The victory march: the survivors cheer for a moment, then dash up the bridge into the fortress
+ * gate while the camera holds still, and the result comes up as the last of them go in. Quick on
+ * purpose: a payoff, not a cutscene. A tap skips straight to the result.
+ */
+const MARCH_DELAY = 0.3;
+const MARCH_TIME = 1.4;
+/** The gold burst at the gate stays on screen this long before the result covers it. */
+const MARCH_LINGER = 0.25;
+/** Share of the march spent stepping over to the big gate before the run up the bridge. */
+const MARCH_TURN = 0.15;
+/** Where the march ends: a few steps inside the dark gateway, where a soldier has shrunk away. */
+const MARCH_END = FORT_GATE_Y + 3;
 
 /**
  * Stationary shooter: the squad slides left and right (drag, mouse or A/D) and every
@@ -59,6 +72,10 @@ export class StationaryMode implements GameMode {
   private itemPopAt = -Infinity;
   private itemPopStack = 0;
   private endTimer = -1;
+  /** Seconds since the victory march began (-1 before a win), and where the squad set off. */
+  private marchT = -1;
+  private marchFromX = 0;
+  private marchCheered = false;
   private shotCounter = 0;
   private deathBudget = 0;
   private killBudget = 0;
@@ -276,8 +293,10 @@ export class StationaryMode implements GameMode {
           sfx.coin();
         },
         ended: (won) => {
-          this.endTimer = won ? 1.7 : 1;
+          this.endTimer = won ? MARCH_DELAY + MARCH_TIME + MARCH_LINGER : 1;
           if (won) {
+            this.marchT = 0;
+            this.marchFromX = this.sim.squadX;
             sfx.win();
             for (let i = 0; i < 90; i++) {
               const a = Math.random() * Math.PI * 2;
@@ -418,7 +437,10 @@ export class StationaryMode implements GameMode {
 
     // steering: keys > mouse position > finger drag
     const drag = input.consumeDrag();
-    input.consumeTap();
+    // a tap during the victory march skips to the result
+    if (input.consumeTap() && this.marchT >= 0 && !this.demo) {
+      this.endTimer = Math.min(this.endTimer, 0);
+    }
     // the target never runs past where the squad can stand: dragging beyond the edge and back
     // must move the squad at once, not first unwind an invisible overshoot
     const limit = ARENA.halfWidth - this.sim.halfWidth();
@@ -462,19 +484,57 @@ export class StationaryMode implements GameMode {
       this.pillPop = Math.max(this.pillPop, 0.6);
     }
     this.player.useGrid(this.sim.cols);
-    this.player.update(
-      dt,
-      this.sim.squadX,
-      -this.recoil * 0.06,
-      this.sim.squadVx,
-      0,
-      SOLDIER_SPACING,
-      this.time,
-    );
+    if (this.marchT >= 0) this.march(dt);
+    else {
+      this.player.update(
+        dt,
+        this.sim.squadX,
+        -this.recoil * 0.06,
+        this.sim.squadVx,
+        0,
+        SOLDIER_SPACING,
+        this.time,
+      );
+    }
 
     if (this.endTimer >= 0) {
       this.endTimer -= dt;
       if (this.endTimer < 0) this.outcome = this.sim.phase === 'won' ? 'won' : 'lost';
+    }
+  }
+
+  /** Debug aid: wins the run now (see `StationarySim.forceWin`). */
+  forceWin(): void {
+    if (!this.demo && !this.preview) this.sim.forceWin();
+  }
+
+  /**
+   * The victory march (see `MARCH_TIME`): the squad swings over to the big gate and dashes up the
+   * bridge into the fortress it just knocked down; a burst of gold greets the first soldiers at the
+   * gate.
+   */
+  private march(dt: number): void {
+    this.marchT += dt;
+    const u = Math.max(0, Math.min(1, (this.marchT - MARCH_DELAY) / MARCH_TIME));
+    // first a sidestep over to the gate's side (the divider wall starts just ahead of the squad),
+    // then a straight dash up the bridge
+    const turn = Math.min(1, u / MARCH_TURN);
+    const ease = turn * turn * (3 - 2 * turn);
+    const dx = this.scene.gateX - this.marchFromX;
+    const x = this.marchFromX + dx * ease;
+    const vx = turn > 0 && turn < 1 ? (dx * 6 * turn * (1 - turn)) / (MARCH_TURN * MARCH_TIME) : 0;
+    const run = Math.max(0, (u - MARCH_TURN) / (1 - MARCH_TURN));
+    const y = MARCH_END * Math.pow(run, 1.3);
+    const vy =
+      run > 0 && run < 1
+        ? (1.3 * MARCH_END * Math.pow(run, 0.3)) / ((1 - MARCH_TURN) * MARCH_TIME)
+        : 0;
+    this.player.update(dt, x, y, vx, vy, SOLDIER_SPACING, this.time);
+    this.scene.marchSpeed = vy;
+    if (!this.marchCheered && y > FORT_GATE_Y - 2) {
+      this.marchCheered = true;
+      this.ctx.particles.burst(this.scene.gateX, FORT_GATE_Y - 1, 40, 9, Pc.Gold, 0.8, 0.25);
+      if (!this.demo) this.ctx.sfx.coin();
     }
   }
 
@@ -589,6 +649,8 @@ export class StationaryMode implements GameMode {
       sumX += p.x[i];
       if (p.y[i] < backY) backY = p.y[i];
     }
+    // marched into the fortress: the number goes in with them
+    if (backY > FORT_GATE_Y - 3) return;
     sc.placeAt(sumX / p.n, backY - 1.1, 0.1);
     const fontPx = Math.round(Math.max(14, sc.scale * 0.8) * 1.05 * (1 + 0.3 * this.pillPop));
     // the close camera can put a squad at the road's edge half off screen; its number stays on

@@ -61,6 +61,11 @@ export interface ResultInfo {
    * many runs the first clear took (0 when unknown), `levels` how many levels the campaign has.
    */
   finale?: { runs: number; levels: number };
+  /**
+   * A won shooter level that is not the last: its place in the campaign (`beaten`, 0 = first) and
+   * how many levels there are, for the map on the victory screen.
+   */
+  campaign?: { beaten: number; total: number };
 }
 
 /**
@@ -210,6 +215,8 @@ export class Ui {
   private readonly resultProgressFill: HTMLElement;
   private readonly resultProgressBest: HTMLElement;
   private readonly resultProgressPct: HTMLElement;
+  /** Victory screen: the campaign as a path of numbered stops, the beaten one turning gold. */
+  private readonly resultMap: HTMLElement;
   private readonly retryBtn: HTMLButtonElement;
   private readonly resumeBtn: HTMLButtonElement;
   /** Finale: share the win (the system share sheet, or the link copied). */
@@ -425,6 +432,8 @@ export class Ui {
       ),
     );
     this.resultProgress.hidden = true;
+    this.resultMap = h('div', { class: 'result-map' });
+    this.resultMap.hidden = true;
     this.nextBtn = h('button', {
       class: 'btn btn-primary',
       text: 'NEXT LEVEL',
@@ -449,6 +458,7 @@ export class Ui {
       this.resultStars,
       this.resultSub,
       this.resultProgress,
+      this.resultMap,
       this.resultCoins,
       this.resultBonus,
       this.resultBar,
@@ -921,6 +931,7 @@ export class Ui {
     this.resultBonus.textContent = `incl. +${formatCount(bonus)} first clear bonus`;
     this.resultBonus.hidden = bonus <= 0;
     this.showProgress(won ? undefined : info.progress);
+    this.showMap(won ? info.campaign : undefined);
     const finale = won ? info.finale : undefined;
     this.result.classList.toggle('finale', finale !== undefined);
     // after the finale there is nothing left to buy for, so the cards stay away
@@ -975,6 +986,34 @@ export class Ui {
       upgradesAvailable ? (next ? 'btn-ghost' : 'btn-primary') : 'btn-secondary'
     }`;
     this.result.hidden = false;
+  }
+
+  /**
+   * The campaign after a win: one stop per level on a path. The beaten level turns gold, the path
+   * to the next one fills and the next stop pops up, in that order, so the step forward is seen.
+   */
+  private showMap(c: ResultInfo['campaign']): void {
+    this.resultMap.hidden = !c;
+    if (!c) return;
+    const parts: HTMLElement[] = [];
+    for (let i = 0; i < c.total; i++) {
+      if (i > 0)
+        parts.push(
+          h('span', {
+            class: `map-link${i <= c.beaten ? ' done' : i === c.beaten + 1 ? ' fill' : ''}`,
+          }),
+        );
+      const state =
+        i < c.beaten
+          ? 'done'
+          : i === c.beaten
+            ? 'done fresh'
+            : i === c.beaten + 1
+              ? 'next'
+              : 'locked';
+      parts.push(h('span', { class: `map-stop ${state}`, text: String(i + 1) }));
+    }
+    this.resultMap.replaceChildren(...parts);
   }
 
   /** How far a lost run got, with a marker at the old record and a cheer when it was beaten. */

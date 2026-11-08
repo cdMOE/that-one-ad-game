@@ -353,6 +353,10 @@ export class ShooterScene implements Placer {
    * the squad would flash with every shot.
    */
   private squadFront = 0;
+  /** Centre x of the big gate, where the horde comes out and the victory march goes in. */
+  gateX = 0;
+  /** How fast the victory march runs (the soldiers bob while it does). */
+  marchSpeed = 0;
   /** Cartoon outlines: a back-facing shell per crowd mesh that shares its instance matrices. */
   private readonly outlines: Array<{
     src: InstancedMesh<BufferGeometry, Material>;
@@ -852,6 +856,8 @@ export class ShooterScene implements Placer {
       { lo: wallX + pier, hi: half - 0.05, h: left ? big : small },
     ];
     this.fortress = new Fortress(this.scene, (x) => this.track(x), half + 0.6, gates);
+    const bigGate = gates[left ? 1 : 0];
+    this.gateX = (bigGate.lo + bigGate.hi) / 2;
     const wallZ = -(SPAWN_FAR + 3.2) / 2;
     box(lambert(0x565c68), wallX, 0.75, wallZ, 0.32, 1.5, SPAWN_FAR - 3.2);
     box(lambert(0x9aa0ab), wallX, 1.54, wallZ, 0.38, 0.08, SPAWN_FAR - 3.2);
@@ -1309,17 +1315,17 @@ export class ShooterScene implements Placer {
     const arr = this.soldiers.instanceMatrix.array as Float32Array;
     const shadowArr = this.shadows.instanceMatrix.array as Float32Array;
     let shadowN = this.shadowFill;
-    const moving = Math.min(1, Math.abs(sim.squadVx) / 4);
+    const moving = Math.min(1, Math.max(Math.abs(sim.squadVx), this.marchSpeed) / 4);
     const lean = Math.max(-0.3, Math.min(0.3, -sim.squadVx * 0.014));
     const n = player.n;
     // a small squad is drawn bigger (one soldier would be a speck); a big one shrinks to its 1.15.
     // Kept small against the road and the bosses, so the bridge looks wide and the giants loom
-    const size = 1.15 + 0.55 / Math.sqrt(Math.max(1, n));
+    const baseSize = 1.15 + 0.55 / Math.sqrt(Math.max(1, n));
     const muzzleArr = this.muzzles.instanceMatrix.array as Float32Array;
     const flare = recoil * recoil;
     let front = -Infinity;
     for (let i = 0; i < n; i++) front = Math.max(front, player.y[i]);
-    this.squadFront = front + 0.8 * size;
+    this.squadFront = front + 0.8 * baseSize;
     let muzzleN = 0;
     const hurtArr = this.hurtShell.instanceMatrix.array as Float32Array;
     let hurtN = 0;
@@ -1328,6 +1334,8 @@ export class ShooterScene implements Placer {
       // not a parade block (small enough that the bullets still leave from the gun)
       const x = player.x[i] + (((i * 0.618) % 1) - 0.5) * 0.2;
       const y = player.y[i] + (((i * 0.382 + 0.3) % 1) - 0.5) * 0.28;
+      // marching into the gateway, a soldier shrinks into the dark like the monsters come out
+      const size = baseSize * fortressEmerge(player.y[i]);
       const yaw = (((i * 0.7548) % 1) - 0.5) * 0.35;
       const bob = (Math.abs(Math.sin(time * 14 + i * 1.3)) * 0.06 * moving) as number;
       // a bite knocks the front row back and squashes it; the rows behind feel it less

@@ -153,6 +153,12 @@ export class Game {
 
     if (this.debug) {
       (window as unknown as { __game: Game }).__game = this;
+      // W wins the shooter run on the spot: the victory march and the map without playing a level
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyW' && !this.paused && this.mode instanceof StationaryMode) {
+          this.mode.forceWin();
+        }
+      });
     }
   }
 
@@ -421,6 +427,15 @@ export class Game {
       ...(shooter ? { progress: { reached: mode.progress, bestBefore } } : {}),
       ...(mode.lossReason ? { lossReason: mode.lossReason } : {}),
       ...(mode.bossLeft !== undefined ? { bossLeft: mode.bossLeft } : {}),
+      // a shooter level beaten with more to come: the victory screen shows the step on the map
+      ...(won && shooter && hasNext
+        ? {
+            campaign: {
+              beaten: shooterOrder(level),
+              total: levels.filter((l) => l.mode === 'stationary').length,
+            },
+          }
+        : {}),
       // the last shooter level beaten: the campaign is done
       ...(won && shooter && !hasNext
         ? {

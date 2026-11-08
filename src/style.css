@@ -607,6 +607,118 @@ body {
   gap: 4px;
 }
 
+/* the campaign after a win: the beaten stop turns gold, the path fills, the next stop pops up */
+.result-map {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 6px 0;
+}
+
+.map-stop {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: rgba(23, 32, 84, 0.25);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.map-stop.done {
+  background: var(--gold-bright);
+  color: var(--text);
+  box-shadow: 0 3px 0 var(--gold);
+}
+
+.map-stop.fresh {
+  animation: map-beaten 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) 0.35s both;
+}
+
+.map-stop.next {
+  width: 46px;
+  height: 46px;
+  background: var(--pink);
+  box-shadow: 0 4px 0 #c4314f;
+  font-size: 22px;
+  animation:
+    map-next-in 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) 1.1s both,
+    map-next-pulse 1.1s ease-in-out 1.6s infinite;
+}
+
+.map-stop.locked {
+  opacity: 0.55;
+}
+
+.map-link {
+  flex: 1;
+  max-width: 34px;
+  height: 6px;
+  margin: 0 -1px;
+  background: rgba(23, 32, 84, 0.25);
+}
+
+.map-link.done {
+  background: var(--gold-bright);
+}
+
+/* the stretch to the next level fills from the beaten stop once it has turned gold */
+.map-link.fill {
+  background: linear-gradient(90deg, var(--gold-bright) 50%, rgba(23, 32, 84, 0.25) 50%) 100% 0 /
+    200% 100% no-repeat;
+  animation: map-fill 0.35s ease-out 0.8s forwards;
+}
+
+@keyframes map-beaten {
+  0% {
+    transform: scale(1);
+    background: rgba(23, 32, 84, 0.25);
+    color: #fff;
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes map-fill {
+  to {
+    background-position: 0 0;
+  }
+}
+
+@keyframes map-next-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0.4;
+  }
+}
+
+@keyframes map-next-pulse {
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-stop.fresh,
+  .map-stop.next,
+  .map-link.fill {
+    animation: none;
+  }
+
+  .map-link.fill {
+    background: var(--gold-bright);
+  }
+}
+
 .progress-track {
   position: relative;
   flex: 1;

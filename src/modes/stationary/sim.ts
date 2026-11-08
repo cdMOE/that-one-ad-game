@@ -722,6 +722,13 @@ export class StationarySim {
     this.squadVx = dt > 0 ? step / dt : 0;
   }
 
+  /** Debug aid (`?debug`, key W): the run is won on the spot, to see what comes after a win. */
+  forceWin(): void {
+    if (this.phase === 'won' || this.phase === 'lost') return;
+    for (let i = 0; i < MAX_MONSTERS; i++) this.malive[i] = 0;
+    this.end(true);
+  }
+
   private end(won: boolean): void {
     this.phase = won ? 'won' : 'lost';
     if (!won) {

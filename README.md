@@ -37,7 +37,8 @@ npm run dev
 ```
 
 Open the printed URL (on a phone: use the network URL on the same Wi-Fi). Add `?debug` to the URL
-for an FPS overlay, and `?unlock=all` to unlock every level (and pick any shooter level).
+for an FPS overlay (and `W` to win a shooter run on the spot), and `?unlock=all` to unlock every
+level (and pick any shooter level).
 
 Controls: drag with finger or mouse, or use `A`/`D` or the arrow keys.
 
