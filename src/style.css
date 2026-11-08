@@ -502,6 +502,44 @@ body {
   }
 }
 
+/* until the first purchase, a hand taps the first card the wallet can pay, and the card breathes */
+.up-card.nudge {
+  z-index: 2;
+  animation: nudge-card 1.1s ease-in-out infinite;
+}
+
+.up-nudge-hand {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  margin-left: -6px;
+  font-size: 36px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35));
+  animation: nudge-tap 1.1s ease-in-out infinite;
+}
+
+@keyframes nudge-card {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes nudge-tap {
+  0%,
+  100% {
+    transform: translateY(6px) scale(1);
+  }
+  45% {
+    transform: translateY(0) scale(0.9);
+  }
+}
+
 .up-card.maxed .up-buy {
   background: var(--teal);
 }
@@ -511,7 +549,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .up-card.can .up-buy-label {
+  .up-card.can .up-buy-label,
+  .up-card.nudge,
+  .up-nudge-hand {
     animation: none;
   }
 }
@@ -819,6 +859,11 @@ body {
 
 .play-label {
   animation: tap-label 1.1s ease-in-out infinite;
+}
+
+/* one hand per screen: while a card is nudged, that is the thing to tap first */
+.levels:has(.up-card.nudge) .play-hand {
+  visibility: hidden;
 }
 
 @keyframes tap-hand {

@@ -492,16 +492,27 @@ export class Ui {
     });
   }
 
-  /** The button Enter and Space press: the obvious next step of the screen on top, if any. */
+  /**
+   * The button Enter and Space press: the obvious next step of the screen on top, if any. While
+   * the tutorial hand taps a card, that card is the next step, so a keyboard player learns it too.
+   */
   private primaryButton(): HTMLElement | null {
     if (!this.pause.hidden) return this.resumeBtn;
+    const nudged = (bar: HTMLElement) =>
+      bar.hidden ? null : bar.querySelector<HTMLElement>('.up-card.nudge');
     if (!this.result.hidden) {
       // the finale's big button shares, which is nothing to set off by accident
       if (this.result.classList.contains('finale')) return null;
+      const card = nudged(this.resultBar);
+      if (card) return card;
       if (!this.nextBtn.hidden) return this.nextBtn;
       return this.retryBtn.hidden ? null : this.retryBtn;
     }
-    if (!this.levelScreen.hidden) return this.playBtn.hidden ? null : this.playBtn;
+    if (!this.levelScreen.hidden) {
+      const card = nudged(this.levelBar);
+      if (card) return card;
+      return this.playBtn.hidden ? null : this.playBtn;
+    }
     if (!this.menu.hidden) return this.modeList.querySelector('button');
     return null;
   }
@@ -654,6 +665,7 @@ export class Ui {
     );
     this.barRenderers.push(() => {
       wallet.textContent = formatCount(this.save.coins);
+      const nudge = this.nudgeKind();
       cards.replaceChildren();
       for (const kind of UPGRADE_KINDS) {
         const info = UPGRADES[kind];
@@ -675,7 +687,9 @@ export class Ui {
         const card = h(
           'button',
           {
-            class: `up-card up-${kind}${affordable ? ' can' : ''}${maxed ? ' maxed' : ''}`,
+            class: `up-card up-${kind}${affordable ? ' can' : ''}${maxed ? ' maxed' : ''}${
+              kind === nudge ? ' nudge' : ''
+            }`,
             title: info.blurb,
           },
           h('span', { class: 'up-title', text: info.title.toUpperCase() }),
@@ -701,6 +715,7 @@ export class Ui {
           `${maxed ? 0 : Math.min(100, (this.save.coins / cost) * 100)}%`,
         );
         card.disabled = !affordable;
+        if (kind === nudge) card.append(h('span', { class: 'up-nudge-hand', text: '\u{1F446}' }));
         card.addEventListener('click', () => {
           this.handlers.onClick();
           this.handlers.onBuy(kind);
@@ -712,6 +727,16 @@ export class Ui {
       }
     });
     return bar;
+  }
+
+  /**
+   * The card the tutorial hand taps until the first purchase: the first one the wallet can pay.
+   * Players went straight for the big RETRY button and never found the cards, then hit a wall
+   * a few runs later without knowing why. Once anything is bought the hand never comes back.
+   */
+  private nudgeKind(): UpgradeKind | null {
+    if (UPGRADE_KINDS.some((kind) => this.save.upgrades[kind] > 0)) return null;
+    return UPGRADE_KINDS.find((kind) => this.save.coins >= upgradeCost(kind, 0)) ?? null;
   }
 
   /** Redraws every upgrade bar (called after a purchase, a result and a reset). */
