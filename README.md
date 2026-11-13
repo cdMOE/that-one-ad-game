@@ -5,7 +5,7 @@
 **[Play it in the browser](https://cdmoe.github.io/that-one-ad-game/)**
 News on X: [@moe_zerr](https://x.com/moe_zerr)
 
-![That One Ad Game: the squad on the bridge, power-up blocks on the left, the castle ahead](public/og-image.png)
+![That One Ad Game: a blue squad fires into a wall of red monsters and a crowned boss on the bridge](public/og-image.png)
 
 You've seen this game in a hundred ads. Here it is, and you can actually play it. Drag the squad,
 shoot whatever comes down the bridge, lose, buy upgrades, go again. Works with one thumb on a phone
